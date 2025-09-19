@@ -38,8 +38,8 @@ This is a test project for learning purposes.
 1. Clone this repo:
 
    ```bash
-   git clone https://github.com/petra-dot/socialclip-downloader-gui.git
-   cd socialclip-downloader-gui
+   git clone https://github.com/petra-dot/socialclip-downloader.git
+   cd socialclip-downloader
    ```
 
 2. Install dependencies:
