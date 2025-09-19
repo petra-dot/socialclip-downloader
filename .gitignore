@@ -1,0 +1,28 @@
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folders
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+*.spec
+build/
+dist/
+
+# IDE/editor specific files
+.vscode/
+.idea/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
