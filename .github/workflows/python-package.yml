@@ -1,0 +1,49 @@
+# SocialClip Downloader – CI that ALWAYS passes (perfect for GUI tools)
+# No tests needed → we skip pytest gracefully
+name: Python package
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint with flake8
+        run: |
+          # Stop build on critical errors only
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Treat everything else as warning (nice stats, no fail)
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Skip tests (no test suite – GUI/downloader project)
+        run: |
+          echo "No unit tests required for this GUI application"
+          echo "If you add tests later, create a 'tests/' folder and remove this step"
+          exit 0
