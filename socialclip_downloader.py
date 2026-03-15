@@ -1,12 +1,12 @@
-# socialclip_downloader_fixed.py
-# Updated: Adds correct filenames, uniqueness, file->convert features, and avoids upscaling.
-
 import sys
 import os
 import re
 import datetime
 import subprocess
 import urllib.request
+
+__version__ = "0.3.0"
+
 PYQT_IMPORT_ERROR = None
 YTDLP_IMPORT_ERROR = None
 try:
@@ -481,7 +481,7 @@ class BatchDownloadWorker(QtCore.QThread):
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SocialClip Downloader")
+        self.setWindowTitle(f"SocialClip Downloader v{__version__}")
         self.setMinimumSize(820, 520)
         self.worker = None
         self.conv_worker = None
