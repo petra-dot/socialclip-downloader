@@ -122,13 +122,14 @@ class DownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, url, outtmpl, convert, target_resolution, output_type):
+    def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None):
         super().__init__()
         self.url = url
         self.outtmpl = outtmpl  # full template including .%(ext)s
         self.convert = convert
         self.target_resolution = target_resolution
         self.output_type = output_type
+        self.cookies_file = cookies_file  # path to cookies.txt or None
 
     def run(self):
         try:
@@ -149,6 +150,9 @@ class DownloadWorker(QtCore.QThread):
                     }
                 },
             }
+            if self.cookies_file and os.path.isfile(self.cookies_file):
+                ydl_opts["cookiefile"] = self.cookies_file
+                self.status_signal.emit(f"Using cookies: {self.cookies_file}")
 
             # First, try to update yt-dlp
             try:
@@ -365,6 +369,7 @@ class MainWindow(QtWidgets.QWidget):
         self.setMinimumSize(820, 520)
         self.worker = None
         self.conv_worker = None
+        self.cookies_file = ""  # path to cookies.txt; empty = no cookies
         self.init_ui()
 
     def init_ui(self):
@@ -380,7 +385,23 @@ class MainWindow(QtWidgets.QWidget):
         url_row.addWidget(self.fetch_meta_btn)
         main.addLayout(url_row)
 
-        # Save folder
+        # Cookies file row
+        cookies_row = QtWidgets.QHBoxLayout()
+        cookies_label = QtWidgets.QLabel("Cookies (YouTube):")
+        cookies_label.setFixedWidth(130)
+        cookies_row.addWidget(cookies_label)
+        self.cookies_input = QtWidgets.QLineEdit()
+        self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for YouTube auth")
+        self.cookies_input.textChanged.connect(self._on_cookies_changed)
+        cookies_row.addWidget(self.cookies_input)
+        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        browse_cookies_btn.clicked.connect(self.on_browse_cookies)
+        cookies_row.addWidget(browse_cookies_btn)
+        clear_cookies_btn = QtWidgets.QPushButton("Clear")
+        clear_cookies_btn.setFixedWidth(50)
+        clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
+        cookies_row.addWidget(clear_cookies_btn)
+        main.addLayout(cookies_row)
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
         save_layout.addWidget(self.save_dir_input)
@@ -474,6 +495,27 @@ class MainWindow(QtWidgets.QWidget):
         sb = self.console_log.verticalScrollBar()
         sb.setValue(sb.maximum())
 
+    def _on_cookies_changed(self, text):
+        self.cookies_file = text.strip()
+
+    def on_browse_cookies(self):
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select cookies.txt",
+            os.path.expanduser("~"),
+            "Text files (*.txt);;All files (*)",
+        )
+        if file:
+            self.cookies_input.setText(file)
+            self.log(f"Cookies file set: {file}")
+
+    def _get_ydl_base_opts(self):
+        """Return base ydl options including cookiefile if set."""
+        opts = {"skip_download": True, "noplaylist": True}
+        if self.cookies_file and os.path.isfile(self.cookies_file):
+            opts["cookiefile"] = self.cookies_file
+        return opts
+
     def on_browse(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Choose folder", self.save_dir_input.text()
@@ -489,7 +531,7 @@ class MainWindow(QtWidgets.QWidget):
             return
         try:
             self.log("Fetching metadata...")
-            ydl_opts = {"skip_download": True, "noplaylist": True}
+            ydl_opts = self._get_ydl_base_opts()
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
             title = info.get("title") or info.get("id") or "video"
@@ -512,7 +554,7 @@ class MainWindow(QtWidgets.QWidget):
         # Pre-fetch info to build filename and to ensure unique file names
         try:
             self.log("Preparing download (fetching metadata)...")
-            with YoutubeDL({"skip_download": True, "noplaylist": True}) as ydl:
+            with YoutubeDL(self._get_ydl_base_opts()) as ydl:
                 info = ydl.extract_info(url, download=False)
         except Exception as e:
             self.log(f"Failed to fetch metadata: {e}")
@@ -531,7 +573,9 @@ class MainWindow(QtWidgets.QWidget):
         # Build outtmpl and ensure uniqueness (predict ext with prepare_filename)
         # Use a temporary ydl to predict ext
         temp_outtmpl = os.path.join(save_dir, base_filename + ".%(ext)s")
-        with YoutubeDL({"outtmpl": temp_outtmpl}) as ydl_tmp:
+        tmp_opts = self._get_ydl_base_opts()
+        tmp_opts["outtmpl"] = temp_outtmpl
+        with YoutubeDL(tmp_opts) as ydl_tmp:
             predicted = ydl_tmp.prepare_filename(info)  # this includes extension
         pred_dir, pred_name = os.path.split(predicted)
         pred_base, pred_ext = os.path.splitext(pred_name)
@@ -554,7 +598,8 @@ class MainWindow(QtWidgets.QWidget):
         self.download_btn.setEnabled(False)
         self.log(f"Downloading as: {final_base} (temp outtmpl set).")
         self.worker = DownloadWorker(
-            url, final_outtmpl, convert, target_resolution, output_type
+            url, final_outtmpl, convert, target_resolution, output_type,
+            cookies_file=self.cookies_file or None,
         )
         self.worker.status_signal.connect(self.log)
         self.worker.finished_signal.connect(self.on_worker_finished)
