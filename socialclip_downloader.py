@@ -6,6 +6,7 @@ import os
 import re
 import datetime
 import subprocess
+import urllib.request
 PYQT_IMPORT_ERROR = None
 YTDLP_IMPORT_ERROR = None
 try:
@@ -22,6 +23,11 @@ except Exception as e:
     YTDLP_IMPORT_ERROR = e
 
 # ---------------- Utility ----------------
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI terminal color codes from yt-dlp error messages."""
+    return re.sub(r"\[[0-9;]*m", "", text)
+
 
 
 def default_download_folder():
@@ -121,6 +127,7 @@ def make_unique_filepath(
 class DownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
+    progress_signal = QtCore.pyqtSignal(int)
 
     def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None):
         super().__init__()
@@ -130,40 +137,45 @@ class DownloadWorker(QtCore.QThread):
         self.target_resolution = target_resolution
         self.output_type = output_type
         self.cookies_file = cookies_file  # path to cookies.txt or None
+        self._progress_hook = self._create_progress_hook()
+
+    def _create_progress_hook(self):
+        def hook(d):
+            if d.get("status") == "downloading":
+                total = d.get("total_bytes") or d.get("total_bytes_estimate")
+                downloaded = d.get("downloaded_bytes", 0)
+                if total and total > 0:
+                    pct = int(downloaded / total * 100)
+                    self.progress_signal.emit(pct)
+            elif d.get("status") == "finished":
+                self.progress_signal.emit(100)
+        return hook
 
     def run(self):
         try:
             # Check if URL is valid and extractable
             self.status_signal.emit("Starting download and checking URL...")
             ydl_opts = {
-                "format": "bestvideo+bestaudio/best",
+                "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
                 "outtmpl": self.outtmpl,
                 "merge_output_format": "mp4",
                 "noplaylist": True,
-                "updatetime": False,  # Avoid timestamp errors
-                "no_warnings": False,  # Show warnings for debugging
-                "ignoreerrors": True,  # Continue on download errors
-                "extractor_args": {
-                    "youtube": {
-                        "player_skip": ["webpage", "js"],  # Skip player extraction
-                        "include_live_dash": True,  # Include live dash formats
-                    }
-                },
+                "updatetime": False,
+                "no_warnings": False,
+                "ignoreerrors": False,
+                "age_limit": 99,
+                "no_color": True,
+                "progress_hooks": [self._progress_hook],
             }
             if self.cookies_file and os.path.isfile(self.cookies_file):
                 ydl_opts["cookiefile"] = self.cookies_file
                 self.status_signal.emit(f"Using cookies: {self.cookies_file}")
 
-            # First, try to update yt-dlp
-            try:
-                with YoutubeDL({"update": True}) as ydl_update:
-                    ydl_update.download([])
-            except Exception as e:
-                self.status_signal.emit(f"Update check failed: {str(e)}")
-
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(self.url, download=True)  # downloads now
-                # predict final filename
+                info = ydl.extract_info(self.url, download=True)
+                if not info:
+                    self.finished_signal.emit("Download failed: could not extract video info. The video may be private, deleted, or region-locked.")
+                    return
                 downloaded_file = ydl.prepare_filename(info)
             self.status_signal.emit(f"Downloaded: {downloaded_file}")
 
@@ -186,9 +198,9 @@ class DownloadWorker(QtCore.QThread):
                     "-y",
                     mp3_path,
                 ]
-                subprocess.run(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode != 0:
+                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
                 self.finished_signal.emit(f"MP3 saved: {mp3_path}")
                 return
 
@@ -234,16 +246,23 @@ class DownloadWorker(QtCore.QThread):
                     "-y",
                     out_file,
                 ]
-                subprocess.run(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode != 0:
+                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
                 self.finished_signal.emit(f"Conversion completed: {out_file}")
                 return
 
             # If no conversion or conversion not applicable
             self.finished_signal.emit(f"Download finished: {downloaded_file}")
         except Exception as e:
-            self.finished_signal.emit(f"Error during download/conversion: {e}")
+            error_msg = strip_ansi(str(e))
+            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs", "Requested format"]):
+                if "Requested format" in error_msg:
+                    self.finished_signal.emit("Could not find a downloadable format. Try a different video or check if it is region-locked.")
+                else:
+                    self.finished_signal.emit("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
+            else:
+                self.finished_signal.emit(f"Error during download/conversion: {error_msg}")
 
 
 class ConvertFileWorker(QtCore.QThread):
@@ -296,9 +315,9 @@ class ConvertFileWorker(QtCore.QThread):
                         "-y",
                         out_path,
                     ]
-                subprocess.run(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode != 0:
+                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
                 self.finished_signal.emit(f"Audio saved: {out_path}")
                 return
 
@@ -348,15 +367,112 @@ class ConvertFileWorker(QtCore.QThread):
                     "-y",
                     out_path,
                 ]
-                subprocess.run(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode != 0:
+                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
                 self.finished_signal.emit(f"Conversion completed: {out_path}")
                 return
 
             self.finished_signal.emit("Unknown conversion parameters.")
         except Exception as e:
             self.finished_signal.emit(f"Error during conversion: {e}")
+
+
+class BatchDownloadWorker(QtCore.QThread):
+    status_signal = QtCore.pyqtSignal(str)
+    finished_signal = QtCore.pyqtSignal(str)
+
+    def __init__(self, urls, save_dir, output_type, target_resolution, cookies_file):
+        super().__init__()
+        self.urls = urls
+        self.save_dir = save_dir
+        self.output_type = output_type
+        self.target_resolution = target_resolution
+        self.cookies_file = cookies_file
+
+    def run(self):
+        succeeded = 0
+        failed = 0
+        total = len(self.urls)
+        for i, url in enumerate(self.urls, 1):
+            try:
+                self.status_signal.emit(f"[ {i} / {total} ] Starting: {url}")
+                ydl_opts = {
+                    "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+                    "outtmpl": os.path.join(self.save_dir, "%(title)s.%(ext)s"),
+                    "merge_output_format": "mp4",
+                    "noplaylist": True,
+                    "updatetime": False,
+                    "no_warnings": False,
+                    "ignoreerrors": False,
+                    "age_limit": 99,
+                    "no_color": True,
+                }
+                if self.cookies_file and os.path.isfile(self.cookies_file):
+                    ydl_opts["cookiefile"] = self.cookies_file
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                if not info:
+                    raise Exception("Could not extract video info. Video may be private, deleted, or region-locked.")
+                downloaded_file = ydl.prepare_filename(info)
+                final_height = info.get("height") or ffprobe_get_height(downloaded_file)
+                if self.output_type == "MP3":
+                    mp3_path = os.path.splitext(downloaded_file)[0] + ".mp3"
+                    cmd = [
+                        "ffmpeg",
+                        "-i",
+                        downloaded_file,
+                        "-q:a",
+                        "0",
+                        "-map",
+                        "a",
+                        "-y",
+                        mp3_path,
+                    ]
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if result.returncode != 0:
+                        raise Exception(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    final_file = mp3_path
+                else:
+                    if self.target_resolution < final_height and final_height > 0:
+                        base, _ = os.path.splitext(downloaded_file)
+                        out_file = f"{base}_{self.target_resolution}p.mp4"
+                        cmd = [
+                            "ffmpeg",
+                            "-i",
+                            downloaded_file,
+                            "-c:v",
+                            "libx264",
+                            "-preset",
+                            "slow",
+                            "-crf",
+                            "22",
+                            "-vf",
+                            f"scale=-2:{self.target_resolution}",
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            "128k",
+                            "-y",
+                            out_file,
+                        ]
+                        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        if result.returncode != 0:
+                            raise Exception(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                        final_file = out_file
+                    else:
+                        final_file = downloaded_file
+                self.status_signal.emit(f"[ {i} / {total} ] Done: {os.path.basename(final_file)}")
+                succeeded += 1
+            except Exception as e:
+                error_msg = strip_ansi(str(e))
+                if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
+                    error_msg = "YouTube blocked. Load cookies.txt and try again."
+                elif "Requested format" in error_msg:
+                    error_msg = "Format not available. Video may be region-locked."
+                self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} — {error_msg}")
+                failed += 1
+        self.finished_signal.emit(f"Batch complete. {succeeded} succeeded, {failed} failed.")
 
 
 # ---------------- GUI ----------------
@@ -369,16 +485,24 @@ class MainWindow(QtWidgets.QWidget):
         self.setMinimumSize(820, 520)
         self.worker = None
         self.conv_worker = None
+        self.batch_worker = None
         self.cookies_file = ""  # path to cookies.txt; empty = no cookies
         self.init_ui()
 
     def init_ui(self):
-        main = QtWidgets.QVBoxLayout(self)
+        self.tabs = QtWidgets.QTabWidget()
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().addWidget(self.tabs)
+
+        single_tab = QtWidgets.QWidget()
+        main = QtWidgets.QVBoxLayout(single_tab)
+        self.tabs.addTab(single_tab, "Single Download")
 
         # URL & download area
         url_row = QtWidgets.QHBoxLayout()
         self.url_input = QtWidgets.QLineEdit()
         self.url_input.setPlaceholderText("Paste video URL here")
+        self.url_input.textChanged.connect(self._on_url_changed)
         url_row.addWidget(self.url_input)
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch Metadata")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
@@ -410,12 +534,22 @@ class MainWindow(QtWidgets.QWidget):
         save_layout.addWidget(browse_btn)
         main.addLayout(save_layout)
 
-        # Metadata preview labels
+        # Metadata preview
         meta_layout = QtWidgets.QHBoxLayout()
+        self.thumbnail_label = QtWidgets.QLabel("No preview")
+        self.thumbnail_label.setFixedSize(160, 90)
+        self.thumbnail_label.setAlignment(QtCore.Qt.AlignCenter)
+        meta_layout.addWidget(self.thumbnail_label)
+        meta_right = QtWidgets.QVBoxLayout()
         self.meta_title = QtWidgets.QLabel("Title: —")
         self.meta_uploader = QtWidgets.QLabel("Uploader: —")
-        meta_layout.addWidget(self.meta_title)
-        meta_layout.addWidget(self.meta_uploader)
+        self.meta_duration = QtWidgets.QLabel("Duration: —")
+        self.meta_platform = QtWidgets.QLabel("Platform: —")
+        meta_right.addWidget(self.meta_title)
+        meta_right.addWidget(self.meta_uploader)
+        meta_right.addWidget(self.meta_duration)
+        meta_right.addWidget(self.meta_platform)
+        meta_layout.addLayout(meta_right)
         main.addLayout(meta_layout)
 
         # Output type and convert choices
@@ -450,6 +584,13 @@ class MainWindow(QtWidgets.QWidget):
         self.download_btn.clicked.connect(self.on_download)
         dl_row.addWidget(self.download_btn)
         main.addLayout(dl_row)
+
+        # Progress bar
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        main.addWidget(self.progress_bar)
 
         # Console log
         self.console_log = QtWidgets.QTextEdit()
@@ -487,6 +628,49 @@ class MainWindow(QtWidgets.QWidget):
         conv_btn_row.addWidget(self.convert_file_btn)
         main.addLayout(conv_btn_row)
 
+        # Batch Download Tab
+        batch_tab = QtWidgets.QWidget()
+        batch_layout = QtWidgets.QVBoxLayout(batch_tab)
+        self.tabs.addTab(batch_tab, "Batch Download")
+
+        # 1. QTextEdit for URLs
+        self.batch_urls_text = QtWidgets.QTextEdit()
+        self.batch_urls_text.setPlaceholderText("Paste one URL per line")
+        batch_layout.addWidget(self.batch_urls_text)
+
+        # 2. Save folder row
+        batch_save_layout = QtWidgets.QHBoxLayout()
+        self.batch_save_dir_input = QtWidgets.QLineEdit(default_download_folder())
+        batch_save_layout.addWidget(self.batch_save_dir_input)
+        batch_browse_btn = QtWidgets.QPushButton("Browse")
+        batch_browse_btn.clicked.connect(self.on_batch_browse)
+        batch_save_layout.addWidget(batch_browse_btn)
+        batch_layout.addLayout(batch_save_layout)
+
+        # 3. Output and resolution row
+        batch_opts_layout = QtWidgets.QHBoxLayout()
+        self.batch_output_combo = QtWidgets.QComboBox()
+        self.batch_output_combo.addItems(["Video (MP4)", "Audio (MP3)"])
+        batch_opts_layout.addWidget(QtWidgets.QLabel("Output:"))
+        batch_opts_layout.addWidget(self.batch_output_combo)
+        self.batch_resolution_combo = QtWidgets.QComboBox()
+        self.batch_resolution_combo.addItems(["720", "1080", "1440", "2160"])
+        self.batch_resolution_combo.setCurrentText("1080")
+        batch_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
+        batch_opts_layout.addWidget(self.batch_resolution_combo)
+        batch_layout.addLayout(batch_opts_layout)
+
+        # 4. Start Batch button
+        self.batch_start_btn = QtWidgets.QPushButton("Start Batch")
+        self.batch_start_btn.clicked.connect(self.on_start_batch)
+        batch_layout.addWidget(self.batch_start_btn)
+
+        # 5. Console
+        self.batch_console_log = QtWidgets.QTextEdit()
+        self.batch_console_log.setReadOnly(True)
+        self.batch_console_log.setFixedHeight(200)
+        batch_layout.addWidget(self.batch_console_log)
+
     # ------- helpers for GUI and logging -------
     def log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -497,6 +681,14 @@ class MainWindow(QtWidgets.QWidget):
 
     def _on_cookies_changed(self, text):
         self.cookies_file = text.strip()
+
+    def _on_url_changed(self):
+        self.thumbnail_label.clear()
+        self.thumbnail_label.setText("No preview")
+        self.meta_title.setText("Title: —")
+        self.meta_uploader.setText("Uploader: —")
+        self.meta_duration.setText("Duration: —")
+        self.meta_platform.setText("Platform: —")
 
     def on_browse_cookies(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -511,7 +703,12 @@ class MainWindow(QtWidgets.QWidget):
 
     def _get_ydl_base_opts(self):
         """Return base ydl options including cookiefile if set."""
-        opts = {"skip_download": True, "noplaylist": True}
+        opts = {
+            "skip_download": True,
+            "noplaylist": True,
+            "age_limit": 99,
+            "no_color": True,
+        }
         if self.cookies_file and os.path.isfile(self.cookies_file):
             opts["cookiefile"] = self.cookies_file
         return opts
@@ -531,16 +728,61 @@ class MainWindow(QtWidgets.QWidget):
             return
         try:
             self.log("Fetching metadata...")
+            self.fetch_meta_btn.setEnabled(False)
             ydl_opts = self._get_ydl_base_opts()
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
+            if not info:
+                self.log("Could not fetch metadata. The video may be private or unavailable.")
+                self.fetch_meta_btn.setEnabled(True)
+                return
             title = info.get("title") or info.get("id") or "video"
             uploader = get_uploader(info) or "—"
             self.meta_title.setText(f"Title: {title}")
             self.meta_uploader.setText(f"Uploader: {uploader}")
+            # Thumbnail
+            try:
+                thumbnail_url = info.get("thumbnail")
+                if thumbnail_url:
+                    with urllib.request.urlopen(thumbnail_url) as response:
+                        data = response.read()
+                    pixmap = QtWidgets.QPixmap()
+                    pixmap.loadFromData(data)
+                    scaled_pixmap = pixmap.scaled(160, 90, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+                    self.thumbnail_label.setPixmap(scaled_pixmap)
+                else:
+                    self.thumbnail_label.setText("No thumbnail")
+            except Exception as e:
+                self.thumbnail_label.setText("Failed to load")
+            # Duration
+            duration = info.get("duration")
+            if duration:
+                if duration >= 3600:
+                    hours = duration // 3600
+                    minutes = (duration % 3600) // 60
+                    seconds = duration % 60
+                    duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                else:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    duration_str = f"{minutes:02d}:{seconds:02d}"
+                self.meta_duration.setText(f"Duration: {duration_str}")
+            else:
+                self.meta_duration.setText("Duration: —")
+            # Platform
+            platform = info.get("extractor") or info.get("webpage_url_domain") or "Unknown"
+            self.meta_platform.setText(f"Platform: {platform}")
             self.log("Metadata fetched.")
+            self.fetch_meta_btn.setEnabled(True)
         except Exception as e:
-            self.log(f"Metadata fetch failed: {e}")
+            self.fetch_meta_btn.setEnabled(True)
+            error_msg = strip_ansi(str(e))
+            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
+                self.log("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
+            elif "Requested format" in error_msg:
+                self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
+            else:
+                self.log(f"Metadata fetch failed: {error_msg}")
 
     # ------- download flow -------
     def on_download(self):
@@ -557,7 +799,13 @@ class MainWindow(QtWidgets.QWidget):
             with YoutubeDL(self._get_ydl_base_opts()) as ydl:
                 info = ydl.extract_info(url, download=False)
         except Exception as e:
-            self.log(f"Failed to fetch metadata: {e}")
+            error_msg = strip_ansi(str(e))
+            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
+                self.log("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
+            elif "Requested format" in error_msg:
+                self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
+            else:
+                self.log(f"Failed to fetch metadata: {error_msg}")
             return
 
         title = info.get("title") or info.get("id") or "video"
@@ -596,18 +844,22 @@ class MainWindow(QtWidgets.QWidget):
 
         # Start worker
         self.download_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
         self.log(f"Downloading as: {final_base} (temp outtmpl set).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
             cookies_file=self.cookies_file or None,
         )
         self.worker.status_signal.connect(self.log)
+        self.worker.progress_signal.connect(self.progress_bar.setValue)
         self.worker.finished_signal.connect(self.on_worker_finished)
         self.worker.start()
 
     def on_worker_finished(self, msg: str):
         self.log(msg)
         self.download_btn.setEnabled(True)
+        self.progress_bar.setVisible(False)
 
     # ------- convert-from-file UI -------
     def on_pick_file(self):
@@ -653,6 +905,42 @@ class MainWindow(QtWidgets.QWidget):
     def on_conv_finished(self, msg: str):
         self.log(msg)
         self.convert_file_btn.setEnabled(True)
+
+    def batch_log(self, msg: str):
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        self.batch_console_log.append(f"[{ts}] {msg}")
+        sb = self.batch_console_log.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
+    def on_batch_browse(self):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Choose folder", self.batch_save_dir_input.text()
+        )
+        if folder:
+            self.batch_save_dir_input.setText(folder)
+
+    def on_start_batch(self):
+        urls_text = self.batch_urls_text.toPlainText()
+        urls = [line.strip() for line in urls_text.split('\n') if line.strip()]
+        if not urls:
+            QtWidgets.QMessageBox.warning(self, "No URLs", "Please paste at least one URL.")
+            return
+        save_dir = self.batch_save_dir_input.text().strip() or default_download_folder()
+        os.makedirs(save_dir, exist_ok=True)
+        output_type = "MP3" if "MP3" in self.batch_output_combo.currentText() else "MP4"
+        target_resolution = int(self.batch_resolution_combo.currentText())
+        self.batch_start_btn.setEnabled(False)
+        self.batch_log(f"Starting batch download of {len(urls)} URLs...")
+        self.batch_worker = BatchDownloadWorker(
+            urls, save_dir, output_type, target_resolution, self.cookies_file
+        )
+        self.batch_worker.status_signal.connect(self.batch_log)
+        self.batch_worker.finished_signal.connect(self.on_batch_finished)
+        self.batch_worker.start()
+
+    def on_batch_finished(self, msg: str):
+        self.batch_log(msg)
+        self.batch_start_btn.setEnabled(True)
 
 
 # ---------------- Run ----------------

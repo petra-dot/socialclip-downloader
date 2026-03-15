@@ -1,2 +1,2 @@
-yt-dlp
+yt-dlp[default]
 PyQt5
