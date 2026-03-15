@@ -14,6 +14,7 @@ ENV/
 *.spec
 build/
 dist/
+*.exe
  
 # IDE/editor specific files
 .vscode/
