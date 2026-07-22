@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets, QtCore
 from utils.file_utils import clean_title, get_uploader, make_unique_filepath, default_download_folder
 from utils.ydl_opts import strip_ansi
 from workers.download_worker import DownloadWorker
+from platform.cookies import get_cookie_path
 
 
 class SingleTab(QtWidgets.QWidget):
@@ -164,6 +165,10 @@ class SingleTab(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "No URL", "Please paste a URL first.")
             return
         try:
+            auto_cookie = get_cookie_path(url)
+            if auto_cookie:
+                self.cookies_input.setText(auto_cookie)
+                self.cookies_file_ref["path"] = auto_cookie
             self.log("Fetching metadata...")
             self.fetch_meta_btn.setEnabled(False)
             ydl_opts = self._get_ydl_base_opts()
@@ -269,6 +274,11 @@ class SingleTab(QtWidgets.QWidget):
         output_type = "MP3" if "MP3" in self.output_combo.currentText() else "MP4"
         convert = self.convert_checkbox.isChecked() and (output_type == "MP4")
         target_resolution = int(self.resolution_combo.currentText())
+
+        auto_cookie = get_cookie_path(url)
+        if auto_cookie and not self.cookies_file_ref.get("path", ""):
+            self.cookies_file_ref["path"] = auto_cookie
+            self.log(f"Auto-detected cookies: {auto_cookie}")
 
         self.download_btn.setEnabled(False)
         self.progress_bar.setVisible(True)

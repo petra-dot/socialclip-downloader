@@ -3,6 +3,7 @@ from PyQt5 import QtWidgets
 from ui.single_tab import SingleTab
 from ui.batch_tab import BatchTab
 from ui.convert_tab import ConvertTab
+from ui.queue_tab import queueTab
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -27,3 +28,6 @@ class MainWindow(QtWidgets.QWidget):
 
         self.convert_tab = ConvertTab()
         self.tabs.addTab(self.convert_tab, "Convert File")
+
+        self.queue_tab = QueueTab(self.cookies_file)
+        self.tabs.addTab(self.queue_tab, "Queue & Schedule")

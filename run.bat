@@ -1,3 +1,3 @@
 @echo off
-python socialclip_downloader.py
+python main.py
 pause

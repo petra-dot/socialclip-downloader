@@ -3,7 +3,7 @@ import os
 
 from PyQt5 import QtCore
 
-from queue.models import QueueItem, DownloadStatus
+from dlqueue.models import QueueItem, DownloadStatus
 
 
 class QueueManager(QtCore.QObject):
