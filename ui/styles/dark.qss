@@ -41,6 +41,7 @@ QListWidget#sidebar::item:selected {
     color: #ffffff;
     font-weight: 600;
     border-left: 3px solid #ffffff;
+    padding-left: 13px;
 }
 
 /* === Header Bar === */

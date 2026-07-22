@@ -25,14 +25,9 @@ class MainWindow(QtWidgets.QWidget):
         self.sidebar = QtWidgets.QListWidget()
         self.sidebar.setFixedWidth(170)
         self.sidebar.setObjectName("sidebar")
-        items = [
-            ("\u24d3", "Download"),    # ⤓
-            ("\u2630", "Batch"),       # ☰
-            ("\u21bb", "Convert"),     # ↻
-            ("\u23f1", "Schedule"),    # ⏱
-        ]
-        for icon, label in items:
-            item = QtWidgets.QListWidgetItem(f"  {icon}  {label}")
+        items = ["Download", "Batch", "Convert", "Queue"]
+        for label in items:
+            item = QtWidgets.QListWidgetItem(label)
             item.setSizeHint(QtCore.QSize(170, 52))
             self.sidebar.addItem(item)
         self.sidebar.setCurrentRow(0)

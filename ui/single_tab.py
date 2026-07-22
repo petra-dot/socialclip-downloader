@@ -176,17 +176,6 @@ class SingleTab(QtWidgets.QWidget):
         save_layout.addWidget(browse_btn)
         layout.addLayout(save_layout)
 
-        self.download_btn = QtWidgets.QPushButton("Download")
-        self.download_btn.setObjectName("primaryBtn")
-        self.download_btn.clicked.connect(self.on_download)
-        layout.addWidget(self.download_btn)
-
-        self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
-
         layout.addWidget(_separator())
 
         # --- Cookies (collapsible) ---
@@ -211,10 +200,27 @@ class SingleTab(QtWidgets.QWidget):
         scroll.setWidget(card)
         main.addWidget(scroll, 1)
 
+        # Download bar (always visible, below scroll area)
+        download_bar = QtWidgets.QHBoxLayout()
+        download_bar.setContentsMargins(14, 0, 14, 0)
+        self.download_btn = QtWidgets.QPushButton("Download")
+        self.download_btn.setObjectName("primaryBtn")
+        self.download_btn.clicked.connect(self.on_download)
+        self.download_btn.setFixedHeight(40)
+        download_bar.addWidget(self.download_btn)
+
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setFixedHeight(22)
+        download_bar.addWidget(self.progress_bar)
+        main.addLayout(download_bar)
+
         # Console
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
-        self.console_log.setFixedHeight(180)
+        self.console_log.setFixedHeight(140)
         self.console_log.setObjectName("console")
         main.addWidget(self.console_log)
 
