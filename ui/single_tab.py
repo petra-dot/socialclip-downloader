@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets, QtCore
 from utils.file_utils import clean_title, get_uploader, make_unique_filepath, default_download_folder
 from utils.ydl_opts import strip_ansi
 from workers.download_worker import DownloadWorker
-from platform.cookies import get_cookie_path
+from sites.cookies import get_cookie_path
 
 
 class SingleTab(QtWidgets.QWidget):

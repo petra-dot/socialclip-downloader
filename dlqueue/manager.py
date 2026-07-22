@@ -104,7 +104,7 @@ class QueueManager(QtCore.QObject):
 
         cf = options.get("cookies_file", "")
         if not cf:
-            from platform.cookies import get_cookie_path
+            from sites.cookies import get_cookie_path
             cf = get_cookie_path(item.url)
 
         worker = DownloadWorker(
