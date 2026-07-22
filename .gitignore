@@ -31,6 +31,7 @@ dist/
 # Cookies - NEVER commit these
 cookies.txt
 *.cookies.txt
+*cookies.txt
 
 # graphify knowledge graph outputs
 graphify-out/
