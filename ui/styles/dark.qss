@@ -181,28 +181,28 @@ QCheckBox::indicator {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    border: 2px solid #5a5a5c;
-    background-color: #3a3a3c;
+    border: 2px solid #8a8a8e;
+    background: #ffffff;
 }
 
 QCheckBox::indicator:hover {
-    border-color: #7a7a7c;
-    background-color: #4a4a4c;
+    border-color: #aeaeb2;
+    background: #f5f5f5;
 }
 
 QCheckBox::indicator:checked {
-    background-color: #5a5a5c;
+    background: #5a5a5c;
     border-color: #5a5a5c;
 }
 
 QCheckBox::indicator:checked:hover {
-    background-color: #6a6a6c;
+    background: #6a6a6c;
     border-color: #6a6a6c;
 }
 
 QCheckBox::indicator:disabled {
-    background-color: #2c2c2e;
-    border-color: #3a3a3c;
+    background: #3a3a3c;
+    border-color: #5a5a5c;
 }
 
 /* === Push Button (default) === */
