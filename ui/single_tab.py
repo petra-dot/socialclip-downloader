@@ -54,7 +54,7 @@ class SingleTab(QtWidgets.QWidget):
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         clear_cookies_btn = QtWidgets.QPushButton("Clear")
-        clear_cookies_btn.setFixedWidth(50)
+        clear_cookies_btn.setFixedWidth(70)
         clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
         cookies_row.addWidget(clear_cookies_btn)
         card_video_layout.addLayout(cookies_row)

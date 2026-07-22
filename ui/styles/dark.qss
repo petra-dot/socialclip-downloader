@@ -22,7 +22,7 @@ QListWidget#sidebar {
 }
 
 QListWidget#sidebar::item {
-    height: 48px;
+    height: 52px;
     color: #e8e8ed;
     font-size: 13px;
     font-weight: 500;
@@ -95,10 +95,11 @@ QLineEdit {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 9px 14px;
     color: #ffffff;
     font-size: 13px;
     font-weight: 500;
+    min-height: 20px;
     selection-background-color: #5a5a5c;
     selection-color: #ffffff;
 }
@@ -122,11 +123,11 @@ QComboBox {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 9px 14px;
     color: #ffffff;
     font-size: 13px;
     font-weight: 500;
-    min-width: 80px;
+    min-width: 100px;
 }
 
 QComboBox:hover {
@@ -144,8 +145,8 @@ QComboBox:disabled {
 
 QComboBox::drop-down {
     border: none;
-    padding-right: 8px;
-    width: 24px;
+    padding-right: 4px;
+    width: 28px;
 }
 
 QComboBox::down-arrow {
@@ -153,7 +154,7 @@ QComboBox::down-arrow {
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-top: 6px solid #8e8e93;
-    margin-right: 4px;
+    margin-right: 2px;
 }
 
 QComboBox QAbstractItemView {
@@ -204,11 +205,11 @@ QPushButton {
     background-color: #3a3a3c;
     color: #ffffff;
     border: none;
-    padding: 8px 22px;
+    padding: 10px 24px;
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
-    min-width: 80px;
+    min-width: 90px;
 }
 
 QPushButton:hover {
@@ -372,11 +373,11 @@ QSpinBox {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
     border-radius: 6px;
-    padding: 6px 8px;
+    padding: 9px 14px;
     color: #ffffff;
     font-size: 13px;
     font-weight: 500;
-    min-width: 60px;
+    min-width: 80px;
 }
 
 QSpinBox:focus {
@@ -393,10 +394,11 @@ QTimeEdit {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
     border-radius: 6px;
-    padding: 6px 8px;
+    padding: 9px 14px;
     color: #ffffff;
     font-size: 13px;
     font-weight: 500;
+    min-width: 80px;
 }
 
 QTimeEdit:focus {

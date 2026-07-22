@@ -33,7 +33,7 @@ class MainWindow(QtWidgets.QWidget):
         ]
         for icon, label in items:
             item = QtWidgets.QListWidgetItem(f"  {icon}  {label}")
-            item.setSizeHint(QtCore.QSize(170, 48))
+            item.setSizeHint(QtCore.QSize(170, 52))
             self.sidebar.addItem(item)
         self.sidebar.setCurrentRow(0)
         layout.addWidget(self.sidebar)
