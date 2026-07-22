@@ -10,11 +10,60 @@ from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path
 
 
+PLACEHOLDER = "-"
+
+
 def _separator():
     line = QtWidgets.QFrame()
     line.setFrameShape(QtWidgets.QFrame.HLine)
     line.setStyleSheet("QFrame { color: #3a3a3c; }")
     return line
+
+
+class FetchWorker(QtCore.QThread):
+    finished_signal = QtCore.pyqtSignal(object)
+    error_signal = QtCore.pyqtSignal(str)
+
+    def __init__(self, url, cookies_path=None):
+        super().__init__()
+        self.url = url
+        self.cookies_path = cookies_path
+
+    def run(self):
+        from yt_dlp import YoutubeDL
+        opts = {
+            "skip_download": True,
+            "noplaylist": True,
+            "age_limit": 99,
+            "no_color": True,
+        }
+        if self.cookies_path and os.path.isfile(self.cookies_path):
+            opts["cookiefile"] = self.cookies_path
+        try:
+            with YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(self.url, download=False)
+            self.finished_signal.emit(info)
+        except Exception as e:
+            self.error_signal.emit(strip_ansi(str(e)))
+
+
+class ThumbnailWorker(QtCore.QThread):
+    done_signal = QtCore.pyqtSignal(object)
+
+    def __init__(self, thumbnail_url):
+        super().__init__()
+        self.thumbnail_url = thumbnail_url
+
+    def run(self):
+        try:
+            with urllib.request.urlopen(self.thumbnail_url, timeout=10) as response:
+                data = response.read()
+            pixmap = QtWidgets.QPixmap()
+            pixmap.loadFromData(data)
+            scaled = pixmap.scaled(160, 90, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            self.done_signal.emit(scaled)
+        except Exception:
+            self.done_signal.emit(None)
 
 
 class SingleTab(QtWidgets.QWidget):
@@ -23,10 +72,19 @@ class SingleTab(QtWidgets.QWidget):
         self.main_window = main_window_ref
         self.cookies_file_ref = cookies_file_ref
         self.worker = None
+        self.fetch_worker = None
+        self.thumb_worker = None
+        self._cached_info = None
+        self._fetch_url = ""
         self.init_ui()
 
     def init_ui(self):
         main = QtWidgets.QVBoxLayout(self)
+        main.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setObjectName("cardScroll")
 
         card = QtWidgets.QFrame()
         card.setObjectName("card")
@@ -38,7 +96,7 @@ class SingleTab(QtWidgets.QWidget):
         url_row = QtWidgets.QHBoxLayout()
         self.url_input = QtWidgets.QLineEdit()
         self.url_input.setPlaceholderText("Paste video URL here")
-        self.url_input.textChanged.connect(self._on_url_changed)
+        self.url_input.editingFinished.connect(self._on_url_changed)
         url_row.addWidget(self.url_input)
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
@@ -63,13 +121,13 @@ class SingleTab(QtWidgets.QWidget):
         self.thumbnail_label.setAlignment(QtCore.Qt.AlignCenter)
         meta_layout.addWidget(self.thumbnail_label)
         meta_right = QtWidgets.QVBoxLayout()
-        self.meta_title = QtWidgets.QLabel("Title: \u2014")
+        self.meta_title = QtWidgets.QLabel(f"Title: {PLACEHOLDER}")
         self.meta_title.setObjectName("metaValue")
-        self.meta_uploader = QtWidgets.QLabel("Uploader: \u2014")
+        self.meta_uploader = QtWidgets.QLabel(f"Uploader: {PLACEHOLDER}")
         self.meta_uploader.setObjectName("metaValue")
-        self.meta_duration = QtWidgets.QLabel("Duration: \u2014")
+        self.meta_duration = QtWidgets.QLabel(f"Duration: {PLACEHOLDER}")
         self.meta_duration.setObjectName("metaValue")
-        self.meta_platform = QtWidgets.QLabel("Platform: \u2014")
+        self.meta_platform = QtWidgets.QLabel(f"Platform: {PLACEHOLDER}")
         self.meta_platform.setObjectName("metaValue")
         meta_right.addWidget(self.meta_title)
         meta_right.addWidget(self.meta_uploader)
@@ -101,10 +159,10 @@ class SingleTab(QtWidgets.QWidget):
         fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
         fmt_row.addWidget(self.resolution_combo)
         fmt_row.addStretch()
-        self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
-        fmt_row.addWidget(self.convert_checkbox)
         layout.addLayout(fmt_row)
 
+        self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
+        layout.addWidget(self.convert_checkbox)
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
         layout.addWidget(self.checkbox_channel)
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
@@ -139,7 +197,7 @@ class SingleTab(QtWidgets.QWidget):
         cookies_inner = QtWidgets.QHBoxLayout(self.cookies_group)
         self.cookies_input = QtWidgets.QLineEdit()
         self.cookies_input.setPlaceholderText("Path to cookies.txt for auth")
-        self.cookies_input.textChanged.connect(self._on_cookies_changed)
+        self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_inner.addWidget(self.cookies_input)
         browse_cookies_btn = QtWidgets.QPushButton("Browse...")
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
@@ -150,7 +208,8 @@ class SingleTab(QtWidgets.QWidget):
         cookies_inner.addWidget(clear_cookies_btn)
         layout.addWidget(self.cookies_group)
 
-        main.addWidget(card)
+        scroll.setWidget(card)
+        main.addWidget(scroll, 1)
 
         # Console
         self.console_log = QtWidgets.QTextEdit()
@@ -165,22 +224,29 @@ class SingleTab(QtWidgets.QWidget):
         sb = self.console_log.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def _on_cookies_changed(self, text):
-        self.cookies_file_ref["path"] = text.strip()
+    def _on_cookies_changed(self):
+        self.cookies_file_ref["path"] = self.cookies_input.text().strip()
 
     def _on_cookies_toggled(self, checked):
         if checked:
             self.cookies_input.setFocus()
 
     def _on_url_changed(self):
+        if self.fetch_worker and self.fetch_worker.isRunning():
+            self.fetch_worker.quit()
+            self.fetch_worker.wait(2000)
+        self.fetch_worker = None
         self.thumbnail_label.clear()
         self.thumbnail_label.setText("No preview")
-        self.meta_title.setText("Title: \u2014")
-        self.meta_uploader.setText("Uploader: \u2014")
-        self.meta_duration.setText("Duration: \u2014")
-        self.meta_platform.setText("Platform: \u2014")
+        self.meta_title.setText(f"Title: {PLACEHOLDER}")
+        self.meta_uploader.setText(f"Uploader: {PLACEHOLDER}")
+        self.meta_duration.setText(f"Duration: {PLACEHOLDER}")
+        self.meta_platform.setText(f"Platform: {PLACEHOLDER}")
         self.info_section.setVisible(False)
         self._info_separator.setVisible(False)
+        self._cached_info = None
+        self.fetch_meta_btn.setEnabled(True)
+        self.fetch_meta_btn.setText("Fetch")
 
     def on_browse_cookies(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -191,19 +257,14 @@ class SingleTab(QtWidgets.QWidget):
         )
         if file:
             self.cookies_input.setText(file)
+            self._on_cookies_changed()
             self.log(f"Cookies file set: {file}")
 
-    def _get_ydl_base_opts(self):
-        opts = {
-            "skip_download": True,
-            "noplaylist": True,
-            "age_limit": 99,
-            "no_color": True,
-        }
+    def _get_cookies_path(self):
         cf = self.cookies_file_ref.get("path", "").strip()
         if cf and os.path.isfile(cf):
-            opts["cookiefile"] = cf
-        return opts
+            return cf
+        return None
 
     def on_browse(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
@@ -212,98 +273,104 @@ class SingleTab(QtWidgets.QWidget):
         if folder:
             self.save_dir_input.setText(folder)
 
+    def _update_info_display(self, info):
+        if not info:
+            self.log("Could not fetch metadata. The video may be private or unavailable.")
+            return
+        self._cached_info = info
+        title = info.get("title") or info.get("id") or "video"
+        uploader = get_uploader(info) or PLACEHOLDER
+        self.meta_title.setText(f"Title: {title}")
+        self.meta_uploader.setText(f"Uploader: {uploader}")
+
+        thumbnail_url = info.get("thumbnail")
+        if thumbnail_url:
+            self.thumbnail_label.setText("Loading...")
+            self.thumb_worker = ThumbnailWorker(thumbnail_url)
+            self.thumb_worker.done_signal.connect(self._on_thumbnail_loaded)
+            self.thumb_worker.start()
+        else:
+            self.thumbnail_label.setText("No thumbnail")
+
+        duration = info.get("duration")
+        if duration:
+            if duration >= 3600:
+                hours = duration // 3600
+                minutes = (duration % 3600) // 60
+                seconds = duration % 60
+                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            else:
+                minutes = duration // 60
+                seconds = duration % 60
+                duration_str = f"{minutes:02d}:{seconds:02d}"
+            self.meta_duration.setText(f"Duration: {duration_str}")
+        else:
+            self.meta_duration.setText(f"Duration: {PLACEHOLDER}")
+
+        platform = info.get("extractor") or info.get("webpage_url_domain") or "Unknown"
+        self.meta_platform.setText(f"Platform: {platform}")
+        self.info_section.setVisible(True)
+        self._info_separator.setVisible(True)
+        self.log("Metadata fetched.")
+
+    def _on_thumbnail_loaded(self, pixmap):
+        if pixmap:
+            self.thumbnail_label.setPixmap(pixmap)
+        else:
+            self.thumbnail_label.setText("Failed to load")
+
     def on_fetch_metadata(self):
-        from yt_dlp import YoutubeDL
         url = self.url_input.text().strip()
         if not url:
             QtWidgets.QMessageBox.warning(self, "No URL", "Please paste a URL first.")
             return
-        try:
-            auto_cookie = get_cookie_path(url)
-            if auto_cookie:
-                self.cookies_input.setText(auto_cookie)
-                self.cookies_file_ref["path"] = auto_cookie
-                self.cookies_group.setChecked(True)
-            self.log("Fetching metadata...")
-            self.fetch_meta_btn.setEnabled(False)
-            ydl_opts = self._get_ydl_base_opts()
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-            if not info:
-                self.log("Could not fetch metadata. The video may be private or unavailable.")
-                self.fetch_meta_btn.setEnabled(True)
-                return
-            title = info.get("title") or info.get("id") or "video"
-            uploader = get_uploader(info) or "\u2014"
-            self.meta_title.setText(f"Title: {title}")
-            self.meta_uploader.setText(f"Uploader: {uploader}")
-            try:
-                thumbnail_url = info.get("thumbnail")
-                if thumbnail_url:
-                    with urllib.request.urlopen(thumbnail_url) as response:
-                        data = response.read()
-                    pixmap = QtWidgets.QPixmap()
-                    pixmap.loadFromData(data)
-                    scaled_pixmap = pixmap.scaled(
-                        160, 90, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation
-                    )
-                    self.thumbnail_label.setPixmap(scaled_pixmap)
-                else:
-                    self.thumbnail_label.setText("No thumbnail")
-            except Exception:
-                self.thumbnail_label.setText("Failed to load")
-            duration = info.get("duration")
-            if duration:
-                if duration >= 3600:
-                    hours = duration // 3600
-                    minutes = (duration % 3600) // 60
-                    seconds = duration % 60
-                    duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                else:
-                    minutes = duration // 60
-                    seconds = duration % 60
-                    duration_str = f"{minutes:02d}:{seconds:02d}"
-                self.meta_duration.setText(f"Duration: {duration_str}")
-            else:
-                self.meta_duration.setText("Duration: \u2014")
-            platform = info.get("extractor") or info.get("webpage_url_domain") or "Unknown"
-            self.meta_platform.setText(f"Platform: {platform}")
-            self.info_section.setVisible(True)
-            self._info_separator.setVisible(True)
-            self.log("Metadata fetched.")
-            self.fetch_meta_btn.setEnabled(True)
-        except Exception as e:
-            self.fetch_meta_btn.setEnabled(True)
-            error_msg = strip_ansi(str(e))
-            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
-                self.log("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
-            elif "Requested format" in error_msg:
-                self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
-            else:
-                self.log(f"Metadata fetch failed: {error_msg}")
+        self._fetch_url = url
+        auto_cookie = get_cookie_path(url)
+        if auto_cookie:
+            self.cookies_input.setText(auto_cookie)
+            self.cookies_file_ref["path"] = auto_cookie
+            self.cookies_group.setChecked(True)
+        self.log("Fetching metadata...")
+        self.fetch_meta_btn.setEnabled(False)
+        self.fetch_meta_btn.setText("Fetching...")
+        cookies_path = self._get_cookies_path()
+        self.fetch_worker = FetchWorker(url, cookies_path)
+        self.fetch_worker.finished_signal.connect(self._on_fetch_finished)
+        self.fetch_worker.error_signal.connect(self._on_fetch_error)
+        self.fetch_worker.start()
+
+    def _on_fetch_finished(self, info):
+        self.fetch_meta_btn.setEnabled(True)
+        self.fetch_meta_btn.setText("Fetch")
+        if self.url_input.text().strip() != self._fetch_url:
+            return
+        self._update_info_display(info)
+
+    def _on_fetch_error(self, error_msg):
+        self.fetch_meta_btn.setEnabled(True)
+        self.fetch_meta_btn.setText("Fetch")
+        if self.url_input.text().strip() != self._fetch_url:
+            return
+        if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
+            self.log("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
+        elif "Requested format" in error_msg:
+            self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
+        else:
+            self.log(f"Metadata fetch failed: {error_msg}")
 
     def on_download(self):
-        from yt_dlp import YoutubeDL
         url = self.url_input.text().strip()
         if not url:
             QtWidgets.QMessageBox.warning(self, "No URL", "Please paste a URL first.")
             return
+
+        info = self._cached_info
+        if not info:
+            QtWidgets.QMessageBox.warning(self, "No Metadata", "Click Fetch first to get video info.")
+            return
+
         save_dir = self.save_dir_input.text().strip() or default_download_folder()
         os.makedirs(save_dir, exist_ok=True)
-
-        try:
-            self.log("Preparing download (fetching metadata)...")
-            with YoutubeDL(self._get_ydl_base_opts()) as ydl:
-                info = ydl.extract_info(url, download=False)
-        except Exception as e:
-            error_msg = strip_ansi(str(e))
-            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
-                self.log("YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again.")
-            elif "Requested format" in error_msg:
-                self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
-            else:
-                self.log(f"Failed to fetch metadata: {error_msg}")
-            return
 
         title = info.get("title") or info.get("id") or "video"
         uploader = get_uploader(info) or ""
@@ -316,8 +383,14 @@ class SingleTab(QtWidgets.QWidget):
             base_filename += "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
         temp_outtmpl = os.path.join(save_dir, base_filename + ".%(ext)s")
-        tmp_opts = self._get_ydl_base_opts()
-        tmp_opts["outtmpl"] = temp_outtmpl
+        from yt_dlp import YoutubeDL
+        tmp_opts = {
+            "skip_download": True,
+            "noplaylist": True,
+        }
+        cf = self._get_cookies_path()
+        if cf:
+            tmp_opts["cookiefile"] = cf
         with YoutubeDL(tmp_opts) as ydl_tmp:
             predicted = ydl_tmp.prepare_filename(info)
         pred_dir, pred_name = os.path.split(predicted)
@@ -340,10 +413,10 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        self.log(f"Downloading as: {final_base} (NLE-safe H.264/AAC MP4).")
+        self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
-            cookies_file=self.cookies_file_ref.get("path", "") or None,
+            cookies_file=self._get_cookies_path(),
         )
         self.worker.status_signal.connect(self.log)
         self.worker.progress_signal.connect(self.progress_bar.setValue)

@@ -416,8 +416,12 @@ QTimeEdit:disabled {
 }
 
 /* === Scroll Area === */
-QScrollArea {
+QScrollArea#cardScroll {
     border: none;
+    background-color: transparent;
+}
+
+QScrollArea#cardScroll > QWidget {
     background-color: transparent;
 }
 
