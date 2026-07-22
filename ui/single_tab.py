@@ -132,13 +132,10 @@ class SingleTab(QtWidgets.QWidget):
         res_row.addStretch()
         card_output_layout.addLayout(res_row)
 
-        rename_row = QtWidgets.QHBoxLayout()
-        self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
-        rename_row.addWidget(self.checkbox_channel)
-        rename_row.addWidget(self.checkbox_timestamp)
-        rename_row.addStretch()
-        card_output_layout.addLayout(rename_row)
+        card_output_layout.addWidget(self.checkbox_timestamp)
+        self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
+        card_output_layout.addWidget(self.checkbox_channel)
 
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
