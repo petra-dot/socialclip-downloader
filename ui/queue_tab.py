@@ -47,8 +47,12 @@ class QueueTab(QtWidgets.QWidget):
 
         layout.addWidget(QtWidgets.QLabel(""))
 
-        sched_group = QtWidgets.QGroupBox("Schedule & Limits")
-        sched_layout = QtWidgets.QVBoxLayout(sched_group)
+        sched_card = QtWidgets.QFrame()
+        sched_card.setObjectName("card")
+        sched_layout = QtWidgets.QVBoxLayout(sched_card)
+        sched_layout.setContentsMargins(12, 12, 12, 12)
+        sched_layout.setSpacing(8)
+        sched_layout.addWidget(QtWidgets.QLabel("Schedule & Limits"))
 
         max_row = QtWidgets.QHBoxLayout()
         max_row.addWidget(QtWidgets.QLabel("Max concurrent downloads:"))
@@ -73,9 +77,10 @@ class QueueTab(QtWidgets.QWidget):
         time_row.addStretch()
         sched_layout.addLayout(time_row)
 
-        layout.addWidget(sched_group)
+        layout.addWidget(sched_card)
 
         self.console_log = QtWidgets.QTextEdit()
+        self.console_log.setObjectName("console")
         self.console_log.setReadOnly(True)
         self.console_log.setFixedHeight(120)
         layout.addWidget(self.console_log)
@@ -104,7 +109,7 @@ class QueueTab(QtWidgets.QWidget):
 
         card = QtWidgets.QFrame()
         card.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        card.setStyleSheet("QFrame { background-color: #2a2a3c; border: 1px solid #45475a; border-radius: 6px; padding: 8px; }")
+        card.setStyleSheet("QFrame { background-color: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 10px; padding: 8px; }")
         card_layout = QtWidgets.QHBoxLayout(card)
         card_layout.setContentsMargins(8, 4, 8, 4)
 
@@ -114,10 +119,10 @@ class QueueTab(QtWidgets.QWidget):
 
         info_layout = QtWidgets.QVBoxLayout()
         url_label = QtWidgets.QLabel(item.url[:60] + ("..." if len(item.url) > 60 else ""))
-        url_label.setStyleSheet("font-weight: 600; color: #cdd6f4;")
+        url_label.setStyleSheet("font-weight: 600; color: #ffffff;")
         info_layout.addWidget(url_label)
         status_text = QtWidgets.QLabel("Queued")
-        status_text.setStyleSheet("color: #f9e2af; font-size: 11px;")
+        status_text.setStyleSheet("color: #aeaeb2; font-size: 11px;")
         info_layout.addWidget(status_text)
         card_layout.addLayout(info_layout, 1)
 
@@ -132,7 +137,7 @@ class QueueTab(QtWidgets.QWidget):
         btn_layout = QtWidgets.QVBoxLayout()
         cancel_btn = QtWidgets.QPushButton("Cancel")
         cancel_btn.setFixedWidth(60)
-        cancel_btn.setStyleSheet("background-color: #ef4444;")
+        cancel_btn.setStyleSheet("background-color: #5a2022;")
         cancel_btn.clicked.connect(lambda checked, iid=item_id: self.manager.cancel(iid))
         btn_layout.addWidget(cancel_btn)
 
@@ -161,37 +166,37 @@ class QueueTab(QtWidgets.QWidget):
             return
         if status == "downloading":
             w["status_label"].setText("\u25B6")
-            w["status_label"].setStyleSheet("color: #7c3aed;")
+            w["status_label"].setStyleSheet("color: #ffffff;")
             w["status_text"].setText("Downloading...")
-            w["status_text"].setStyleSheet("color: #7c3aed; font-size: 11px;")
+            w["status_text"].setStyleSheet("color: #ffffff; font-size: 11px;")
             w["progress_bar"].setVisible(True)
         elif status == "completed":
             w["status_label"].setText("\u2713")
-            w["status_label"].setStyleSheet("color: #a6e3a1;")
+            w["status_label"].setStyleSheet("color: #34c759;")
             w["status_text"].setText("Completed")
-            w["status_text"].setStyleSheet("color: #a6e3a1; font-size: 11px;")
+            w["status_text"].setStyleSheet("color: #34c759; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
         elif status == "failed":
             w["status_label"].setText("\u2717")
-            w["status_label"].setStyleSheet("color: #f38ba8;")
+            w["status_label"].setStyleSheet("color: #ff3b30;")
             w["status_text"].setText("Failed")
-            w["status_text"].setStyleSheet("color: #f38ba8; font-size: 11px;")
+            w["status_text"].setStyleSheet("color: #ff3b30; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
             w["retry_btn"].setVisible(True)
         elif status == "cancelled":
             w["status_label"].setText("\u2014")
-            w["status_label"].setStyleSheet("color: #585b70;")
+            w["status_label"].setStyleSheet("color: #7a7a7c;")
             w["status_text"].setText("Cancelled")
-            w["status_text"].setStyleSheet("color: #585b70; font-size: 11px;")
+            w["status_text"].setStyleSheet("color: #7a7a7c; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
         elif status == "queued":
             w["status_label"].setText("\u25CB")
-            w["status_label"].setStyleSheet("color: #f9e2af;")
+            w["status_label"].setStyleSheet("color: #aeaeb2;")
             w["status_text"].setText("Queued")
-            w["status_text"].setStyleSheet("color: #f9e2af; font-size: 11px;")
+            w["status_text"].setStyleSheet("color: #aeaeb2; font-size: 11px;")
             w["progress_bar"].setVisible(False)
 
     def _on_progress(self, item_id: str, pct: int):
