@@ -16,30 +16,19 @@ class BatchTab(QtWidgets.QWidget):
 
     def init_ui(self):
         batch_layout = QtWidgets.QVBoxLayout(self)
+        batch_layout.setContentsMargins(8, 8, 8, 8)
+        batch_layout.setSpacing(6)
 
-        # Card 1 — URLs input
-        urls_card = QtWidgets.QFrame()
-        urls_card.setObjectName("card")
-        urls_card_layout = QtWidgets.QVBoxLayout(urls_card)
-        urls_card_layout.setContentsMargins(12, 12, 12, 12)
-        urls_card_layout.setSpacing(8)
         urls_heading = QtWidgets.QLabel("URLs")
-        urls_heading.setObjectName("cardHeading")
-        urls_card_layout.addWidget(urls_heading)
+        urls_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        batch_layout.addWidget(urls_heading)
         self.batch_urls_text = QtWidgets.QTextEdit()
         self.batch_urls_text.setPlaceholderText("Paste one URL per line")
-        urls_card_layout.addWidget(self.batch_urls_text)
-        batch_layout.addWidget(urls_card)
+        batch_layout.addWidget(self.batch_urls_text)
 
-        # Card 2 — Options
-        opts_card = QtWidgets.QFrame()
-        opts_card.setObjectName("card")
-        opts_card_layout = QtWidgets.QVBoxLayout(opts_card)
-        opts_card_layout.setContentsMargins(12, 12, 12, 12)
-        opts_card_layout.setSpacing(8)
         opts_heading = QtWidgets.QLabel("Output")
-        opts_heading.setObjectName("cardHeading")
-        opts_card_layout.addWidget(opts_heading)
+        opts_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        batch_layout.addWidget(opts_heading)
 
         batch_save_layout = QtWidgets.QHBoxLayout()
         self.batch_save_dir_input = QtWidgets.QLineEdit(default_download_folder())
@@ -47,7 +36,7 @@ class BatchTab(QtWidgets.QWidget):
         batch_browse_btn = QtWidgets.QPushButton("Browse")
         batch_browse_btn.clicked.connect(self.on_batch_browse)
         batch_save_layout.addWidget(batch_browse_btn)
-        opts_card_layout.addLayout(batch_save_layout)
+        batch_layout.addLayout(batch_save_layout)
 
         batch_opts_layout = QtWidgets.QHBoxLayout()
         self.batch_output_combo = QtWidgets.QComboBox()
@@ -59,16 +48,13 @@ class BatchTab(QtWidgets.QWidget):
         self.batch_resolution_combo.setCurrentText("1080")
         batch_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
         batch_opts_layout.addWidget(self.batch_resolution_combo)
-        opts_card_layout.addLayout(batch_opts_layout)
+        batch_layout.addLayout(batch_opts_layout)
 
         self.batch_start_btn = QtWidgets.QPushButton("Start Batch")
-        self.batch_start_btn.setObjectName("primaryBtn")
         self.batch_start_btn.clicked.connect(self.on_start_batch)
-        opts_card_layout.addWidget(self.batch_start_btn)
-        batch_layout.addWidget(opts_card)
+        batch_layout.addWidget(self.batch_start_btn)
 
         self.batch_console_log = QtWidgets.QTextEdit()
-        self.batch_console_log.setObjectName("console")
         self.batch_console_log.setReadOnly(True)
         self.batch_console_log.setFixedHeight(200)
         batch_layout.addWidget(self.batch_console_log)

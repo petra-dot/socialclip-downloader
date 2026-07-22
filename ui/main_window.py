@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 
 from ui.single_tab import SingleTab
 from ui.batch_tab import BatchTab
@@ -11,57 +11,21 @@ class MainWindow(QtWidgets.QWidget):
         super().__init__()
         from socialclip_downloader import __version__
         self.setWindowTitle(f"SocialClip Downloader v{__version__}")
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(820, 520)
         self.cookies_file = {"path": ""}
-        self._version = __version__
         self.init_ui()
 
     def init_ui(self):
-        layout = QtWidgets.QHBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
 
-        # Sidebar
-        self.sidebar = QtWidgets.QListWidget()
-        self.sidebar.setFixedWidth(150)
-        self.sidebar.setObjectName("sidebar")
-        items = ["Download", "Batch", "Convert", "Queue"]
-        for label in items:
-            item = QtWidgets.QListWidgetItem(label)
-            item.setSizeHint(QtCore.QSize(150, 40))
-            self.sidebar.addItem(item)
-        self.sidebar.setCurrentRow(0)
-        layout.addWidget(self.sidebar)
-
-        # Right side: header + content
-        right = QtWidgets.QVBoxLayout()
-        right.setContentsMargins(0, 0, 0, 0)
-        right.setSpacing(0)
-
-        # Header bar
-        header = QtWidgets.QFrame()
-        header.setObjectName("headerBar")
-        header.setFixedHeight(36)
-        header_layout = QtWidgets.QHBoxLayout(header)
-        header_layout.setContentsMargins(14, 0, 14, 0)
-        title = QtWidgets.QLabel(f"SocialClip Downloader v{self._version}")
-        title.setObjectName("headerTitle")
-        header_layout.addWidget(title)
-        right.addWidget(header)
-
-        # Content stack
-        self.stack = QtWidgets.QStackedWidget()
+        self.tabs = QtWidgets.QTabWidget()
         self.single_tab = SingleTab(self, self.cookies_file)
         self.batch_tab = BatchTab(self.cookies_file)
         self.convert_tab = ConvertTab()
         self.queue_tab = QueueTab(self.cookies_file)
-        self.stack.addWidget(self.single_tab)   # index 0
-        self.stack.addWidget(self.batch_tab)     # index 1
-        self.stack.addWidget(self.convert_tab)   # index 2
-        self.stack.addWidget(self.queue_tab)     # index 3
-        right.addWidget(self.stack, 1)
-
-        layout.addLayout(right, 1)
-
-        # Connect sidebar
-        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.tabs.addTab(self.single_tab, "Download")
+        self.tabs.addTab(self.batch_tab, "Batch")
+        self.tabs.addTab(self.convert_tab, "Convert")
+        self.tabs.addTab(self.queue_tab, "Queue")
+        layout.addWidget(self.tabs)

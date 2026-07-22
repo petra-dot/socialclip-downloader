@@ -93,9 +93,7 @@ socialclip-downloader/
 │   ├── single_tab.py
 │   ├── batch_tab.py
 │   ├── convert_tab.py
-│   ├── queue_tab.py
-│   └── styles/
-│       └── dark.qss
+│   └── queue_tab.py
 ├── utils/
 │   ├── __init__.py
 │   ├── file_utils.py

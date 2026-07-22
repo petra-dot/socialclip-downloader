@@ -32,14 +32,8 @@ def main():
         sys.exit(1)
 
     from ui.main_window import MainWindow
-    from pathlib import Path
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle("Fusion")
-
-    qss_path = Path(__file__).parent / "ui" / "styles" / "dark.qss"
-    if qss_path.exists():
-        app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
 
     window = MainWindow()
     window.show()

@@ -13,13 +13,6 @@ from sites.cookies import get_cookie_path
 PLACEHOLDER = "-"
 
 
-def _separator():
-    line = QtWidgets.QFrame()
-    line.setFrameShape(QtWidgets.QFrame.HLine)
-    line.setStyleSheet("QFrame { color: #3a3a3c; }")
-    return line
-
-
 class FetchWorker(QtCore.QThread):
     finished_signal = QtCore.pyqtSignal(object)
     error_signal = QtCore.pyqtSignal(str)
@@ -80,17 +73,8 @@ class SingleTab(QtWidgets.QWidget):
 
     def init_ui(self):
         main = QtWidgets.QVBoxLayout(self)
-        main.setContentsMargins(0, 0, 0, 0)
-
-        scroll = QtWidgets.QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setObjectName("cardScroll")
-
-        card = QtWidgets.QFrame()
-        card.setObjectName("card")
-        layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        main.setContentsMargins(8, 8, 8, 8)
+        main.setSpacing(6)
 
         # URL row
         url_row = QtWidgets.QHBoxLayout()
@@ -101,18 +85,16 @@ class SingleTab(QtWidgets.QWidget):
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
         url_row.addWidget(self.fetch_meta_btn)
-        layout.addLayout(url_row)
-
-        layout.addWidget(_separator())
+        main.addLayout(url_row)
 
         # --- Video Info (hidden until fetch) ---
         self.info_section = QtWidgets.QWidget()
         info_section_layout = QtWidgets.QVBoxLayout(self.info_section)
         info_section_layout.setContentsMargins(0, 0, 0, 0)
-        info_section_layout.setSpacing(6)
+        info_section_layout.setSpacing(4)
 
         info_heading = QtWidgets.QLabel("Video Info")
-        info_heading.setObjectName("cardHeading")
+        info_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         info_section_layout.addWidget(info_heading)
 
         meta_layout = QtWidgets.QHBoxLayout()
@@ -122,13 +104,9 @@ class SingleTab(QtWidgets.QWidget):
         meta_layout.addWidget(self.thumbnail_label)
         meta_right = QtWidgets.QVBoxLayout()
         self.meta_title = QtWidgets.QLabel(f"Title: {PLACEHOLDER}")
-        self.meta_title.setObjectName("metaValue")
         self.meta_uploader = QtWidgets.QLabel(f"Uploader: {PLACEHOLDER}")
-        self.meta_uploader.setObjectName("metaValue")
         self.meta_duration = QtWidgets.QLabel(f"Duration: {PLACEHOLDER}")
-        self.meta_duration.setObjectName("metaValue")
         self.meta_platform = QtWidgets.QLabel(f"Platform: {PLACEHOLDER}")
-        self.meta_platform.setObjectName("metaValue")
         meta_right.addWidget(self.meta_title)
         meta_right.addWidget(self.meta_uploader)
         meta_right.addWidget(self.meta_duration)
@@ -137,15 +115,12 @@ class SingleTab(QtWidgets.QWidget):
         info_section_layout.addLayout(meta_layout)
 
         self.info_section.setVisible(False)
-        layout.addWidget(self.info_section)
-        self._info_separator = _separator()
-        self._info_separator.setVisible(False)
-        layout.addWidget(self._info_separator)
+        main.addWidget(self.info_section)
 
         # --- Output ---
         output_heading = QtWidgets.QLabel("Output")
-        output_heading.setObjectName("cardHeading")
-        layout.addWidget(output_heading)
+        output_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        main.addWidget(output_heading)
 
         fmt_row = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()
@@ -159,14 +134,14 @@ class SingleTab(QtWidgets.QWidget):
         fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
         fmt_row.addWidget(self.resolution_combo)
         fmt_row.addStretch()
-        layout.addLayout(fmt_row)
+        main.addLayout(fmt_row)
 
         self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
-        layout.addWidget(self.convert_checkbox)
+        main.addWidget(self.convert_checkbox)
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
-        layout.addWidget(self.checkbox_channel)
+        main.addWidget(self.checkbox_channel)
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
-        layout.addWidget(self.checkbox_timestamp)
+        main.addWidget(self.checkbox_timestamp)
 
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
@@ -174,39 +149,12 @@ class SingleTab(QtWidgets.QWidget):
         browse_btn = QtWidgets.QPushButton("Browse")
         browse_btn.clicked.connect(self.on_browse)
         save_layout.addWidget(browse_btn)
-        layout.addLayout(save_layout)
+        main.addLayout(save_layout)
 
-        layout.addWidget(_separator())
-
-        # --- Cookies (collapsible) ---
-        self.cookies_group = QtWidgets.QGroupBox("Cookies (optional)")
-        self.cookies_group.setCheckable(True)
-        self.cookies_group.setChecked(False)
-        self.cookies_group.toggled.connect(self._on_cookies_toggled)
-        cookies_inner = QtWidgets.QHBoxLayout(self.cookies_group)
-        self.cookies_input = QtWidgets.QLineEdit()
-        self.cookies_input.setPlaceholderText("Path to cookies.txt for auth")
-        self.cookies_input.editingFinished.connect(self._on_cookies_changed)
-        cookies_inner.addWidget(self.cookies_input)
-        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
-        browse_cookies_btn.clicked.connect(self.on_browse_cookies)
-        cookies_inner.addWidget(browse_cookies_btn)
-        clear_cookies_btn = QtWidgets.QPushButton("Clear")
-        clear_cookies_btn.setFixedWidth(70)
-        clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
-        cookies_inner.addWidget(clear_cookies_btn)
-        layout.addWidget(self.cookies_group)
-
-        scroll.setWidget(card)
-        main.addWidget(scroll, 1)
-
-        # Download bar (always visible, below scroll area)
+        # Download bar
         download_bar = QtWidgets.QHBoxLayout()
-        download_bar.setContentsMargins(12, 0, 12, 0)
         self.download_btn = QtWidgets.QPushButton("Download")
-        self.download_btn.setObjectName("primaryBtn")
         self.download_btn.clicked.connect(self.on_download)
-        self.download_btn.setFixedHeight(34)
         download_bar.addWidget(self.download_btn)
 
         self.progress_bar = QtWidgets.QProgressBar()
@@ -217,11 +165,30 @@ class SingleTab(QtWidgets.QWidget):
         download_bar.addWidget(self.progress_bar)
         main.addLayout(download_bar)
 
+        # --- Cookies ---
+        cookies_row = QtWidgets.QHBoxLayout()
+        cookies_label = QtWidgets.QLabel("Cookies (YouTube):")
+        cookies_label.setFixedWidth(130)
+        cookies_row.addWidget(cookies_label)
+        self.cookies_input = QtWidgets.QLineEdit()
+        self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for YouTube auth")
+        self.cookies_input.editingFinished.connect(self._on_cookies_changed)
+        cookies_row.addWidget(self.cookies_input)
+        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        browse_cookies_btn.clicked.connect(self.on_browse_cookies)
+        cookies_row.addWidget(browse_cookies_btn)
+        clear_cookies_btn = QtWidgets.QPushButton("Clear")
+        clear_cookies_btn.setFixedWidth(50)
+        clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
+        cookies_row.addWidget(clear_cookies_btn)
+        main.addLayout(cookies_row)
+
+        main.addStretch()
+
         # Console
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
-        self.console_log.setFixedHeight(110)
-        self.console_log.setObjectName("console")
+        self.console_log.setFixedHeight(180)
         main.addWidget(self.console_log)
 
     def log(self, msg: str):
@@ -232,10 +199,6 @@ class SingleTab(QtWidgets.QWidget):
 
     def _on_cookies_changed(self):
         self.cookies_file_ref["path"] = self.cookies_input.text().strip()
-
-    def _on_cookies_toggled(self, checked):
-        if checked:
-            self.cookies_input.setFocus()
 
     def _on_url_changed(self):
         if self.fetch_worker and self.fetch_worker.isRunning():
@@ -249,7 +212,6 @@ class SingleTab(QtWidgets.QWidget):
         self.meta_duration.setText(f"Duration: {PLACEHOLDER}")
         self.meta_platform.setText(f"Platform: {PLACEHOLDER}")
         self.info_section.setVisible(False)
-        self._info_separator.setVisible(False)
         self._cached_info = None
         self.fetch_meta_btn.setEnabled(True)
         self.fetch_meta_btn.setText("Fetch")
@@ -316,7 +278,6 @@ class SingleTab(QtWidgets.QWidget):
         platform = info.get("extractor") or info.get("webpage_url_domain") or "Unknown"
         self.meta_platform.setText(f"Platform: {platform}")
         self.info_section.setVisible(True)
-        self._info_separator.setVisible(True)
         self.log("Metadata fetched.")
 
     def _on_thumbnail_loaded(self, pixmap):
@@ -335,7 +296,6 @@ class SingleTab(QtWidgets.QWidget):
         if auto_cookie:
             self.cookies_input.setText(auto_cookie)
             self.cookies_file_ref["path"] = auto_cookie
-            self.cookies_group.setChecked(True)
         self.log("Fetching metadata...")
         self.fetch_meta_btn.setEnabled(False)
         self.fetch_meta_btn.setText("Fetching...")

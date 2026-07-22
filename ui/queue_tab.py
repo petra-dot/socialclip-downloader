@@ -15,10 +15,12 @@ class QueueTab(QtWidgets.QWidget):
 
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
 
         header = QtWidgets.QHBoxLayout()
         queue_heading = QtWidgets.QLabel("Queue")
-        queue_heading.setObjectName("cardHeading")
+        queue_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         header.addWidget(queue_heading)
         header.addStretch()
         self.queue_count_label = QtWidgets.QLabel("0 items")
@@ -47,20 +49,12 @@ class QueueTab(QtWidgets.QWidget):
         ctrl_row.addWidget(self.retry_all_btn)
         layout.addLayout(ctrl_row)
 
-        layout.addWidget(QtWidgets.QLabel(""))
-
-        sched_card = QtWidgets.QFrame()
-        sched_card.setObjectName("card")
-        sched_layout = QtWidgets.QVBoxLayout(sched_card)
-        sched_layout.setContentsMargins(12, 12, 12, 12)
-        sched_layout.setSpacing(8)
         sched_heading = QtWidgets.QLabel("Schedule & Limits")
-        sched_heading.setObjectName("cardHeading")
-        sched_layout.addWidget(sched_heading)
+        sched_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        layout.addWidget(sched_heading)
 
         max_row = QtWidgets.QHBoxLayout()
         max_lbl = QtWidgets.QLabel("Max concurrent downloads:")
-        max_lbl.setObjectName("metaLabel")
         max_row.addWidget(max_lbl)
         self.max_concurrent_spin = QtWidgets.QSpinBox()
         self.max_concurrent_spin.setRange(1, 10)
@@ -68,10 +62,10 @@ class QueueTab(QtWidgets.QWidget):
         self.max_concurrent_spin.valueChanged.connect(self.manager.set_max_concurrent)
         max_row.addWidget(self.max_concurrent_spin)
         max_row.addStretch()
-        sched_layout.addLayout(max_row)
+        layout.addLayout(max_row)
 
         self.throttle_check = QtWidgets.QCheckBox("Throttle downloads by time window")
-        sched_layout.addWidget(self.throttle_check)
+        layout.addWidget(self.throttle_check)
 
         time_row = QtWidgets.QHBoxLayout()
         time_row.setContentsMargins(24, 0, 0, 0)
@@ -82,12 +76,9 @@ class QueueTab(QtWidgets.QWidget):
         self.throttle_end = QtWidgets.QTimeEdit(QtCore.QTime(8, 0))
         time_row.addWidget(self.throttle_end)
         time_row.addStretch()
-        sched_layout.addLayout(time_row)
-
-        layout.addWidget(sched_card)
+        layout.addLayout(time_row)
 
         self.console_log = QtWidgets.QTextEdit()
-        self.console_log.setObjectName("console")
         self.console_log.setReadOnly(True)
         self.console_log.setFixedHeight(120)
         layout.addWidget(self.console_log)
@@ -115,7 +106,6 @@ class QueueTab(QtWidgets.QWidget):
             return
 
         card = QtWidgets.QFrame()
-        card.setObjectName("card")
         card.setFrameShape(QtWidgets.QFrame.StyledPanel)
         card_layout = QtWidgets.QHBoxLayout(card)
         card_layout.setContentsMargins(8, 4, 8, 4)
@@ -126,10 +116,8 @@ class QueueTab(QtWidgets.QWidget):
 
         info_layout = QtWidgets.QVBoxLayout()
         url_label = QtWidgets.QLabel(item.url[:60] + ("..." if len(item.url) > 60 else ""))
-        url_label.setStyleSheet("font-weight: 600; color: #ffffff;")
         info_layout.addWidget(url_label)
         status_text = QtWidgets.QLabel("Queued")
-        status_text.setStyleSheet("color: #aeaeb2; font-size: 11px;")
         info_layout.addWidget(status_text)
         card_layout.addLayout(info_layout, 1)
 
@@ -143,7 +131,6 @@ class QueueTab(QtWidgets.QWidget):
 
         btn_layout = QtWidgets.QVBoxLayout()
         cancel_btn = QtWidgets.QPushButton("Cancel")
-        cancel_btn.setObjectName("cancelBtn")
         cancel_btn.setFixedWidth(80)
         cancel_btn.clicked.connect(lambda checked, iid=item_id: self.manager.cancel(iid))
         btn_layout.addWidget(cancel_btn)
@@ -173,37 +160,27 @@ class QueueTab(QtWidgets.QWidget):
             return
         if status == "downloading":
             w["status_label"].setText("\u25B6")
-            w["status_label"].setStyleSheet("color: #ffffff;")
             w["status_text"].setText("Downloading...")
-            w["status_text"].setStyleSheet("color: #ffffff; font-size: 11px;")
             w["progress_bar"].setVisible(True)
         elif status == "completed":
             w["status_label"].setText("\u2713")
-            w["status_label"].setStyleSheet("color: #34c759;")
             w["status_text"].setText("Completed")
-            w["status_text"].setStyleSheet("color: #34c759; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
         elif status == "failed":
             w["status_label"].setText("\u2717")
-            w["status_label"].setStyleSheet("color: #ff3b30;")
             w["status_text"].setText("Failed")
-            w["status_text"].setStyleSheet("color: #ff3b30; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
             w["retry_btn"].setVisible(True)
         elif status == "cancelled":
             w["status_label"].setText("\u2014")
-            w["status_label"].setStyleSheet("color: #7a7a7c;")
             w["status_text"].setText("Cancelled")
-            w["status_text"].setStyleSheet("color: #7a7a7c; font-size: 11px;")
             w["progress_bar"].setVisible(False)
             w["cancel_btn"].setVisible(False)
         elif status == "queued":
             w["status_label"].setText("\u25CB")
-            w["status_label"].setStyleSheet("color: #aeaeb2;")
             w["status_text"].setText("Queued")
-            w["status_text"].setStyleSheet("color: #aeaeb2; font-size: 11px;")
             w["progress_bar"].setVisible(False)
 
     def _on_progress(self, item_id: str, pct: int):
