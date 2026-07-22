@@ -21,6 +21,13 @@ class SingleTab(QtWidgets.QWidget):
     def init_ui(self):
         main = QtWidgets.QVBoxLayout(self)
 
+        # --- Card 1: Video ---
+        card_video = QtWidgets.QFrame()
+        card_video.setObjectName("card")
+        card_video_layout = QtWidgets.QVBoxLayout(card_video)
+        card_video_layout.setContentsMargins(12, 12, 12, 12)
+        card_video_layout.setSpacing(8)
+
         url_row = QtWidgets.QHBoxLayout()
         self.url_input = QtWidgets.QLineEdit()
         self.url_input.setPlaceholderText("Paste video URL here")
@@ -29,7 +36,7 @@ class SingleTab(QtWidgets.QWidget):
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch Metadata")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
         url_row.addWidget(self.fetch_meta_btn)
-        main.addLayout(url_row)
+        card_video_layout.addLayout(url_row)
 
         cookies_row = QtWidgets.QHBoxLayout()
         cookies_label = QtWidgets.QLabel("Cookies (YouTube):")
@@ -46,15 +53,22 @@ class SingleTab(QtWidgets.QWidget):
         clear_cookies_btn.setFixedWidth(50)
         clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
         cookies_row.addWidget(clear_cookies_btn)
-        main.addLayout(cookies_row)
+        card_video_layout.addLayout(cookies_row)
 
-        save_layout = QtWidgets.QHBoxLayout()
-        self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
-        save_layout.addWidget(self.save_dir_input)
-        browse_btn = QtWidgets.QPushButton("Browse")
-        browse_btn.clicked.connect(self.on_browse)
-        save_layout.addWidget(browse_btn)
-        main.addLayout(save_layout)
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        card_video_layout.addWidget(self.progress_bar)
+
+        main.addWidget(card_video)
+
+        # --- Card 2: Details ---
+        card_details = QtWidgets.QFrame()
+        card_details.setObjectName("card")
+        card_details_layout = QtWidgets.QVBoxLayout(card_details)
+        card_details_layout.setContentsMargins(12, 12, 12, 12)
+        card_details_layout.setSpacing(8)
 
         meta_layout = QtWidgets.QHBoxLayout()
         self.thumbnail_label = QtWidgets.QLabel("No preview")
@@ -71,7 +85,16 @@ class SingleTab(QtWidgets.QWidget):
         meta_right.addWidget(self.meta_duration)
         meta_right.addWidget(self.meta_platform)
         meta_layout.addLayout(meta_right)
-        main.addLayout(meta_layout)
+        card_details_layout.addLayout(meta_layout)
+
+        main.addWidget(card_details)
+
+        # --- Card 3: Output ---
+        card_output = QtWidgets.QFrame()
+        card_output.setObjectName("card")
+        card_output_layout = QtWidgets.QVBoxLayout(card_output)
+        card_output_layout.setContentsMargins(12, 12, 12, 12)
+        card_output_layout.setSpacing(8)
 
         opts_layout = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()
@@ -85,30 +108,37 @@ class SingleTab(QtWidgets.QWidget):
         self.resolution_combo.setCurrentText("1080")
         opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
         opts_layout.addWidget(self.resolution_combo)
-        main.addLayout(opts_layout)
+        card_output_layout.addLayout(opts_layout)
 
         rename_row = QtWidgets.QHBoxLayout()
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
         rename_row.addWidget(self.checkbox_channel)
         rename_row.addWidget(self.checkbox_timestamp)
-        main.addLayout(rename_row)
+        card_output_layout.addLayout(rename_row)
+
+        save_layout = QtWidgets.QHBoxLayout()
+        self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
+        save_layout.addWidget(self.save_dir_input)
+        browse_btn = QtWidgets.QPushButton("Browse")
+        browse_btn.clicked.connect(self.on_browse)
+        save_layout.addWidget(browse_btn)
+        card_output_layout.addLayout(save_layout)
 
         dl_row = QtWidgets.QHBoxLayout()
         self.download_btn = QtWidgets.QPushButton("Download")
+        self.download_btn.setObjectName("primaryBtn")
         self.download_btn.clicked.connect(self.on_download)
         dl_row.addWidget(self.download_btn)
-        main.addLayout(dl_row)
+        card_output_layout.addLayout(dl_row)
 
-        self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setVisible(False)
-        main.addWidget(self.progress_bar)
+        main.addWidget(card_output)
 
+        # --- Console (no card) ---
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setFixedHeight(200)
+        self.console_log.setObjectName("console")
         main.addWidget(self.console_log)
 
     def log(self, msg: str):
