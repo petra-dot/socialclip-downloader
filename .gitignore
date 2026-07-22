@@ -34,3 +34,29 @@ cookies.txt
 
 # graphify knowledge graph outputs
 graphify-out/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Test cache
+.pytest_cache/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Python package metadata
+*.egg-info/
+
+# SDD workspace (temp artifacts)
+.superpowers/sdd/
+
+# Database files
+*.db
