@@ -28,6 +28,10 @@ class SingleTab(QtWidgets.QWidget):
         card_video_layout.setContentsMargins(12, 12, 12, 12)
         card_video_layout.setSpacing(8)
 
+        video_heading = QtWidgets.QLabel("Video")
+        video_heading.setObjectName("cardHeading")
+        card_video_layout.addWidget(video_heading)
+
         url_row = QtWidgets.QHBoxLayout()
         self.url_input = QtWidgets.QLineEdit()
         self.url_input.setPlaceholderText("Paste video URL here")
@@ -70,6 +74,10 @@ class SingleTab(QtWidgets.QWidget):
         card_details_layout.setContentsMargins(12, 12, 12, 12)
         card_details_layout.setSpacing(8)
 
+        details_heading = QtWidgets.QLabel("Details")
+        details_heading.setObjectName("cardHeading")
+        card_details_layout.addWidget(details_heading)
+
         meta_layout = QtWidgets.QHBoxLayout()
         self.thumbnail_label = QtWidgets.QLabel("No preview")
         self.thumbnail_label.setFixedSize(160, 90)
@@ -77,9 +85,13 @@ class SingleTab(QtWidgets.QWidget):
         meta_layout.addWidget(self.thumbnail_label)
         meta_right = QtWidgets.QVBoxLayout()
         self.meta_title = QtWidgets.QLabel("Title: \u2014")
+        self.meta_title.setObjectName("metaValue")
         self.meta_uploader = QtWidgets.QLabel("Uploader: \u2014")
+        self.meta_uploader.setObjectName("metaValue")
         self.meta_duration = QtWidgets.QLabel("Duration: \u2014")
+        self.meta_duration.setObjectName("metaValue")
         self.meta_platform = QtWidgets.QLabel("Platform: \u2014")
+        self.meta_platform.setObjectName("metaValue")
         meta_right.addWidget(self.meta_title)
         meta_right.addWidget(self.meta_uploader)
         meta_right.addWidget(self.meta_duration)
@@ -95,6 +107,10 @@ class SingleTab(QtWidgets.QWidget):
         card_output_layout = QtWidgets.QVBoxLayout(card_output)
         card_output_layout.setContentsMargins(12, 12, 12, 12)
         card_output_layout.setSpacing(8)
+
+        output_heading = QtWidgets.QLabel("Output")
+        output_heading.setObjectName("cardHeading")
+        card_output_layout.addWidget(output_heading)
 
         opts_layout = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()

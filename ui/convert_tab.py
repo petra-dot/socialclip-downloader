@@ -15,13 +15,15 @@ class ConvertTab(QtWidgets.QWidget):
 
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(QtWidgets.QLabel("Convert existing file (select file below)"))
 
         card = QtWidgets.QFrame()
         card.setObjectName("card")
         card_layout = QtWidgets.QVBoxLayout(card)
         card_layout.setContentsMargins(12, 12, 12, 12)
         card_layout.setSpacing(8)
+        file_heading = QtWidgets.QLabel("File")
+        file_heading.setObjectName("cardHeading")
+        card_layout.addWidget(file_heading)
         file_layout = QtWidgets.QHBoxLayout()
         self.file_path_input = QtWidgets.QLineEdit()
         file_layout.addWidget(self.file_path_input)
@@ -36,6 +38,9 @@ class ConvertTab(QtWidgets.QWidget):
         card_layout = QtWidgets.QVBoxLayout(card)
         card_layout.setContentsMargins(12, 12, 12, 12)
         card_layout.setSpacing(8)
+        conv_heading = QtWidgets.QLabel("Convert")
+        conv_heading.setObjectName("cardHeading")
+        card_layout.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
         self.conv_output_combo.addItems(["MP4 (Video)", "MP3 (Audio)", "WAV (Audio)"])

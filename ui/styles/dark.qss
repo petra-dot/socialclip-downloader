@@ -3,8 +3,9 @@
 QWidget {
     background-color: #1c1c1e;
     color: #ffffff;
-    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    font-family: "Inter", "Segoe UI Variable Display", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
+    font-weight: 400;
 }
 
 QMainWindow {
@@ -22,7 +23,9 @@ QListWidget#sidebar {
 
 QListWidget#sidebar::item {
     height: 48px;
-    color: #ffffff;
+    color: #e8e8ed;
+    font-size: 13px;
+    font-weight: 500;
     background-color: transparent;
     padding: 0px 16px;
     border: none;
@@ -30,10 +33,13 @@ QListWidget#sidebar::item {
 
 QListWidget#sidebar::item:hover {
     background-color: #252527;
+    color: #ffffff;
 }
 
 QListWidget#sidebar::item:selected {
     background-color: #353537;
+    color: #ffffff;
+    font-weight: 600;
     border-left: 3px solid #ffffff;
 }
 
@@ -45,8 +51,9 @@ QFrame#headerBar {
 
 QLabel#headerTitle {
     color: #ffffff;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
+    letter-spacing: 0.3px;
     background: transparent;
 }
 
@@ -58,6 +65,31 @@ QFrame#card {
     padding: 12px;
 }
 
+/* === Card Section Headings === */
+QLabel#cardHeading {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    background: transparent;
+    padding-bottom: 2px;
+}
+
+/* === Metadata / Secondary Labels === */
+QLabel#metaLabel {
+    color: #aeaeb2;
+    font-size: 12px;
+    font-weight: 400;
+    background: transparent;
+    padding: 1px 0px;
+}
+
+QLabel#metaValue {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+}
+
 /* === Line Edit === */
 QLineEdit {
     background-color: #3a3a3c;
@@ -65,9 +97,10 @@ QLineEdit {
     border-radius: 6px;
     padding: 8px 12px;
     color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
     selection-background-color: #5a5a5c;
     selection-color: #ffffff;
-    font-weight: 500;
 }
 
 QLineEdit:focus {
@@ -91,8 +124,9 @@ QComboBox {
     border-radius: 6px;
     padding: 8px 12px;
     color: #ffffff;
-    min-width: 80px;
+    font-size: 13px;
     font-weight: 500;
+    min-width: 80px;
 }
 
 QComboBox:hover {
@@ -129,6 +163,7 @@ QComboBox QAbstractItemView {
     selection-background-color: #3a3a3c;
     selection-color: #ffffff;
     color: #ffffff;
+    font-size: 13px;
     padding: 4px;
     outline: none;
 }
@@ -137,6 +172,7 @@ QComboBox QAbstractItemView {
 QCheckBox {
     color: #ffffff;
     spacing: 8px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -171,7 +207,7 @@ QPushButton {
     padding: 8px 22px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     min-width: 80px;
 }
 
@@ -191,6 +227,7 @@ QPushButton:disabled {
 /* === Primary Button === */
 QPushButton#primaryBtn {
     background-color: #48484a;
+    font-weight: 700;
 }
 
 QPushButton#primaryBtn:hover {
@@ -234,12 +271,14 @@ QTextEdit#console {
     background-color: #111113;
     border: 1px solid #3a3a3c;
     border-radius: 8px;
-    color: #ffffff;
+    color: #e8e8ed;
     font-family: "SF Mono", "Consolas", "Cascadia Code", "Fira Code", monospace;
     font-size: 12px;
-    padding: 8px;
+    font-weight: 400;
+    padding: 10px;
     selection-background-color: #3a3a3c;
     selection-color: #ffffff;
+    line-height: 1.4;
 }
 
 /* === Scroll Bars === */
@@ -311,7 +350,7 @@ QGroupBox::title {
     color: #ffffff;
 }
 
-/* === Label === */
+/* === Label (default) === */
 QLabel {
     color: #ffffff;
     background: transparent;
@@ -335,8 +374,9 @@ QSpinBox {
     border-radius: 6px;
     padding: 6px 8px;
     color: #ffffff;
-    min-width: 60px;
+    font-size: 13px;
     font-weight: 500;
+    min-width: 60px;
 }
 
 QSpinBox:focus {
@@ -355,6 +395,7 @@ QTimeEdit {
     border-radius: 6px;
     padding: 6px 8px;
     color: #ffffff;
+    font-size: 13px;
     font-weight: 500;
 }
 

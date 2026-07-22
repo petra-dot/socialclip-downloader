@@ -17,7 +17,9 @@ class QueueTab(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         header = QtWidgets.QHBoxLayout()
-        header.addWidget(QtWidgets.QLabel("Queue"))
+        queue_heading = QtWidgets.QLabel("Queue")
+        queue_heading.setObjectName("cardHeading")
+        header.addWidget(queue_heading)
         header.addStretch()
         self.queue_count_label = QtWidgets.QLabel("0 items")
         header.addWidget(self.queue_count_label)
@@ -52,7 +54,9 @@ class QueueTab(QtWidgets.QWidget):
         sched_layout = QtWidgets.QVBoxLayout(sched_card)
         sched_layout.setContentsMargins(12, 12, 12, 12)
         sched_layout.setSpacing(8)
-        sched_layout.addWidget(QtWidgets.QLabel("Schedule & Limits"))
+        sched_heading = QtWidgets.QLabel("Schedule & Limits")
+        sched_heading.setObjectName("cardHeading")
+        sched_layout.addWidget(sched_heading)
 
         max_row = QtWidgets.QHBoxLayout()
         max_row.addWidget(QtWidgets.QLabel("Max concurrent downloads:"))
