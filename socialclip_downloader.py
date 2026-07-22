@@ -35,7 +35,6 @@ def main():
     from pathlib import Path
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle("Fusion")
 
     qss_path = Path(__file__).parent / "ui" / "styles" / "dark.qss"
     if qss_path.exists():
