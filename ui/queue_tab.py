@@ -108,8 +108,8 @@ class QueueTab(QtWidgets.QWidget):
             return
 
         card = QtWidgets.QFrame()
+        card.setObjectName("card")
         card.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        card.setStyleSheet("QFrame { background-color: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 10px; padding: 8px; }")
         card_layout = QtWidgets.QHBoxLayout(card)
         card_layout.setContentsMargins(8, 4, 8, 4)
 
@@ -136,8 +136,8 @@ class QueueTab(QtWidgets.QWidget):
 
         btn_layout = QtWidgets.QVBoxLayout()
         cancel_btn = QtWidgets.QPushButton("Cancel")
+        cancel_btn.setObjectName("cancelBtn")
         cancel_btn.setFixedWidth(60)
-        cancel_btn.setStyleSheet("background-color: #5a2022;")
         cancel_btn.clicked.connect(lambda checked, iid=item_id: self.manager.cancel(iid))
         btn_layout.addWidget(cancel_btn)
 

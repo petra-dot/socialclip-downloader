@@ -12,7 +12,7 @@ QMainWindow {
 }
 
 /* === Sidebar === */
-QListWidget {
+QListWidget#sidebar {
     background-color: #151517;
     color: #ffffff;
     border: none;
@@ -20,7 +20,7 @@ QListWidget {
     padding: 0px;
 }
 
-QListWidget::item {
+QListWidget#sidebar::item {
     height: 48px;
     color: #ffffff;
     background-color: transparent;
@@ -28,11 +28,11 @@ QListWidget::item {
     border: none;
 }
 
-QListWidget::item:hover {
+QListWidget#sidebar::item:hover {
     background-color: #252527;
 }
 
-QListWidget::item:selected {
+QListWidget#sidebar::item:selected {
     background-color: #353537;
     border-left: 3px solid #ffffff;
 }
