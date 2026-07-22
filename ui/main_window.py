@@ -23,12 +23,12 @@ class MainWindow(QtWidgets.QWidget):
 
         # Sidebar
         self.sidebar = QtWidgets.QListWidget()
-        self.sidebar.setFixedWidth(170)
+        self.sidebar.setFixedWidth(150)
         self.sidebar.setObjectName("sidebar")
         items = ["Download", "Batch", "Convert", "Queue"]
         for label in items:
             item = QtWidgets.QListWidgetItem(label)
-            item.setSizeHint(QtCore.QSize(170, 52))
+            item.setSizeHint(QtCore.QSize(150, 40))
             self.sidebar.addItem(item)
         self.sidebar.setCurrentRow(0)
         layout.addWidget(self.sidebar)
@@ -41,9 +41,9 @@ class MainWindow(QtWidgets.QWidget):
         # Header bar
         header = QtWidgets.QFrame()
         header.setObjectName("headerBar")
-        header.setFixedHeight(44)
+        header.setFixedHeight(36)
         header_layout = QtWidgets.QHBoxLayout(header)
-        header_layout.setContentsMargins(16, 0, 16, 0)
+        header_layout.setContentsMargins(14, 0, 14, 0)
         title = QtWidgets.QLabel(f"SocialClip Downloader v{self._version}")
         title.setObjectName("headerTitle")
         header_layout.addWidget(title)

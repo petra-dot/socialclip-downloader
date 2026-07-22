@@ -4,7 +4,7 @@ QWidget {
     background-color: #1c1c1e;
     color: #ffffff;
     font-family: "Inter", "Segoe UI Variable Display", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 400;
 }
 
@@ -22,12 +22,12 @@ QListWidget#sidebar {
 }
 
 QListWidget#sidebar::item {
-    height: 52px;
+    height: 40px;
     color: #e8e8ed;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     background-color: transparent;
-    padding: 0px 16px;
+    padding: 0px 14px;
     border: none;
 }
 
@@ -41,7 +41,7 @@ QListWidget#sidebar::item:selected {
     color: #ffffff;
     font-weight: 600;
     border-left: 3px solid #ffffff;
-    padding-left: 13px;
+    padding-left: 11px;
 }
 
 /* === Header Bar === */
@@ -52,7 +52,7 @@ QFrame#headerBar {
 
 QLabel#headerTitle {
     color: #ffffff;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.3px;
     background: transparent;
@@ -62,23 +62,23 @@ QLabel#headerTitle {
 QFrame#card {
     background-color: #2c2c2e;
     border: 1px solid #3a3a3c;
-    border-radius: 10px;
-    padding: 12px;
+    border-radius: 8px;
+    padding: 10px;
 }
 
 /* === Card Section Headings === */
 QLabel#cardHeading {
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     background: transparent;
-    padding-bottom: 2px;
+    padding-bottom: 1px;
 }
 
 /* === Metadata / Secondary Labels === */
 QLabel#metaLabel {
     color: #aeaeb2;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 400;
     background: transparent;
     padding: 1px 0px;
@@ -86,7 +86,7 @@ QLabel#metaLabel {
 
 QLabel#metaValue {
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     background: transparent;
 }
@@ -95,12 +95,12 @@ QLabel#metaValue {
 QLineEdit {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
-    border-radius: 6px;
-    padding: 9px 14px;
+    border-radius: 5px;
+    padding: 7px 10px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    min-height: 20px;
+    min-height: 16px;
     selection-background-color: #5a5a5c;
     selection-color: #ffffff;
 }
@@ -123,12 +123,12 @@ QLineEdit::placeholder {
 QComboBox {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
-    border-radius: 6px;
-    padding: 9px 14px;
+    border-radius: 5px;
+    padding: 7px 10px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    min-width: 100px;
+    min-width: 80px;
 }
 
 QComboBox:hover {
@@ -146,8 +146,8 @@ QComboBox:disabled {
 
 QComboBox::drop-down {
     border: none;
-    padding-right: 4px;
-    width: 28px;
+    padding-right: 2px;
+    width: 22px;
 }
 
 QComboBox::down-arrow {
@@ -165,7 +165,7 @@ QComboBox QAbstractItemView {
     selection-background-color: #3a3a3c;
     selection-color: #ffffff;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     padding: 4px;
     outline: none;
 }
@@ -173,15 +173,15 @@ QComboBox QAbstractItemView {
 /* === CheckBox === */
 QCheckBox {
     color: #ffffff;
-    spacing: 8px;
-    font-size: 13px;
+    spacing: 6px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 QCheckBox::indicator {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
     border: 2px solid #8a8a8e;
     background: #ffffff;
 }
@@ -211,11 +211,11 @@ QPushButton {
     background-color: #3a3a3c;
     color: #ffffff;
     border: none;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 600;
-    min-width: 90px;
+    min-width: 80px;
 }
 
 QPushButton:hover {
@@ -262,27 +262,27 @@ QPushButton#cancelBtn:pressed {
 QProgressBar {
     background-color: #3a3a3c;
     border: none;
-    border-radius: 3px;
+    border-radius: 2px;
     text-align: center;
     color: transparent;
-    height: 6px;
+    height: 4px;
 }
 
 QProgressBar::chunk {
     background-color: #6a6a6c;
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 /* === Console (QTextEdit) === */
 QTextEdit#console {
     background-color: #111113;
     border: 1px solid #3a3a3c;
-    border-radius: 8px;
+    border-radius: 6px;
     color: #e8e8ed;
     font-family: "SF Mono", "Consolas", "Cascadia Code", "Fira Code", monospace;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 400;
-    padding: 10px;
+    padding: 8px;
     selection-background-color: #3a3a3c;
     selection-color: #ffffff;
     line-height: 1.4;
@@ -341,19 +341,19 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 QGroupBox {
     background-color: #2c2c2e;
     border: 1px solid #3a3a3c;
-    border-radius: 8px;
-    margin-top: 12px;
-    padding-top: 18px;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-bottom: 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 14px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
     font-weight: 600;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 14px;
-    padding: 0 8px;
+    left: 12px;
+    padding: 0 6px;
     color: #ffffff;
 }
 
@@ -370,20 +370,20 @@ QToolTip {
     color: #ffffff;
     border: 1px solid #3a3a3c;
     border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 4px 8px;
+    font-size: 11px;
 }
 
 /* === SpinBox === */
 QSpinBox {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
-    border-radius: 6px;
-    padding: 9px 14px;
+    border-radius: 5px;
+    padding: 7px 10px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    min-width: 80px;
+    min-width: 60px;
 }
 
 QSpinBox:focus {
@@ -399,12 +399,12 @@ QSpinBox:disabled {
 QTimeEdit {
     background-color: #3a3a3c;
     border: 1px solid #4a4a4c;
-    border-radius: 6px;
-    padding: 9px 14px;
+    border-radius: 5px;
+    padding: 7px 10px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    min-width: 80px;
+    min-width: 60px;
 }
 
 QTimeEdit:focus {

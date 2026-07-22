@@ -60,7 +60,7 @@ class ThumbnailWorker(QtCore.QThread):
                 data = response.read()
             pixmap = QtWidgets.QPixmap()
             pixmap.loadFromData(data)
-            scaled = pixmap.scaled(160, 90, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            scaled = pixmap.scaled(120, 68, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
             self.done_signal.emit(scaled)
         except Exception:
             self.done_signal.emit(None)
@@ -89,8 +89,8 @@ class SingleTab(QtWidgets.QWidget):
         card = QtWidgets.QFrame()
         card.setObjectName("card")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
 
         # URL row
         url_row = QtWidgets.QHBoxLayout()
@@ -109,7 +109,7 @@ class SingleTab(QtWidgets.QWidget):
         self.info_section = QtWidgets.QWidget()
         info_section_layout = QtWidgets.QVBoxLayout(self.info_section)
         info_section_layout.setContentsMargins(0, 0, 0, 0)
-        info_section_layout.setSpacing(8)
+        info_section_layout.setSpacing(6)
 
         info_heading = QtWidgets.QLabel("Video Info")
         info_heading.setObjectName("cardHeading")
@@ -117,7 +117,7 @@ class SingleTab(QtWidgets.QWidget):
 
         meta_layout = QtWidgets.QHBoxLayout()
         self.thumbnail_label = QtWidgets.QLabel("No preview")
-        self.thumbnail_label.setFixedSize(160, 90)
+        self.thumbnail_label.setFixedSize(120, 68)
         self.thumbnail_label.setAlignment(QtCore.Qt.AlignCenter)
         meta_layout.addWidget(self.thumbnail_label)
         meta_right = QtWidgets.QVBoxLayout()
@@ -152,7 +152,7 @@ class SingleTab(QtWidgets.QWidget):
         self.output_combo.addItems(["Video (MP4)", "Audio (MP3)"])
         fmt_row.addWidget(QtWidgets.QLabel("Format:"))
         fmt_row.addWidget(self.output_combo)
-        fmt_row.addSpacing(20)
+        fmt_row.addSpacing(12)
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.addItems(["720", "1080", "1440", "2160"])
         self.resolution_combo.setCurrentText("1080")
@@ -202,25 +202,25 @@ class SingleTab(QtWidgets.QWidget):
 
         # Download bar (always visible, below scroll area)
         download_bar = QtWidgets.QHBoxLayout()
-        download_bar.setContentsMargins(14, 0, 14, 0)
+        download_bar.setContentsMargins(12, 0, 12, 0)
         self.download_btn = QtWidgets.QPushButton("Download")
         self.download_btn.setObjectName("primaryBtn")
         self.download_btn.clicked.connect(self.on_download)
-        self.download_btn.setFixedHeight(40)
+        self.download_btn.setFixedHeight(34)
         download_bar.addWidget(self.download_btn)
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(False)
-        self.progress_bar.setFixedHeight(22)
+        self.progress_bar.setFixedHeight(18)
         download_bar.addWidget(self.progress_bar)
         main.addLayout(download_bar)
 
         # Console
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
-        self.console_log.setFixedHeight(140)
+        self.console_log.setFixedHeight(110)
         self.console_log.setObjectName("console")
         main.addWidget(self.console_log)
 
