@@ -43,7 +43,8 @@ class ConvertFileWorker(QtCore.QThread):
                     ]
                 result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if result.returncode != 0:
-                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    self.finished_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    return
                 self.finished_signal.emit(f"Audio saved: {out_path}")
                 return
 
@@ -70,7 +71,8 @@ class ConvertFileWorker(QtCore.QThread):
                 self.status_signal.emit(f"Converting to {self.target_resolution}p -> {out_path}")
                 result = _ffmpeg_to_nle_mp4(self.input_path, out_path, self.target_resolution)
                 if result.returncode != 0:
-                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    self.finished_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    return
                 self.finished_signal.emit(f"Conversion completed: {out_path}")
                 return
 

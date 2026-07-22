@@ -28,19 +28,6 @@ def ffprobe_get_height(path: str) -> int:
             return int(line)
     except Exception:
         pass
-    try:
-        cmd = [
-            "ffmpeg", "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=height",
-            "-of", "csv=p=0",
-            path,
-        ]
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
-        if out:
-            return int(out.splitlines()[0].strip())
-    except Exception:
-        pass
     return 0
 
 
@@ -50,7 +37,7 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         "outtmpl": outtmpl,
         "merge_output_format": "mp4",
         "postprocessors": [
-            {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
+            {"key": "FFmpegVideoConvertor", "preferredformat": "mp4"}
         ],
         "postprocessor_args": {
             "ffmpegvideoconvertor": [

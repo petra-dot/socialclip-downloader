@@ -32,7 +32,27 @@ def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     for path in candidates:
         if os.path.isfile(path):
             return path
+    try:
+        for fname in os.listdir(cookie_dir):
+            if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
+                return os.path.join(cookie_dir, fname)
+    except OSError:
+        pass
     return ""
+
+
+PLATFORM_NAMES = {
+    "youtube": "YouTube",
+    "douyin": "Douyin",
+    "instagram": "Instagram",
+    "twitter": "Twitter/X",
+    "tiktok": "TikTok",
+    "bilibili": "Bilibili",
+}
+
+
+def get_platform_display_name(platform: str) -> str:
+    return PLATFORM_NAMES.get(platform, platform.capitalize())
 
 
 def get_cookie_message(platform: str) -> str:

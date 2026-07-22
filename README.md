@@ -5,71 +5,52 @@
 [![PyQt5](https://img.shields.io/badge/PyQt5-latest-orange.svg)](https://pypi.org/project/PyQt5/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A desktop application for downloading videos and audio from YouTube, Douyin, and other supported sites. Built with PyQt5 and yt-dlp. All processing is done locally on your machine.
-
-## Screenshot
-
-![App Screenshot](docs/screenshots/app_main.png)
+Desktop application for downloading videos and audio from YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, and other yt-dlp-supported sites. Built with PyQt5 and yt-dlp. All processing is local.
 
 ## Features
 
-- Download single videos as MP4 or MP3
-- Batch download with queue management
-- Resolution targeting (720p, 1080p, 1440p, 2160p)
-- Video info preview with thumbnail
-- Real-time progress tracking
-- File converter (MP4 to MP3, MP4 to WAV, resolution conversion)
-- Dark theme UI with sidebar navigation
-- Concurrent download control and scheduling
-- Filename sanitization with optional channel/timestamp naming
-- Cookie-based authentication for YouTube
+- **Single download** — fetch metadata, preview thumbnail, download as MP4 or MP3
+- **Batch download** — paste multiple URLs, bulk download with per-file conversion
+- **File converter** — convert MP4 to MP3/WAV, downscale resolution
+- **Resolution targeting** — 720p, 1080p, 1440p, 2160p
+- **Auto cookie detection** — per-platform cookie files (`douyin_cookies.txt`, `youtube_cookies.txt`, etc.) are picked up automatically
+- **Platform-aware error messages** — shows the correct site name in blocked/cookie errors
+- **Filename options** — append channel name and/or timestamp
+
+## Supported Sites
+
+YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, and anything yt-dlp supports.
 
 ## Installation
 
 ### Prerequisites
 
 1. **Python 3.8+**: Download from [python.org](https://www.python.org/downloads/)
-2. **Node.js**: Required for YouTube downloads. Install from [nodejs.org](https://nodejs.org)
-3. **FFmpeg**: Required for media processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
+2. **FFmpeg**: Required for media processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
 
 ### Setup
 
 ```bash
-git clone https://github.com/petra-dot/socialclip-downloader.git
-cd socialclip-downloader
 pip install -r requirements.txt
-```
-
-### Verify Dependencies
-
-```bash
-node --version
-ffmpeg -version
-ffprobe -version
 ```
 
 ## Usage
 
 ```bash
-python main.py
+python socialclip_downloader.py
 ```
 
-Or on Windows, double-click `run.bat`.
+Or double-click `run.bat` on Windows.
 
-## Build EXE (Windows)
+## Cookie Authentication
 
-Run `build.bat`. The executable will be in the `dist/` folder. Note: FFmpeg and Node.js must be installed separately by the end user.
+Some sites block downloads without cookies. For each platform you use:
 
-## YouTube Cookie Authentication
+1. Install the "Get cookies.txt LOCALLY" browser extension.
+2. Log in to the site, export cookies, and save as `<platform>_cookies.txt` in the app directory.
+3. The app auto-detects cookie files on fetch. You can also set a custom path via the **Browse** button.
 
-YouTube may require cookies for certain videos. To use cookies:
-
-1. Install the "Get cookies.txt LOCALLY" browser extension (Firefox or Chrome).
-2. Log in to YouTube in your browser.
-3. Export cookies using the extension.
-4. In the app, click "Browse..." under Cookies and select the exported file.
-
-Cookies are never committed to the repository (gitignored).
+Supported names: `youtube_cookies.txt`, `douyin_cookies.txt`, `instagram_cookies.txt`, `twitter_cookies.txt`, `tiktok_cookies.txt`, `bilibili_cookies.txt`.
 
 ## Project Structure
 
@@ -77,13 +58,6 @@ Cookies are never committed to the repository (gitignored).
 socialclip-downloader/
 ├── assets/
 │   └── icon.ico
-├── dlqueue/
-│   ├── __init__.py
-│   ├── manager.py
-│   └── models.py
-├── docs/
-│   └── screenshots/
-│       └── app_main.png
 ├── sites/
 │   ├── __init__.py
 │   └── cookies.py
@@ -92,8 +66,7 @@ socialclip-downloader/
 │   ├── main_window.py
 │   ├── single_tab.py
 │   ├── batch_tab.py
-│   ├── convert_tab.py
-│   └── queue_tab.py
+│   └── convert_tab.py
 ├── utils/
 │   ├── __init__.py
 │   ├── file_utils.py
@@ -103,26 +76,13 @@ socialclip-downloader/
 │   ├── batch_worker.py
 │   ├── convert_worker.py
 │   └── download_worker.py
-├── build.bat
-├── LICENSE
-├── main.py
-├── README.md
+├── socialclip_downloader.py
 ├── requirements.txt
 ├── run.bat
-├── socialclip_downloader.py
+├── build.bat
 └── socialclip_downloader.spec
 ```
 
-## Contributing
-
-Contributions are welcome. Fork the repo and submit a pull request.
-
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -m 'Add some feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a pull request.
-
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).

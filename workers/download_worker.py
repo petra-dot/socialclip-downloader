@@ -3,6 +3,7 @@ import subprocess
 
 from PyQt5 import QtCore
 
+from sites.cookies import detect_platform, get_platform_display_name
 from utils.ydl_opts import _nle_ydl_opts, _ffmpeg_to_nle_mp4, ffprobe_get_height, strip_ansi
 
 
@@ -76,7 +77,9 @@ class DownloadWorker(QtCore.QThread):
                 ]
                 result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if result.returncode != 0:
-                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    self.finished_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    return
+                os.remove(downloaded_file)
                 self.finished_signal.emit(f"MP3 saved: {mp3_path}")
                 return
 
@@ -101,14 +104,15 @@ class DownloadWorker(QtCore.QThread):
                 self.status_signal.emit(f"Converting to {self.target_resolution}p -> {out_file}")
                 result = _ffmpeg_to_nle_mp4(downloaded_file, out_file, self.target_resolution)
                 if result.returncode != 0:
-                    self.status_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    self.finished_signal.emit(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
+                    return
+                os.remove(downloaded_file)
                 self.finished_signal.emit(f"Conversion completed: {out_file}")
                 return
 
             self.finished_signal.emit(f"Download finished: {downloaded_file}")
 
         except Exception as e:
-            from yt_dlp import YoutubeDL
             error_msg = strip_ansi(str(e))
             if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs", "Requested format"]):
                 if "Requested format" in error_msg:
@@ -116,8 +120,10 @@ class DownloadWorker(QtCore.QThread):
                         "Could not find a downloadable format. Try a different video or check if it is region-locked."
                     )
                 else:
+                    platform = detect_platform(self.url) if self.url else ""
+                    site_name = get_platform_display_name(platform) if platform else "The site"
                     self.finished_signal.emit(
-                        "YouTube blocked the request. Load a cookies.txt file in the Cookies field and try again."
+                        f"{site_name} blocked the request. Load a cookies.txt file in the Cookies field and try again."
                     )
             else:
                 self.finished_signal.emit(f"Error during download/conversion: {error_msg}")

@@ -1,21 +1,17 @@
 import sys
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
-PYQT_IMPORT_ERROR = None
-YTDLP_IMPORT_ERROR = None
 try:
     from PyQt5 import QtWidgets, QtCore
-except Exception as e:
+except Exception:
     QtWidgets = None
     QtCore = None
-    PYQT_IMPORT_ERROR = e
 
 try:
     from yt_dlp import YoutubeDL
-except Exception as e:
+except Exception:
     YoutubeDL = None
-    YTDLP_IMPORT_ERROR = e
 
 
 def main():

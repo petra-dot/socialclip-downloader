@@ -1,24 +1,28 @@
 # Changelog
 
-## v0.4.0 - 2026-07-23
-### Added
-- Dark theme UI with full QSS stylesheet
-- Sidebar navigation replacing QTabWidget
-- Queue system with concurrent download control and scheduling
-- Douyin cookie auto-detection
-- Collapsible cookie section in download tab
-- Progressive video info section visibility
-
+## v0.5.0 - 2026-07-23
 ### Changed
-- Redesigned single download tab to card-based layout
-- Switched to Fusion style for consistent widget rendering
-- Updated typography hierarchy and widget sizing
-- Migrated project structure to modular packages
+- Restored default Qt theme (removed dark QSS + Fusion style)
+- Replaced sidebar + header with QTabWidget layout
+- Removed queue system (dlqueue module)
+- Simplified all tab layouts to flat design (no card wrappers)
+- Consolidated entry point to single `socialclip_downloader.py`
+
+### Added
+- Platform cookie auto-detection for YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili
+- Platform-aware error messages (shows correct site name, not generic "YouTube")
+- Cookie UI in batch tab (was missing entirely)
+- Shared combo constants (`OUTPUT_FORMATS`, `RESOLUTIONS`, `CONV_OUTPUT_FORMATS`)
 
 ### Fixed
-- Checkbox rendering on Windows dark theme
-- Output section layout and spacing
-- Throttle control layout in queue tab
+- `clean_title` now preserves non-ASCII characters (Chinese, etc.)
+- False "success" messages after ffmpeg failure in all workers
+- Misspelled yt-dlp option `preferedformat` → `preferredformat`
+- `ydl.prepare_filename()` called outside context manager in batch worker
+- Stale worker signals firing after URL change (sequence guards)
+- Multiple workers starting on rapid button clicks
+- Auto-cookies overwriting manual cookie selection
+- `editingFinished` clearing cached metadata on focus loss
 
 ## v0.3.0 - 2026-03-16
 ### Added

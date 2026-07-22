@@ -3,7 +3,7 @@ import os
 
 from PyQt5 import QtWidgets
 
-from utils.file_utils import default_download_folder
+from utils.file_utils import default_download_folder, CONV_OUTPUT_FORMATS, RESOLUTIONS
 from workers.convert_worker import ConvertFileWorker
 
 
@@ -34,11 +34,11 @@ class ConvertTab(QtWidgets.QWidget):
         layout.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
-        self.conv_output_combo.addItems(["MP4 (Video)", "MP3 (Audio)", "WAV (Audio)"])
+        self.conv_output_combo.addItems(CONV_OUTPUT_FORMATS)
         conv_opts.addWidget(QtWidgets.QLabel("Convert to:"))
         conv_opts.addWidget(self.conv_output_combo)
         self.conv_res_combo = QtWidgets.QComboBox()
-        self.conv_res_combo.addItems(["720", "1080", "1440", "2160"])
+        self.conv_res_combo.addItems(RESOLUTIONS)
         self.conv_res_combo.setCurrentText("1080")
         conv_opts.addWidget(QtWidgets.QLabel("Resolution (for video):"))
         conv_opts.addWidget(self.conv_res_combo)
@@ -71,6 +71,9 @@ class ConvertTab(QtWidgets.QWidget):
             self.log(f"Selected file: {file}")
 
     def on_convert_file(self):
+        if self.conv_worker and self.conv_worker.isRunning():
+            self.log("Already converting. Wait for current conversion to finish.")
+            return
         path = self.file_path_input.text().strip()
         if not path:
             QtWidgets.QMessageBox.warning(self, "No file", "Please select a file to convert.")

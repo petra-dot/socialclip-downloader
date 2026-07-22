@@ -1,6 +1,10 @@
 import os
 import re
 
+OUTPUT_FORMATS = ["Video (MP4)", "Audio (MP3)"]
+RESOLUTIONS = ["720", "1080", "1440", "2160"]
+CONV_OUTPUT_FORMATS = ["MP4 (Video)", "MP3 (Audio)", "WAV (Audio)"]
+
 
 def default_download_folder():
     home = os.path.expanduser("~")
@@ -11,12 +15,9 @@ def default_download_folder():
 def clean_title(title: str) -> str:
     if not title:
         return "video"
-    title_ascii = title.encode("ascii", "ignore").decode("ascii")
-    title_ascii = re.sub(r"[#@]", "", title_ascii)
-    title_ascii = re.sub(r"[\\/:*?\"<>|]", " ", title_ascii)
-    title_ascii = re.sub(r"[^\w\s\-]", "", title_ascii)
-    title_ascii = re.sub(r"\s+", " ", title_ascii).strip()
-    return title_ascii[:120] or "video"
+    safe = re.sub(r"[\\/:*?\"<>|]", " ", title)
+    safe = re.sub(r"\s+", " ", safe).strip()
+    return safe[:120] or "video"
 
 
 def get_uploader(info: dict) -> str:

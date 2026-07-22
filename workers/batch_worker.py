@@ -4,6 +4,7 @@ import subprocess
 from PyQt5 import QtCore
 from yt_dlp import YoutubeDL
 
+from sites.cookies import detect_platform, get_platform_display_name
 from utils.ydl_opts import _nle_ydl_opts, _ffmpeg_to_nle_mp4, ffprobe_get_height, strip_ansi
 
 
@@ -42,11 +43,11 @@ class BatchDownloadWorker(QtCore.QThread):
 
                 with YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
-                if not info:
-                    raise Exception(
-                        "Could not extract video info. Video may be private, deleted, or region-locked."
-                    )
-                downloaded_file = ydl.prepare_filename(info)
+                    if not info:
+                        raise Exception(
+                            "Could not extract video info. Video may be private, deleted, or region-locked."
+                        )
+                    downloaded_file = ydl.prepare_filename(info)
 
                 if not os.path.exists(downloaded_file):
                     base = os.path.splitext(downloaded_file)[0]
@@ -77,16 +78,23 @@ class BatchDownloadWorker(QtCore.QThread):
                     else:
                         final_file = downloaded_file
 
+                if final_file != downloaded_file and os.path.exists(downloaded_file):
+                    os.remove(downloaded_file)
                 self.status_signal.emit(f"[ {i} / {total} ] Done: {os.path.basename(final_file)}")
                 succeeded += 1
 
             except Exception as e:
                 error_msg = strip_ansi(str(e))
                 if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
-                    error_msg = "YouTube blocked. Load cookies.txt and try again."
+                    platform = detect_platform(url) if url else ""
+                    site_name = get_platform_display_name(platform) if platform else "The site"
+                    error_msg = f"{site_name} blocked. Load cookies.txt and try again."
                 elif "Requested format" in error_msg:
                     error_msg = "Format not available. Video may be region-locked."
                 self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} \u2014 {error_msg}")
                 failed += 1
 
-        self.finished_signal.emit(f"Batch complete. {succeeded} succeeded, {failed} failed.")
+        if self._cancelled:
+            self.finished_signal.emit(f"Batch cancelled. {succeeded} completed, {failed} failed.")
+        else:
+            self.finished_signal.emit(f"Batch complete. {succeeded} succeeded, {failed} failed.")
