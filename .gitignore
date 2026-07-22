@@ -56,8 +56,8 @@ Thumbs.db
 # Python package metadata
 *.egg-info/
 
-# SDD workspace (temp artifacts)
-.superpowers/sdd/
+# Superpowers AI workspace
+.superpowers/
 
 # Database files
 *.db
