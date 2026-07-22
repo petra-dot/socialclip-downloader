@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 from ui.single_tab import SingleTab
 from ui.batch_tab import BatchTab
 from ui.convert_tab import ConvertTab
-from ui.queue_tab import queueTab
+from ui.queue_tab import QueueTab
 
 
 class MainWindow(QtWidgets.QWidget):
