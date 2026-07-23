@@ -17,7 +17,6 @@
 ### Fixed
 - `clean_title` now preserves non-ASCII characters (Chinese, etc.)
 - False "success" messages after ffmpeg failure in all workers
-- Misspelled yt-dlp option `preferedformat` → `preferredformat`
 - `ydl.prepare_filename()` called outside context manager in batch worker
 - Stale worker signals firing after URL change (sequence guards)
 - Multiple workers starting on rapid button clicks

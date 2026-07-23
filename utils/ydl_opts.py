@@ -37,7 +37,7 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         "outtmpl": outtmpl,
         "merge_output_format": "mp4",
         "postprocessors": [
-            {"key": "FFmpegVideoConvertor", "preferredformat": "mp4"}
+            {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
         ],
         "postprocessor_args": {
             "ffmpegvideoconvertor": [
