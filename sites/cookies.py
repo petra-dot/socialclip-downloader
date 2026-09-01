@@ -9,6 +9,7 @@ PLATFORM_PATTERNS = [
     (r"(?:www\.)?twitter\.com|x\.com", "twitter"),
     (r"(?:www\.)?tiktok\.com|vm\.tiktok\.com", "tiktok"),
     (r"(?:www\.)?bilibili\.com", "bilibili"),
+    (r"(?:www\.)?facebook\.com|fb\.watch|fb\.com", "facebook"),
 ]
 
 
@@ -48,6 +49,7 @@ PLATFORM_NAMES = {
     "twitter": "Twitter/X",
     "tiktok": "TikTok",
     "bilibili": "Bilibili",
+    "facebook": "Facebook",
 }
 
 
@@ -62,5 +64,6 @@ def get_cookie_message(platform: str) -> str:
         "twitter": "Twitter/X may require cookies. Export and save as twitter_cookies.txt.",
         "tiktok": "TikTok may require cookies. Export and save as tiktok_cookies.txt.",
         "bilibili": "Bilibili may require cookies. Export and save as bilibili_cookies.txt.",
+        "facebook": "Facebook may require cookies. Export and save as facebook_cookies.txt.",
     }
     return messages.get(platform, "")

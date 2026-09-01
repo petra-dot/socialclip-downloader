@@ -5,7 +5,7 @@
 [![PyQt5](https://img.shields.io/badge/PyQt5-latest-orange.svg)](https://pypi.org/project/PyQt5/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Desktop application for downloading videos and audio from YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, and other yt-dlp-supported sites. Built with PyQt5 and yt-dlp. All processing is local.
+Desktop application for downloading videos and audio from YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, Facebook, and other yt-dlp-supported sites. Built with PyQt5 and yt-dlp. All processing is local.
 
 ## Features
 
@@ -19,7 +19,7 @@ Desktop application for downloading videos and audio from YouTube, Douyin, Insta
 
 ## Supported Sites
 
-YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, and anything yt-dlp supports.
+YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, Facebook, and anything yt-dlp supports.
 
 ## Installation
 
@@ -50,7 +50,7 @@ Some sites block downloads without cookies. For each platform you use:
 2. Log in to the site, export cookies, and save as `<platform>_cookies.txt` in the app directory.
 3. The app auto-detects cookie files on fetch. You can also set a custom path via the **Browse** button.
 
-Supported names: `youtube_cookies.txt`, `douyin_cookies.txt`, `instagram_cookies.txt`, `twitter_cookies.txt`, `tiktok_cookies.txt`, `bilibili_cookies.txt`.
+Supported names: `youtube_cookies.txt`, `douyin_cookies.txt`, `instagram_cookies.txt`, `twitter_cookies.txt`, `tiktok_cookies.txt`, `bilibili_cookies.txt`, `facebook_cookies.txt`.
 
 ## Project Structure
 
