@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0 - 2026-09-02
+### Added
+- Facebook support (videos, Reels, single and batch download)
+- Facebook cookie auto-detection and platform-aware error messages
+
+### Fixed
+- Duration display crash when yt-dlp returns float duration
+- ffmpeg-not-found errors now show clear install instructions instead of raw traceback
+
 ## v0.5.0 - 2026-07-23
 ### Changed
 - Restored default Qt theme (removed dark QSS + Fusion style)
