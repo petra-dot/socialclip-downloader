@@ -91,6 +91,8 @@ class BatchDownloadWorker(QtCore.QThread):
                     error_msg = f"{site_name} blocked. Load cookies.txt and try again."
                 elif "Requested format" in error_msg:
                     error_msg = "Format not available. Video may be region-locked."
+                elif "ffmpeg" in error_msg.lower():
+                    error_msg = "ffmpeg is not installed or not in PATH. Install it from https://ffmpeg.org/download.html and add to PATH."
                 self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} \u2014 {error_msg}")
                 failed += 1
 

@@ -125,5 +125,9 @@ class DownloadWorker(QtCore.QThread):
                     self.finished_signal.emit(
                         f"{site_name} blocked the request. Load a cookies.txt file in the Cookies field and try again."
                     )
+            elif "ffmpeg" in error_msg.lower():
+                self.finished_signal.emit(
+                    "ffmpeg is not installed or not in PATH. Install it from https://ffmpeg.org/download.html and add to PATH."
+                )
             else:
                 self.finished_signal.emit(f"Error during download/conversion: {error_msg}")

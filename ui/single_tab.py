@@ -276,6 +276,7 @@ class SingleTab(QtWidgets.QWidget):
 
         duration = info.get("duration")
         if duration:
+            duration = int(duration)
             if duration >= 3600:
                 hours = duration // 3600
                 minutes = (duration % 3600) // 60
