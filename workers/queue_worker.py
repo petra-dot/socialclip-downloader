@@ -1,10 +1,9 @@
-import os
 import threading
 
 from PyQt5 import QtCore
 
 from core.download import download_one
-from utils.file_utils import default_download_folder
+from core.queue import resolve_outtmpl
 
 
 class QueueWorker(QtCore.QThread):
@@ -20,9 +19,7 @@ class QueueWorker(QtCore.QThread):
     def _executor(self, job):
         self.job_signal.emit(job.id, job.state, job)
         opts = job.options or {}
-        outtmpl = opts.get("outtmpl") or os.path.join(
-            default_download_folder(), "%(title)s.%(ext)s"
-        )
+        outtmpl = resolve_outtmpl(opts)
         return download_one(
             job.url,
             outtmpl=outtmpl,

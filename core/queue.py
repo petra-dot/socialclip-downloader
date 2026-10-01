@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Callable, List, Optional
 
 from core.manifest import DownloadResult
+from utils.file_utils import default_download_folder
 
 STATES = ("pending", "running", "done", "failed", "cancelled", "paused")
 
@@ -27,6 +28,15 @@ class QueueJob:
     options: dict = field(default_factory=dict)
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+
+def resolve_outtmpl(options: Optional[dict]) -> str:
+    """A job's output template: outtmpl, else output_dir, else the default."""
+    opts = options or {}
+    return opts.get("outtmpl") or os.path.join(
+        opts.get("output_dir") or default_download_folder(),
+        "%(title)s.%(ext)s",
     )
 
 

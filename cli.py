@@ -120,10 +120,9 @@ def _job_dict(job) -> dict:
 
 def _queue_executor(job):
     from core.download import download_one
-    from utils.file_utils import default_download_folder
+    from core.queue import resolve_outtmpl
     opts = job.options or {}
-    out_dir = opts.get("output_dir") or default_download_folder()
-    outtmpl = f"{out_dir}/%(title)s.%(ext)s"
+    outtmpl = resolve_outtmpl(opts)
     return download_one(
         job.url,
         outtmpl=outtmpl,

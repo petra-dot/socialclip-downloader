@@ -47,6 +47,31 @@ def test_queue_override_used_in_process(tmp_path, monkeypatch, capsys):
     assert not default_path.exists()
 
 
+def test_queue_executor_resolves_outtmpl_precedence(monkeypatch):
+    import core.download
+    from core.manifest import DownloadResult
+    from core.queue import QueueJob
+    from utils.file_utils import default_download_folder
+
+    captured = []
+
+    def fake_download_one(url, **kw):
+        captured.append(kw["outtmpl"])
+        return DownloadResult(status="ok", path="o.mp4")
+
+    monkeypatch.setattr(core.download, "download_one", fake_download_one)
+
+    cli._queue_executor(QueueJob(url="u", options={"outtmpl": "C:/chosen/t.%(ext)s"}))
+    cli._queue_executor(QueueJob(url="u", options={"output_dir": "C:/dir"}))
+    cli._queue_executor(QueueJob(url="u", options={}))
+
+    assert captured[0] == "C:/chosen/t.%(ext)s"
+    assert captured[1] == os.path.join("C:/dir", "%(title)s.%(ext)s")
+    assert captured[2] == os.path.join(
+        default_download_folder(), "%(title)s.%(ext)s"
+    )
+
+
 def test_queue_run_ytdlp_missing_exit3(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
     monkeypatch.setattr(cli, "_ytdlp_missing", lambda: True)
