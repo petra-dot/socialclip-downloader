@@ -1,0 +1,74 @@
+name: release
+
+# Builds standalone binaries for Windows, macOS and Linux on every v* tag
+# and attaches them to the GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: socialclip-windows
+            binary: socialclip-downloader.exe
+          - os: macos-latest
+            artifact: socialclip-macos
+            binary: socialclip-downloader
+          - os: ubuntu-latest
+            artifact: socialclip-linux
+            binary: socialclip-downloader
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build binary
+        shell: bash
+        run: |
+          ARGS="--onefile --windowed --name socialclip-downloader"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ARGS="$ARGS --icon assets/icon.ico"
+          fi
+          pyinstaller $ARGS socialclip_downloader.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.binary }}
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Attach binaries to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --generate-notes --title "$tag"
+          gh release upload "$tag" artifacts/*/* --clobber
