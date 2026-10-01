@@ -1,4 +1,5 @@
 import json
+import os
 
 from core.manifest import DownloadResult
 from core.queue import Queue, QueueStore
@@ -209,3 +210,18 @@ def test_run_once_does_not_raise_on_corrupt_job(tmp_path):
     done = q.run_once(executor)
     assert done.state == "done"
     assert done.attempts == 1
+
+
+def test_save_tmp_path_is_unique_per_process(tmp_path, monkeypatch):
+    seen = []
+    real_replace = os.replace
+
+    def spy(src, dst):
+        seen.append(os.path.basename(src))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr("core.queue.os.replace", spy)
+    store = QueueStore(str(tmp_path / "q.json"))
+    store.save()
+    assert seen and seen[0] != "q.json.tmp"
+    assert str(os.getpid()) in seen[0]
