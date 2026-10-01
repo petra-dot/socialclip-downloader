@@ -1,3 +1,4 @@
+import os
 import sys
 
 __version__ = "0.9.0"
@@ -12,6 +13,17 @@ try:
     from yt_dlp import YoutubeDL
 except Exception:
     YoutubeDL = None
+
+
+def _asset_path(name: str) -> str:
+    """Resolve a bundled asset for both a source run and a PyInstaller build."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        candidate = os.path.join(base, "assets", name)
+        if os.path.isfile(candidate):
+            return candidate
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, "assets", name)
 
 
 def main():
@@ -36,6 +48,10 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setOrganizationName("petra-dot")
     app.setApplicationName("SocialClip Downloader")
+
+    icon_path = _asset_path("icon.ico")
+    if os.path.isfile(icon_path):
+        app.setWindowIcon(QtWidgets.QIcon(icon_path))
 
     from utils.ffmpeg import find_ffmpeg
     if not find_ffmpeg():

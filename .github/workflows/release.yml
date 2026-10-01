@@ -77,17 +77,20 @@ jobs:
           EXT=""
           if [ "${{ matrix.os }}" = "windows-latest" ]; then EXT=".exe"; fi
           ADD="--add-binary bundled/ffmpeg$EXT:."
+          # Bundle the icon file too: --icon only sets the executable's icon,
+          # it does not make assets/icon.ico resolvable at runtime.
+          DATA="--add-data assets/icon.ico:assets"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-windows \
-              $ADD --icon assets/icon.ico socialclip_downloader.py
+              $ADD $DATA --icon assets/icon.ico socialclip_downloader.py
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-macos \
-              $ADD --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
+              $ADD $DATA --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
           else
             # Plain binary, no --windowed: that flag needs libpython shared
             # libs the manylinux runners do not ship.
             pyinstaller --onefile --name socialclip-downloader-linux \
-              $ADD socialclip_downloader.py
+              $ADD $DATA socialclip_downloader.py
           fi
           # Console CLI build: the --windowed GUI binary has no stdout on
           # Windows, so the CLI ships as its own --console executable.
