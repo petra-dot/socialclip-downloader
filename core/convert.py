@@ -2,8 +2,10 @@ import os
 import subprocess
 from collections import namedtuple
 
+from core.formats import get
 from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
+from core.probe import probe_media
 from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import _ffmpeg_to_nle_mp4, ffprobe_get_height
 
@@ -35,11 +37,55 @@ def _extension(path: str) -> str:
     return os.path.splitext(path)[1].lstrip(".")
 
 
-def convert_file(input_path: str, output_type: str,
-                 target_resolution: int = None) -> DownloadResult:
+def _convert_to_format(input_path, fmt, copy_streams, runner=None):
+    src_info = probe_media(input_path)
+    plan = plan_conversion(src_info, fmt, copy_streams)
+    out_path = os.path.splitext(input_path)[0] + "." + fmt.extension
+
+    if fmt.key == "gif":
+        vf = (
+            "fps=15,scale=320:-1:flags=lanczos,split[a][b];"
+            "[a]palettegen[p];[b][p]paletteuse"
+        )
+        cmd = [ffmpeg_path(), "-i", input_path, "-vf", vf, "-an", "-y", out_path]
+    else:
+        cmd = [ffmpeg_path(), "-i", input_path]
+        if plan.vcodec == "":
+            cmd.append("-vn")
+        else:
+            cmd += ["-c:v", plan.vcodec]
+        if plan.acodec and plan.acodec != "none":
+            cmd += ["-c:a", plan.acodec]
+        cmd += ["-f", plan.container, "-y", out_path]
+
+    run = subprocess.run if runner is None else runner
+    result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
+
+    mode = "Remuxed" if plan.mode == "remux" else "Converted"
+    return DownloadResult(
+        status="ok",
+        path=out_path,
+        extension=fmt.extension,
+        message=f"{mode} to {out_path}",
+    )
+
+
+def convert_file(input_path: str, output_type: str = None,
+                 target_resolution: int = None, target_format: str = None,
+                 copy_streams: bool = None) -> DownloadResult:
     try:
         if not os.path.exists(input_path):
             return error_result("not_found", "Input file does not exist.", "")
+
+        if target_format is not None:
+            fmt = get(target_format)
+            if fmt is None:
+                return error_result(
+                    "format", f"Unknown target format: {target_format}", ""
+                )
+            return _convert_to_format(input_path, fmt, copy_streams)
 
         base = os.path.splitext(input_path)[0]
 
