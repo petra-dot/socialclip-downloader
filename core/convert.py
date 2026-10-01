@@ -1,10 +1,32 @@
 import os
 import subprocess
+from collections import namedtuple
 
 from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
 from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import _ffmpeg_to_nle_mp4, ffprobe_get_height
+
+
+ConvertPlan = namedtuple("ConvertPlan", "mode vcodec acodec container")
+
+
+def plan_conversion(src_info, target, copy_streams=None):
+    v = (src_info or {}).get("vcodec", "") or ""
+    a = (src_info or {}).get("acodec", "") or ""
+
+    if target.kind == "audio":
+        if copy_streams is False or a not in target.remux_a:
+            return ConvertPlan("transcode", "", target.acodec, target.container)
+        return ConvertPlan("remux", "", "copy", target.container)
+
+    v_ok = v in target.remux_v
+    a_ok = a in target.remux_a
+    if copy_streams is True:
+        return ConvertPlan("remux", "copy", "copy", target.container)
+    if copy_streams is None and v_ok and a_ok and target.remux_v:
+        return ConvertPlan("remux", "copy", "copy", target.container)
+    return ConvertPlan("transcode", target.vcodec, target.acodec, target.container)
 
 
 def _extension(path: str) -> str:
