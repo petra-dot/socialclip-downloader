@@ -15,7 +15,9 @@ NOT_FOUND_KEYWORDS = (
 def classify_error(message: str, url: str = ""):
     """Map a raw yt-dlp/ffmpeg error to (category, user-facing message).
 
-    Categories: "blocked", "format", "ffmpeg", "network", "not_found", "other".
+    Returns one of: "blocked", "format", "ffmpeg", "network", "not_found",
+    "other". A "cancelled" category also exists but is produced by
+    ``core.download`` when the user cancels; it is never returned here.
     """
     text = message or ""
     if any(keyword in text for keyword in BLOCKED_KEYWORDS):

@@ -21,6 +21,13 @@ def test_manifest_schema_prints_json_with_version():
     assert data["properties"]["schema_version"]["const"] == "1.0"
 
 
+def test_manifest_schema_error_category_includes_cancelled():
+    proc = run_cli("manifest-schema")
+    assert proc.returncode == 0
+    data = json.loads(proc.stdout)
+    assert "cancelled" in data["properties"]["error_category"]["enum"]
+
+
 def test_convert_json_stdout_is_pure_json(tmp_path):
     src = tmp_path / "missing.mp4"
     # Point the ffmpeg resolver at a real file so the dependency gate passes
