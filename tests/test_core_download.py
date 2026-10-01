@@ -213,3 +213,40 @@ def test_no_cancel_callable_is_unchanged(monkeypatch, tmp_path):
     )
     assert result.status == "ok"
     assert result.path == str(real)
+
+
+def test_generic_failure_cleans_up_partial(monkeypatch, tmp_path):
+    artifact = tmp_path / "clip.mp4"
+    artifact.write_text("half")
+    part = tmp_path / "clip.mp4.part"
+    part.write_text("half")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "downloading", "downloaded_bytes": 1,
+                      "total_bytes": 10, "filename": str(artifact)})
+            raise RuntimeError("network died")
+
+        def prepare_filename(self, info):
+            return str(artifact)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cancel=lambda: False,
+    )
+    assert result.status == "error"
+    assert not part.exists()
+    assert not artifact.exists()

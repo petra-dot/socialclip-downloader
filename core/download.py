@@ -125,5 +125,6 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         _cleanup_partial(in_flight["path"])
         return error_result("cancelled", "Cancelled.", url)
     except Exception as e:
+        _cleanup_partial(in_flight["path"])
         category, message = classify_error(strip_ansi(str(e)), url)
         return error_result(category, message, url)
