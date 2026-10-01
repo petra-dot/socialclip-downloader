@@ -3,7 +3,6 @@ import re
 
 OUTPUT_FORMATS = ["Video (MP4)", "Audio (MP3)"]
 RESOLUTIONS = ["720", "1080", "1440", "2160"]
-CONV_OUTPUT_FORMATS = ["MP4 (Video)", "MP3 (Audio)", "WAV (Audio)"]
 
 
 def default_download_folder():

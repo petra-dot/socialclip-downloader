@@ -13,7 +13,7 @@ Desktop application for downloading videos and audio from YouTube, Douyin, Insta
 
 - **Single download** — paste a URL and metadata is fetched automatically; preview thumbnail, download as MP4 or MP3, then **Open folder** to reveal the saved file
 - **Queue** — add multiple URLs (type them, or **Paste** from the clipboard), then run them one at a time with pause, resume, per-item cancel, and cancel-all; the queue is saved to disk so it survives a restart
-- **File converter** — convert MP4 to MP3/WAV, downscale resolution
+- **File converter** — convert a local file to any registry format; video targets can be downscaled to a chosen resolution (never upscaled)
 - **Doctor** — first-run welcome and a **Doctor** report (ffmpeg, cookies, network reachability) from the Help menu
 - **Resolution targeting** — 720p, 1080p, 1440p, 2160p
 - **Auto cookie detection** — per-platform cookie files (`douyin_cookies.txt`, `youtube_cookies.txt`, etc.) are picked up automatically
@@ -72,7 +72,7 @@ the [releases page](https://github.com/petra-dot/socialclip-downloader/releases)
 
 ```bash
 socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE]
-socialclip convert FILE [--to mp4|mp3|wav] [--resolution 1080]
+socialclip convert FILE [--to KEY] [--copy|--no-copy]
 socialclip doctor
 socialclip manifest-schema
 socialclip queue add URL [URL ...]
@@ -82,7 +82,12 @@ socialclip queue clear
 ```
 
 - `download` — fetch one URL and save it as MP4 or MP3.
-- `convert` — convert a local file to MP4/MP3/WAV, optionally downscaling.
+- `convert` — convert a local file to a registry format key: `mp4`, `mkv`,
+  `webm`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `flac`, `ogg`, `opus`,
+  `aac`, or `wma`. Streams are auto-remuxed when they already fit the
+  container; `--copy` forces a stream copy, `--no-copy` forces a re-encode.
+  Without `--to` it falls back to the legacy MP3 path. In the GUI, video
+  format targets can also be downscaled to the chosen resolution.
 - `doctor` — health report: ffmpeg presence/version, cookie files found, and
   network reachability. Exits `0` when ffmpeg is found, `3` otherwise.
 - `manifest-schema` — print the JSON Schema for the result manifest.

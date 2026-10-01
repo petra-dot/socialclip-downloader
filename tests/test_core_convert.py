@@ -147,3 +147,47 @@ def test_gif_emits_palette_filter_and_no_audio_codec(monkeypatch, tmp_path):
     assert "palettegen" in _value_after(argv, "-vf")
     assert "-an" in argv
     assert "-c:a" not in argv
+
+
+def _probe_height(vcodec, acodec, height):
+    return lambda path, **k: {
+        "vcodec": vcodec,
+        "acodec": acodec,
+        "height": height,
+        "container": "",
+    }
+
+
+def _run_convert_res(monkeypatch, tmp_path, src_name, vcodec, acodec,
+                     target, height, target_resolution):
+    src = tmp_path / src_name
+    src.write_text("x")
+    commands = []
+    monkeypatch.setattr("core.convert.subprocess.run", _capture_run(commands))
+    monkeypatch.setattr("core.convert.probe_media", _probe_height(vcodec, acodec, height))
+    result = convert_file(
+        str(src), target_format=target, target_resolution=target_resolution
+    )
+    assert result.status == "ok"
+    return commands[0]
+
+
+def test_video_format_downscales_when_target_lower(monkeypatch, tmp_path):
+    argv = _run_convert_res(
+        monkeypatch, tmp_path, "in.webm", "vp9", "opus", "mp4", 1080, 720
+    )
+    assert _value_after(argv, "-vf") == "scale=-2:720"
+
+
+def test_video_format_does_not_upscale(monkeypatch, tmp_path):
+    argv = _run_convert_res(
+        monkeypatch, tmp_path, "in.webm", "vp9", "opus", "mp4", 720, 1080
+    )
+    assert "-vf" not in argv
+
+
+def test_audio_format_never_emits_scale_filter(monkeypatch, tmp_path):
+    argv = _run_convert_res(
+        monkeypatch, tmp_path, "in.mp4", "h264", "aac", "mp3", 1080, 720
+    )
+    assert "-vf" not in argv

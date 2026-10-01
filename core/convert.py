@@ -37,7 +37,17 @@ def _extension(path: str) -> str:
     return os.path.splitext(path)[1].lstrip(".")
 
 
-def _convert_to_format(input_path, fmt, copy_streams, runner=None):
+def _scale_filter(fmt, src_info, target_resolution):
+    if fmt.kind != "video" or not target_resolution:
+        return None
+    src_height = (src_info or {}).get("height", 0) or 0
+    if src_height and target_resolution < src_height:
+        return f"scale=-2:{int(target_resolution)}"
+    return None
+
+
+def _convert_to_format(input_path, fmt, copy_streams, target_resolution=None,
+                       runner=None):
     src_info = probe_media(input_path)
     plan = plan_conversion(src_info, fmt, copy_streams)
     out_path = os.path.splitext(input_path)[0] + "." + fmt.extension
@@ -51,11 +61,18 @@ def _convert_to_format(input_path, fmt, copy_streams, runner=None):
         )
         cmd = [ffmpeg_path(), "-i", input_path, "-vf", vf, "-an", "-y", out_path]
     else:
+        vf = _scale_filter(fmt, src_info, target_resolution)
         cmd = [ffmpeg_path(), "-i", input_path]
-        if plan.vcodec == "":
+        vcodec = plan.vcodec
+        if vcodec == "":
             cmd.append("-vn")
         else:
-            cmd += ["-c:v", plan.vcodec]
+            if vf and vcodec == "copy":
+                # Scaling needs a re-encode; a stream copy + filter is invalid.
+                vcodec = fmt.vcodec
+            cmd += ["-c:v", vcodec]
+        if vf:
+            cmd += ["-vf", vf]
         if plan.acodec:
             cmd += ["-c:a", plan.acodec]
         cmd += ["-f", plan.container, "-y", out_path]
@@ -65,7 +82,7 @@ def _convert_to_format(input_path, fmt, copy_streams, runner=None):
     if result.returncode != 0:
         return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
 
-    mode = "Remuxed" if plan.mode == "remux" else "Converted"
+    mode = "Remuxed" if plan.mode == "remux" and not vf else "Converted"
     return DownloadResult(
         status="ok",
         path=out_path,
@@ -87,7 +104,9 @@ def convert_file(input_path: str, output_type: str = None,
                 return error_result(
                     "format", f"Unknown target format: {target_format}", ""
                 )
-            return _convert_to_format(input_path, fmt, copy_streams)
+            return _convert_to_format(
+                input_path, fmt, copy_streams, target_resolution=target_resolution
+            )
 
         base = os.path.splitext(input_path)[0]
 

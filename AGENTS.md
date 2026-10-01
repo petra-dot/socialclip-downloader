@@ -75,7 +75,8 @@ helpers testable. CI lints and runs pytest.
 - Worker threads report through Qt signals; the GUI never runs network/ffmpeg
   work on the main thread.
 - Reuse the shared combos in `utils/file_utils.py` (`OUTPUT_FORMATS`,
-  `RESOLUTIONS`, `CONV_OUTPUT_FORMATS`) instead of hardcoding lists.
+  `RESOLUTIONS`) instead of hardcoding lists; convert-tab formats come from
+  the `core/formats.py` registry.
 - Route any new user-facing error copy through
   `sites.errors.classify_error`; do not re-add keyword lists to the workers.
 - Cancel is a callable checked in the yt-dlp progress hook
