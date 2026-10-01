@@ -40,11 +40,19 @@ python socialclip_downloader.py     # run the app
 pip install -r requirements.txt     # runtime deps
 pip install -r requirements-dev.txt # pytest + flake8
 .\run.bat                           # Windows launcher
+./run.sh                            # macOS/Linux launcher
 .\build.bat                         # PyInstaller onefile build (Windows)
 python -m pytest -q                 # tests
 python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 ```
 
+## CI
+
+- `python-package.yml` : flake8 + pytest on push/PR
+- `gitleaks.yml` : secret scan (flags Netscape cookie exports)
+- `release.yml` : on `v*` tag, builds Windows/macOS/Linux onefile binaries
+  and attaches them to the GitHub Release. macOS/Linux builds are unproven
+  locally (only Windows was validated); expect the first tag to be the test.
 The `tests/` suite covers pure logic only (cookies, file utils, error
 classification). GUI and worker threads are not unit-tested; keep new pure
 helpers testable. CI lints and runs pytest.

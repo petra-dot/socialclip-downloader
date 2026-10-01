@@ -20,12 +20,34 @@ def detect_platform(url: str) -> str:
     return ""
 
 
+def default_cookie_dir() -> str:
+    """Directory to look for cookie files in.
+
+    Prefers the current working directory (where the user runs / drops the
+    file), but falls back to the app directory so packaged builds work when
+    launched from elsewhere.
+    """
+    cwd = os.getcwd()
+    if _has_cookie_file(cwd):
+        return cwd
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def _has_cookie_file(directory: str) -> bool:
+    try:
+        return any(
+            name.lower().endswith("_cookies.txt") for name in os.listdir(directory)
+        )
+    except OSError:
+        return False
+
+
 def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     platform = detect_platform(url)
     if not platform:
         return ""
     if cookie_dir is None:
-        cookie_dir = os.getcwd()
+        cookie_dir = default_cookie_dir()
     candidates = [
         os.path.join(cookie_dir, f"{platform}_cookies.txt"),
         os.path.join(cookie_dir, f"{platform}.txt"),

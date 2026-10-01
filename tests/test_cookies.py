@@ -1,6 +1,10 @@
+import os
+
 import pytest
 
+import sites.cookies as cookies
 from sites.cookies import (
+    default_cookie_dir,
     detect_platform,
     get_cookie_message,
     get_cookie_path,
@@ -39,6 +43,31 @@ def test_cookie_path_missing(tmp_path):
 
 def test_cookie_path_unknown_platform(tmp_path):
     assert get_cookie_path("https://example.com/x", str(tmp_path)) == ""
+
+
+def test_default_cookie_dir_prefers_cwd_when_present():
+    assert default_cookie_dir() == os.getcwd()
+
+
+def test_default_cookie_dir_falls_back_to_app_dir(tmp_path, monkeypatch):
+    empty = tmp_path / "empty-cwd"
+    empty.mkdir()
+    monkeypatch.chdir(empty)
+    assert default_cookie_dir() == os.path.dirname(os.path.abspath(cookies.__file__))
+
+
+def test_cookie_path_uses_app_dir_when_cwd_is_barren(tmp_path, monkeypatch):
+    empty = tmp_path / "empty-cwd"
+    empty.mkdir()
+    monkeypatch.chdir(empty)
+    app_dir = os.path.dirname(os.path.abspath(cookies.__file__))
+    cookie_file = os.path.join(app_dir, "youtube_cookies.txt")
+    with open(cookie_file, "w") as handle:
+        handle.write("c")
+    try:
+        assert get_cookie_path("https://youtu.be/x") == cookie_file
+    finally:
+        os.remove(cookie_file)
 
 
 def test_display_name_known_and_fallback():

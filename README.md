@@ -23,12 +23,21 @@ YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, Facebook, and anything 
 
 ## Installation
 
-### Prerequisites
+### Option A: Download a release binary (no Python needed)
+
+Grab the build for your OS from the
+[releases page](https://github.com/petra-dot/socialclip-downloader/releases):
+
+- Windows: `socialclip-downloader.exe`
+- macOS: `socialclip-downloader`
+- Linux: `socialclip-downloader`
+
+You still need **ffmpeg** on your system (see below); the binaries do not bundle it.
+
+### Option B: Run from source
 
 1. **Python 3.8+**: Download from [python.org](https://www.python.org/downloads/)
 2. **FFmpeg**: Required for media processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
-
-### Setup
 
 ```bash
 pip install -r requirements.txt
@@ -40,7 +49,7 @@ pip install -r requirements.txt
 python socialclip_downloader.py
 ```
 
-Or double-click `run.bat` on Windows.
+Launchers: `run.bat` (Windows), `run.sh` (macOS/Linux).
 
 ## Cookie Authentication
 
