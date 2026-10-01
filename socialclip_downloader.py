@@ -37,7 +37,13 @@ def main():
         print("  macOS:   brew install ffmpeg")
         print("  Linux:   sudo apt install ffmpeg")
 
+    # Must be set before QApplication is constructed, otherwise it is a no-op.
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
+
     app = QtWidgets.QApplication(sys.argv)
+    app.setOrganizationName("petra-dot")
+    app.setApplicationName("SocialClip Downloader")
 
     window = MainWindow()
     window.show()

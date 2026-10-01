@@ -1,4 +1,25 @@
-from utils.file_utils import clean_title, get_uploader, make_unique_filepath
+from utils.file_utils import clean_title, get_uploader, make_unique_filepath, restore_or
+
+
+def test_restore_or_returns_saved_value():
+    assert restore_or("/fallback", "/saved") == "/saved"
+
+
+def test_restore_or_falls_back_when_none():
+    assert restore_or("/fallback", None) == "/fallback"
+
+
+def test_restore_or_falls_back_when_empty_or_whitespace():
+    assert restore_or("/fallback", "") == "/fallback"
+    assert restore_or("/fallback", "   ") == "/fallback"
+
+
+def test_restore_or_falls_back_when_key_missing():
+    class FakeSettings:
+        def value(self, key, default=None):
+            return default
+
+    assert restore_or("/fallback", FakeSettings().value("missing", None)) == "/fallback"
 
 
 def test_clean_title_strips_illegal_chars():

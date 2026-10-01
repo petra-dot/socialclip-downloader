@@ -12,6 +12,14 @@ def default_download_folder():
     return downloads if os.path.isdir(downloads) else home
 
 
+def restore_or(default: str, value) -> str:
+    """Return a saved setting, falling back to the default when empty or missing."""
+    if value is None:
+        return default
+    value = str(value).strip()
+    return value or default
+
+
 def clean_title(title: str) -> str:
     if not title:
         return "video"

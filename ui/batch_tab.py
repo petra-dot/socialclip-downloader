@@ -1,10 +1,10 @@
 import datetime
 import os
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 
 from sites.cookies import get_cookie_path
-from utils.file_utils import default_download_folder, OUTPUT_FORMATS, RESOLUTIONS
+from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
 from workers.batch_worker import BatchDownloadWorker
 
 
@@ -13,6 +13,7 @@ class BatchTab(QtWidgets.QWidget):
         super().__init__()
         self.cookies_file_ref = cookies_file_ref
         self.batch_worker = None
+        self.settings = QtCore.QSettings()
         self.init_ui()
 
     def init_ui(self):
@@ -32,7 +33,10 @@ class BatchTab(QtWidgets.QWidget):
         batch_layout.addWidget(opts_heading)
 
         batch_save_layout = QtWidgets.QHBoxLayout()
-        self.batch_save_dir_input = QtWidgets.QLineEdit(default_download_folder())
+        self.batch_save_dir_input = QtWidgets.QLineEdit(
+            restore_or(default_download_folder(), self.settings.value("batch/save_dir"))
+        )
+        self.batch_save_dir_input.editingFinished.connect(self._on_batch_save_dir_changed)
         batch_save_layout.addWidget(self.batch_save_dir_input)
         batch_browse_btn = QtWidgets.QPushButton("Browse")
         batch_browse_btn.clicked.connect(self.on_batch_browse)
@@ -57,7 +61,9 @@ class BatchTab(QtWidgets.QWidget):
         cookies_row.addWidget(cookies_label)
         self.batch_cookies_input = QtWidgets.QLineEdit()
         self.batch_cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
-        self.batch_cookies_input.setText(self.cookies_file_ref.get("path", ""))
+        self.batch_cookies_input.setText(
+            self.cookies_file_ref.get("path", "") or self.settings.value("batch/cookies", "") or ""
+        )
         self.batch_cookies_input.editingFinished.connect(self._on_batch_cookies_changed)
         cookies_row.addWidget(self.batch_cookies_input)
         browse_cookies_btn = QtWidgets.QPushButton("Browse...")
@@ -81,7 +87,14 @@ class BatchTab(QtWidgets.QWidget):
         sb.setValue(sb.maximum())
 
     def _on_batch_cookies_changed(self):
-        self.cookies_file_ref["path"] = self.batch_cookies_input.text().strip()
+        path = self.batch_cookies_input.text().strip()
+        self.cookies_file_ref["path"] = path
+        self.settings.setValue("batch/cookies", path)
+
+    def _on_batch_save_dir_changed(self):
+        text = self.batch_save_dir_input.text().strip()
+        if text:
+            self.settings.setValue("batch/save_dir", text)
 
     def _batch_get_cookies_path(self):
         return self.cookies_file_ref.get("path", "").strip()
@@ -101,6 +114,7 @@ class BatchTab(QtWidgets.QWidget):
         )
         if folder:
             self.batch_save_dir_input.setText(folder)
+            self._on_batch_save_dir_changed()
 
     def on_start_batch(self):
         if self.batch_worker and self.batch_worker.isRunning():

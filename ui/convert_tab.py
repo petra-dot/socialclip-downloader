@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 
 from utils.file_utils import default_download_folder, CONV_OUTPUT_FORMATS, RESOLUTIONS
 from workers.convert_worker import ConvertFileWorker
@@ -11,6 +11,7 @@ class ConvertTab(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.conv_worker = None
+        self.settings = QtCore.QSettings()
         self.init_ui()
 
     def init_ui(self):
@@ -35,11 +36,17 @@ class ConvertTab(QtWidgets.QWidget):
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
         self.conv_output_combo.addItems(CONV_OUTPUT_FORMATS)
+        saved_output = self.settings.value("convert/output")
+        if saved_output in CONV_OUTPUT_FORMATS:
+            self.conv_output_combo.setCurrentText(saved_output)
+        self.conv_output_combo.currentTextChanged.connect(self._on_conv_output_changed)
         conv_opts.addWidget(QtWidgets.QLabel("Convert to:"))
         conv_opts.addWidget(self.conv_output_combo)
         self.conv_res_combo = QtWidgets.QComboBox()
         self.conv_res_combo.addItems(RESOLUTIONS)
-        self.conv_res_combo.setCurrentText("1080")
+        saved_res = self.settings.value("convert/resolution")
+        self.conv_res_combo.setCurrentText(saved_res if saved_res in RESOLUTIONS else "1080")
+        self.conv_res_combo.currentTextChanged.connect(self._on_conv_res_changed)
         conv_opts.addWidget(QtWidgets.QLabel("Resolution (for video):"))
         conv_opts.addWidget(self.conv_res_combo)
         layout.addLayout(conv_opts)
@@ -59,6 +66,12 @@ class ConvertTab(QtWidgets.QWidget):
         self.console_log.append(f"[{ts}] {msg}")
         sb = self.console_log.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    def _on_conv_output_changed(self, text):
+        self.settings.setValue("convert/output", text)
+
+    def _on_conv_res_changed(self, text):
+        self.settings.setValue("convert/resolution", text)
 
     def on_pick_file(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(

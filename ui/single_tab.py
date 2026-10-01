@@ -5,7 +5,15 @@ import urllib.request
 from PyQt5 import QtWidgets, QtCore
 from yt_dlp import YoutubeDL
 
-from utils.file_utils import clean_title, get_uploader, make_unique_filepath, default_download_folder, OUTPUT_FORMATS, RESOLUTIONS
+from utils.file_utils import (
+    clean_title,
+    get_uploader,
+    make_unique_filepath,
+    default_download_folder,
+    restore_or,
+    OUTPUT_FORMATS,
+    RESOLUTIONS,
+)
 from utils.ydl_opts import strip_ansi
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
@@ -56,7 +64,16 @@ class ThumbnailWorker(QtCore.QThread):
                 data = response.read()
             pixmap = QtWidgets.QPixmap()
             pixmap.loadFromData(data)
-            scaled = pixmap.scaled(120, 68, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            # Scale in device pixels so the thumbnail is 120x68 layout pixels
+            # regardless of display scaling (otherwise it shrinks under HiDPI).
+            dpr = QtWidgets.QApplication.desktop().devicePixelRatio()
+            scaled = pixmap.scaled(
+                int(120 * dpr),
+                int(68 * dpr),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+            scaled.setDevicePixelRatio(dpr)
             self.done_signal.emit(scaled, self.seq)
         except Exception:
             self.done_signal.emit(None, self.seq)
@@ -73,6 +90,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_url = ""
         self._fetch_seq = 0
         self._thumb_seq = 0
+        self.settings = QtCore.QSettings()
         self.init_ui()
 
     def init_ui(self):
@@ -148,7 +166,10 @@ class SingleTab(QtWidgets.QWidget):
         main.addWidget(self.checkbox_timestamp)
 
         save_layout = QtWidgets.QHBoxLayout()
-        self.save_dir_input = QtWidgets.QLineEdit(default_download_folder())
+        self.save_dir_input = QtWidgets.QLineEdit(
+            restore_or(default_download_folder(), self.settings.value("single/save_dir"))
+        )
+        self.save_dir_input.editingFinished.connect(self._on_save_dir_changed)
         save_layout.addWidget(self.save_dir_input)
         browse_btn = QtWidgets.QPushButton("Browse")
         browse_btn.clicked.connect(self.on_browse)
@@ -174,7 +195,9 @@ class SingleTab(QtWidgets.QWidget):
         cookies_label = QtWidgets.QLabel("Cookies file:")
         cookies_label.setFixedWidth(130)
         cookies_row.addWidget(cookies_label)
-        self.cookies_input = QtWidgets.QLineEdit()
+        self.cookies_input = QtWidgets.QLineEdit(
+            self.settings.value("single/cookies", "") or ""
+        )
         self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)
@@ -202,7 +225,14 @@ class SingleTab(QtWidgets.QWidget):
         sb.setValue(sb.maximum())
 
     def _on_cookies_changed(self):
-        self.cookies_file_ref["path"] = self.cookies_input.text().strip()
+        path = self.cookies_input.text().strip()
+        self.cookies_file_ref["path"] = path
+        self.settings.setValue("single/cookies", path)
+
+    def _on_save_dir_changed(self):
+        text = self.save_dir_input.text().strip()
+        if text:
+            self.settings.setValue("single/save_dir", text)
 
     def _on_url_changed(self):
         url = self.url_input.text().strip()
@@ -246,6 +276,7 @@ class SingleTab(QtWidgets.QWidget):
         )
         if folder:
             self.save_dir_input.setText(folder)
+            self._on_save_dir_changed()
 
     def _cancel_thumbnail(self):
         if self.thumb_worker and self.thumb_worker.isRunning():

@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 
 from ui.single_tab import SingleTab
 from ui.batch_tab import BatchTab
@@ -13,6 +13,7 @@ class MainWindow(QtWidgets.QWidget):
         self.setMinimumSize(820, 520)
         self.cookies_file = {"path": ""}
         self.init_ui()
+        self._restore_geometry()
 
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
@@ -26,3 +27,13 @@ class MainWindow(QtWidgets.QWidget):
         self.tabs.addTab(self.batch_tab, "Batch")
         self.tabs.addTab(self.convert_tab, "Convert")
         layout.addWidget(self.tabs)
+
+    def _restore_geometry(self):
+        settings = QtCore.QSettings()
+        geometry = settings.value("window/geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+
+    def closeEvent(self, event):
+        QtCore.QSettings().setValue("window/geometry", self.saveGeometry())
+        super().closeEvent(event)
