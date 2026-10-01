@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets, QtCore
 
 from ui.single_tab import SingleTab
-from ui.batch_tab import BatchTab
+from ui.batch_tab import QueueTab
 from ui.convert_tab import ConvertTab
 from ui.dialogs import show_welcome, show_doctor
 
@@ -32,10 +32,10 @@ class MainWindow(QtWidgets.QWidget):
 
         self.tabs = QtWidgets.QTabWidget()
         self.single_tab = SingleTab(self.cookies_file)
-        self.batch_tab = BatchTab(self.cookies_file)
+        self.batch_tab = QueueTab(self.cookies_file)
         self.convert_tab = ConvertTab()
         self.tabs.addTab(self.single_tab, "Download")
-        self.tabs.addTab(self.batch_tab, "Batch")
+        self.tabs.addTab(self.batch_tab, "Queue")
         self.tabs.addTab(self.convert_tab, "Convert")
         layout.addWidget(self.tabs)
 
