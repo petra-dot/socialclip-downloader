@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.7.0 - 2026-10-01
+### Added
+- Headless `core/` package (Qt-free) shared by the GUI and the CLI:
+  `core.download.download_one`, `core.convert.convert_file`, `core.manifest`
+  (versioned JSON contract), `core.pipeline`
+- `socialclip` command-line tool: `download`, `convert`, `doctor`,
+  `manifest-schema`, with `--json` structured output and documented exit codes
+  (0 ok, 1 failure, 2 usage, 3 missing dependency)
+- Console binary per OS in the release workflow, alongside the GUI binary
+- Error categories extended: `network`, `not_found`
+
+### Fixed
+- Platform detection matched substrings, so any URL containing `x.com`
+  (e.g. `app.box.com`) was misdetected as Twitter; detection now parses the
+  hostname and matches anchored patterns
+- `socialclip download` re-encoded anything above 1080p by default; conversion
+  is now opt-in via `--convert`, matching the GUI checkbox
+- The ffmpeg-missing warning used `print()`, invisible in the `--windowed`
+  build; it is now a dialog
+- Batch downloads could not be stopped; a Cancel button is now wired to the
+  worker
+- `ffmpeg_location` is only passed to yt-dlp when the resolved path exists
+- GUI download/convert lost their skip and success status messages after the
+  core refactor
+
 ## v0.6.1 - 2026-10-01
 ### Added
 - Per-OS release binaries (Windows/macOS/Linux) built by GitHub Actions

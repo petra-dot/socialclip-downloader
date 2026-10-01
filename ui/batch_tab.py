@@ -70,9 +70,15 @@ class BatchTab(QtWidgets.QWidget):
         cookies_row.addWidget(browse_cookies_btn)
         batch_layout.addLayout(cookies_row)
 
+        start_row = QtWidgets.QHBoxLayout()
         self.batch_start_btn = QtWidgets.QPushButton("Start Batch")
         self.batch_start_btn.clicked.connect(self.on_start_batch)
-        batch_layout.addWidget(self.batch_start_btn)
+        start_row.addWidget(self.batch_start_btn)
+        self.batch_cancel_btn = QtWidgets.QPushButton("Cancel")
+        self.batch_cancel_btn.setEnabled(False)
+        self.batch_cancel_btn.clicked.connect(self.on_cancel_batch)
+        start_row.addWidget(self.batch_cancel_btn)
+        batch_layout.addLayout(start_row)
 
         self.batch_console_log = QtWidgets.QTextEdit()
         self.batch_console_log.setReadOnly(True)
@@ -129,6 +135,7 @@ class BatchTab(QtWidgets.QWidget):
         output_type = "MP3" if "MP3" in self.batch_output_combo.currentText() else "MP4"
         target_resolution = int(self.batch_resolution_combo.currentText())
         self.batch_start_btn.setEnabled(False)
+        self.batch_cancel_btn.setEnabled(True)
         self.batch_log(f"Starting batch download of {len(urls)} URLs...")
         self.batch_worker = BatchDownloadWorker(
             urls, save_dir, output_type, target_resolution, self._batch_get_cookies_path()
@@ -137,6 +144,13 @@ class BatchTab(QtWidgets.QWidget):
         self.batch_worker.finished_signal.connect(self.on_batch_finished)
         self.batch_worker.start()
 
+    def on_cancel_batch(self):
+        if self.batch_worker and self.batch_worker.isRunning():
+            self.batch_worker.cancel()
+            self.batch_cancel_btn.setEnabled(False)
+            self.batch_log("Cancelling after the current URL...")
+
     def on_batch_finished(self, msg: str):
         self.batch_log(msg)
         self.batch_start_btn.setEnabled(True)
+        self.batch_cancel_btn.setEnabled(False)

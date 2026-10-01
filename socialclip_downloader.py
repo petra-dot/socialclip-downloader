@@ -1,6 +1,6 @@
 import sys
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 try:
     from PyQt5 import QtWidgets, QtCore
@@ -29,14 +29,6 @@ def main():
 
     from ui.main_window import MainWindow
 
-    from utils.ffmpeg import find_ffmpeg
-    if not find_ffmpeg():
-        print("Warning: ffmpeg was not found on PATH or in common install locations.")
-        print("Downloads that need merging or conversion will fail. Install with:")
-        print("  Windows: winget install Gyan.FFmpeg")
-        print("  macOS:   brew install ffmpeg")
-        print("  Linux:   sudo apt install ffmpeg")
-
     # Must be set before QApplication is constructed, otherwise it is a no-op.
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
@@ -44,6 +36,20 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setOrganizationName("petra-dot")
     app.setApplicationName("SocialClip Downloader")
+
+    from utils.ffmpeg import find_ffmpeg
+    if not find_ffmpeg():
+        # print() is invisible in the --windowed build (no stdout), so warn in the GUI.
+        QtWidgets.QMessageBox.warning(
+            None,
+            "ffmpeg not found",
+            "ffmpeg was not found on PATH or in common install locations.\n\n"
+            "Downloads that need merging or conversion will fail.\n\n"
+            "Install it with:\n"
+            "  Windows: winget install Gyan.FFmpeg\n"
+            "  macOS:   brew install ffmpeg\n"
+            "  Linux:   sudo apt install ffmpeg",
+        )
 
     window = MainWindow()
     window.show()

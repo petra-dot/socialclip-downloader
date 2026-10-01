@@ -39,7 +39,7 @@ def test_usage_error_returns_2():
 
 def test_download_json_success_stdout_is_pure_json(monkeypatch, capsys):
     def fake_download_one(url, outtmpl, output_type, convert,
-                           target_resolution, cookies_file=None, progress=None):
+                          target_resolution, cookies_file=None, progress=None):
         return DownloadResult(
             status="ok", url=url, title="t", path="C:/fake/out.mp4",
             extension="mp4", message="Download finished: C:/fake/out.mp4",
@@ -106,7 +106,7 @@ def test_download_defaults_to_no_convert(monkeypatch, capsys):
     seen = {}
 
     def fake_download_one(url, outtmpl, output_type, convert,
-                           target_resolution, cookies_file=None, progress=None):
+                          target_resolution, cookies_file=None, progress=None):
         seen["convert"] = convert
         return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
                               extension="mp4", message="Download finished")
@@ -124,7 +124,7 @@ def test_download_convert_flag_opts_in(monkeypatch, capsys):
     seen = {}
 
     def fake_download_one(url, outtmpl, output_type, convert,
-                           target_resolution, cookies_file=None, progress=None):
+                          target_resolution, cookies_file=None, progress=None):
         seen["convert"] = convert
         seen["resolution"] = target_resolution
         return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
