@@ -18,6 +18,19 @@ def _queue_path() -> str:
     return os.path.join(default_cookie_dir(), "queue.json")
 
 
+def build_job_options(save_dir: str, output_text: str, resolution: str,
+                      cookies_path: str) -> dict:
+    """Build the exact option set download_one accepts (no unknown keys)."""
+    output_type = "MP3" if "MP3" in output_text else "MP4"
+    return {
+        "outtmpl": os.path.join(save_dir, "%(title)s.%(ext)s"),
+        "output_type": output_type,
+        "convert": output_type == "MP4",
+        "target_resolution": int(resolution),
+        "cookies_file": cookies_path,
+    }
+
+
 def parse_url_lines(text: str) -> list:
     seen = set()
     urls = []
@@ -201,15 +214,12 @@ class QueueTab(QtWidgets.QWidget):
 
     def _job_options(self):
         save_dir = self.batch_save_dir_input.text().strip() or default_download_folder()
-        output_type = "MP3" if "MP3" in self.batch_output_combo.currentText() else "MP4"
-        return {
-            "output_dir": save_dir,
-            "outtmpl": os.path.join(save_dir, "%(title)s.%(ext)s"),
-            "output_type": output_type,
-            "convert": output_type == "MP4",
-            "target_resolution": int(self.batch_resolution_combo.currentText()),
-            "cookies_file": self._batch_get_cookies_path(),
-        }
+        return build_job_options(
+            save_dir,
+            self.batch_output_combo.currentText(),
+            self.batch_resolution_combo.currentText(),
+            self._batch_get_cookies_path(),
+        )
 
     def _add_jobs(self, urls):
         valid = [u for u in urls if looks_like_url(u)]

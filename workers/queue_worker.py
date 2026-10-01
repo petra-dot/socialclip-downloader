@@ -1,16 +1,16 @@
+import os
 import threading
 
 from PyQt5 import QtCore
 
 from core.download import download_one
+from utils.file_utils import default_download_folder
 
 
 class QueueWorker(QtCore.QThread):
     progress_signal = QtCore.pyqtSignal(int)
     job_signal = QtCore.pyqtSignal(str, str, object)  # (job_id, state, QueueJob)
     finished_signal = QtCore.pyqtSignal(str)
-
-    _RESERVED_OPTION_KEYS = ("cancel", "progress")
 
     def __init__(self, queue, parent=None):
         super().__init__(parent)
@@ -19,23 +19,33 @@ class QueueWorker(QtCore.QThread):
 
     def _executor(self, job):
         self.job_signal.emit(job.id, job.state, job)
-        options = {
-            key: value
-            for key, value in job.options.items()
-            if key not in self._RESERVED_OPTION_KEYS
-        }
+        opts = job.options or {}
+        outtmpl = opts.get("outtmpl") or os.path.join(
+            default_download_folder(), "%(title)s.%(ext)s"
+        )
         return download_one(
             job.url,
-            **options,
+            outtmpl=outtmpl,
+            output_type=opts.get("output_type", "MP4"),
+            convert=opts.get("convert", False),
+            target_resolution=opts.get("target_resolution", 1080),
+            cookies_file=opts.get("cookies_file"),
             cancel=self._cancel_event.is_set,
             progress=self.progress_signal.emit,
         )
 
     def run(self):
-        while not self.queue.paused:
+        while True:
+            if self.queue.paused:
+                if self.queue.next_pending() is None:
+                    break
+                self.msleep(100)
+                continue
             self._cancel_event.clear()
             job = self.queue.run_once(self._executor)
             if job is None:
+                if self.queue.paused:
+                    continue
                 break
             self.job_signal.emit(job.id, job.state, job)
             self.queue.store.save()
