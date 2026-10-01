@@ -4,10 +4,11 @@ import sys
 __version__ = "0.9.0"
 
 try:
-    from PyQt5 import QtWidgets, QtCore
+    from PyQt5 import QtWidgets, QtCore, QtGui
 except Exception:
     QtWidgets = None
     QtCore = None
+    QtGui = None
 
 try:
     from yt_dlp import YoutubeDL
@@ -51,7 +52,7 @@ def main():
 
     icon_path = _asset_path("icon.ico")
     if os.path.isfile(icon_path):
-        app.setWindowIcon(QtWidgets.QIcon(icon_path))
+        app.setWindowIcon(QtGui.QIcon(icon_path))
 
     from utils.ffmpeg import find_ffmpeg
     if not find_ffmpeg():
