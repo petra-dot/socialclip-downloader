@@ -155,3 +155,25 @@ def test_cancel_all_while_paused_terminates(monkeypatch):
 
     assert worker.wait(5000)
     assert [j.state for j in q.jobs] == ["cancelled", "cancelled"]
+
+
+def test_running_emit_is_not_retroactively_mutated(monkeypatch):
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    captured = []
+
+    def fake_download_one(url, **kw):
+        return DownloadResult(status="ok", url=url, path="C:/o.mp4", message="ok")
+
+    monkeypatch.setattr("workers.queue_worker.download_one", fake_download_one)
+
+    q = Queue()
+    q.add("https://a.com/1", {})
+    worker = QueueWorker(q)
+    worker.job_signal.connect(
+        lambda jid, state, job: captured.append((state, job))
+    )
+    worker.run()
+
+    running_states = [job.state for (s, job) in captured if s == "running"]
+    assert running_states and all(s == "running" for s in running_states), captured

@@ -1,4 +1,5 @@
 import threading
+from dataclasses import replace
 
 from PyQt5 import QtCore
 
@@ -17,7 +18,7 @@ class QueueWorker(QtCore.QThread):
         self._cancel_event = threading.Event()
 
     def _executor(self, job):
-        self.job_signal.emit(job.id, job.state, job)
+        self.job_signal.emit(job.id, job.state, replace(job))
         opts = job.options or {}
         outtmpl = resolve_outtmpl(opts)
         return download_one(
@@ -44,7 +45,7 @@ class QueueWorker(QtCore.QThread):
                 if self.queue.paused:
                     continue
                 break
-            self.job_signal.emit(job.id, job.state, job)
+            self.job_signal.emit(job.id, job.state, replace(job))
             self.queue.store.save()
         self.finished_signal.emit(self._summary())
 
