@@ -3,6 +3,7 @@ from PyQt5 import QtWidgets, QtCore
 from ui.single_tab import SingleTab
 from ui.batch_tab import BatchTab
 from ui.convert_tab import ConvertTab
+from ui.dialogs import show_welcome, show_doctor
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -15,9 +16,19 @@ class MainWindow(QtWidgets.QWidget):
         self.init_ui()
         self._restore_geometry()
 
+        settings = QtCore.QSettings()
+        if not settings.value("first_run_done"):
+            show_welcome(self)
+            settings.setValue("first_run_done", True)
+
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+
+        menubar = QtWidgets.QMenuBar(self)
+        help_menu = menubar.addMenu("Help")
+        help_menu.addAction("Doctor", lambda: show_doctor(self))
+        layout.addWidget(menubar)
 
         self.tabs = QtWidgets.QTabWidget()
         self.single_tab = SingleTab(self.cookies_file)
