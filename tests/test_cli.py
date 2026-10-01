@@ -199,3 +199,54 @@ def test_download_json_real_ytdlp_stdout_is_one_object(monkeypatch, capsys, tmp_
     assert data["status"] == "error"
     assert captured.out.strip().startswith("{")
     assert captured.out.strip().endswith("}")
+
+
+def test_convert_to_mkv_routes_target_format(monkeypatch, capsys):
+    captured = {}
+
+    def fake(input_path, output_type=None, target_resolution=None,
+             target_format=None, copy_streams=None):
+        captured["fmt"] = target_format
+        captured["copy"] = copy_streams
+        from core.manifest import DownloadResult
+        return DownloadResult(status="ok", path="C:/o.mkv", extension="mkv",
+                              message="Converted to C:/o.mkv")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.convert.convert_file", fake)
+    rc = cli.main(["convert", "x.mp4", "--to", "mkv", "--copy", "--json"])
+    assert rc == 0
+    assert captured["fmt"] == "mkv"
+    assert captured["copy"] is True
+
+
+def test_convert_unknown_to_is_usage_error():
+    proc = run_cli("convert", "x.mp4", "--to", "nope")
+    assert proc.returncode == 2
+    assert "nope" in proc.stderr
+
+
+def test_convert_to_mp4_routes_format_path_not_legacy(monkeypatch, capsys):
+    """`--to mp4` is a format key, never the legacy MP4 output_type."""
+    captured = {}
+
+    def fake(input_path, output_type=None, target_resolution=None,
+             target_format=None, copy_streams=None):
+        captured["fmt"] = target_format
+        captured["output_type"] = output_type
+        from core.manifest import DownloadResult
+        return DownloadResult(status="ok", path="C:/o.mp4", extension="mp4",
+                              message="Converted to C:/o.mp4")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.convert.convert_file", fake)
+    rc = cli.main(["convert", "x.mp4", "--to", "mp4", "--json"])
+    assert rc == 0
+    assert captured["fmt"] == "mp4"
+    assert captured["output_type"] is None
+
+
+def test_convert_no_copy_without_to_is_usage_error():
+    proc = run_cli("convert", "x.mp4", "--no-copy")
+    assert proc.returncode == 2
+    assert "--to" in proc.stderr

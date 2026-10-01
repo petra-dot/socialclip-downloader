@@ -67,15 +67,37 @@ def _cmd_download(args) -> int:
 
 
 def _cmd_convert(args) -> int:
+    from core import formats
+
+    if args.copy_streams is not None and args.to is None:
+        print("--copy/--no-copy require --to", file=sys.stderr)
+        return EXIT_USAGE
+
+    target_format = None
+    if args.to is not None:
+        if formats.get(args.to) is None:
+            print(
+                f"error: unknown format '{args.to}'. "
+                f"Valid formats: {', '.join(formats.keys())}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        target_format = args.to
+
     if _ffmpeg_missing():
         return _dep_error(
             args, "ffmpeg",
             "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
         )
     from core.convert import convert_file
-    output_type = {"mp4": "MP4", "mp3": "MP3", "wav": "WAV"}[args.to]
-    result = convert_file(args.file, output_type,
-                          args.resolution if output_type == "MP4" else None)
+
+    if target_format is not None:
+        result = convert_file(args.file, target_format=target_format,
+                              copy_streams=args.copy_streams)
+    else:
+        output_type = "MP3"
+        result = convert_file(args.file, output_type,
+                              args.resolution if output_type == "MP4" else None)
     return _emit(result, args.json)
 
 
@@ -240,8 +262,16 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("convert")
     c.add_argument("file")
     c.add_argument("--json", action="store_true")
-    c.add_argument("--to", choices=["mp4", "mp3", "wav"], default="mp3")
+    c.add_argument("--to",
+                   help="target format key from the registry (e.g. mp4, mkv, webm, "
+                        "mp3, wav, flac); defaults to the legacy MP3 path")
     c.add_argument("--resolution", type=int, default=1080)
+    c.add_argument("--copy", dest="copy_streams", action="store_true",
+                   default=None,
+                   help="stream-copy without re-encoding (requires --to)")
+    c.add_argument("--no-copy", dest="copy_streams", action="store_false",
+                   default=None,
+                   help="force re-encode (requires --to)")
     c.set_defaults(func=_cmd_convert)
 
     doc = sub.add_parser("doctor")
