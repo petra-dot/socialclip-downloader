@@ -20,6 +20,9 @@
 ### Changed
 - The Batch tab is now the Queue tab; the per-URL progress model is replaced by
   a persistent, resumable queue
+- `socialclip convert --to` now names a registered output format rather than a
+  fixed `output_type`; `--to wav` produces the same audio via the format path
+  instead of the legacy WAV path
 
 ### Removed
 - `workers/batch_worker.py` (superseded by `workers/queue_worker.py`)
