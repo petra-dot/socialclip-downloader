@@ -60,7 +60,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 elif d.get("status") == "finished":
                     progress(100)
 
-        hooks = [hook] if (progress or cancel) else []
+        hooks = [hook]
 
         ydl_opts = _nle_ydl_opts(
             outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file

@@ -299,3 +299,39 @@ def test_failure_preserves_pre_existing_same_base_part(monkeypatch, tmp_path):
     assert stale_artifact.exists(), "pre-existing artifact must not be deleted"
     assert not ours.exists()
     assert not ours_part.exists()
+
+
+def test_failure_cleans_up_without_progress_or_cancel(monkeypatch, tmp_path):
+    artifact = tmp_path / "clip.mp4"
+    part = tmp_path / "clip.mp4.part"
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "downloading", "downloaded_bytes": 1,
+                      "total_bytes": 10, "filename": str(artifact)})
+            artifact.write_text("half")
+            part.write_text("half")
+            raise RuntimeError("network died")
+
+        def prepare_filename(self, info):
+            return str(artifact)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "error"
+    assert not part.exists()
+    assert not artifact.exists()
