@@ -17,31 +17,39 @@ class DownloadCancelled(Exception):
     """Raised from the progress hook when the caller requests cancellation."""
 
 
-def _cleanup_partial(path):
-    """Remove the artifact and <base>*.part siblings this run created."""
-    import glob
-    if not path:
-        return
-    base, _ = os.path.splitext(path)
-    for candidate in [path] + glob.glob(base + "*.part"):
-        try:
-            if os.path.isfile(candidate):
-                os.remove(candidate)
-        except OSError:
-            pass
+def _cleanup_partial(created_paths):
+    """Remove only the files this run wrote.
+
+    ``created_paths`` is the set of in-flight paths the yt-dlp progress hook
+    reported. For each, remove the artifact and its exact temp sibling
+    (``path + ".part"``). Never glob a shared base: a same-base ``.part`` left
+    by an earlier run or another program is not ours to delete.
+    """
+    for path in created_paths:
+        if not path:
+            continue
+        for candidate in (path, path + ".part"):
+            try:
+                if os.path.isfile(candidate):
+                    os.remove(candidate)
+            except OSError:
+                pass
 
 
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
                  subtitles=False, embed_thumbnail=False, format_id=None):
-    in_flight = {"path": ""}
+    in_flight = {"created": set()}
     try:
         from yt_dlp import YoutubeDL
 
         def hook(d):
-            # yt-dlp puts the in-progress filename in the progress dict.
+            # yt-dlp reports the target in `filename` and the temp file it is
+            # actually writing in `tmpfilename` (normally `<filename>.part`).
             if d.get("filename"):
-                in_flight["path"] = d["filename"]
+                in_flight["created"].add(d["filename"])
+            if d.get("tmpfilename"):
+                in_flight["created"].add(d["tmpfilename"])
             if cancel and cancel():
                 raise DownloadCancelled()
             if progress:
@@ -122,9 +130,9 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         return manifest
 
     except DownloadCancelled:
-        _cleanup_partial(in_flight["path"])
+        _cleanup_partial(in_flight["created"])
         return error_result("cancelled", "Cancelled.", url)
     except Exception as e:
-        _cleanup_partial(in_flight["path"])
+        _cleanup_partial(in_flight["created"])
         category, message = classify_error(strip_ansi(str(e)), url)
         return error_result(category, message, url)

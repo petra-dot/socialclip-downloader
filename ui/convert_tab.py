@@ -89,8 +89,11 @@ class ConvertTab(QtWidgets.QWidget):
     def _update_conv_controls(self):
         fmt = formats.get(self.conv_output_combo.currentData())
         is_audio = fmt is not None and fmt.kind == "audio"
+        # GIF has a fixed recipe (hardcoded scale=320); the combo must not
+        # advertise a resolution it silently ignores.
+        is_gif = fmt is not None and fmt.key == "gif"
         force_copy = self.copy_combo.currentData() is True
-        self.conv_res_combo.setEnabled(not (is_audio or force_copy))
+        self.conv_res_combo.setEnabled(not (is_audio or is_gif or force_copy))
 
     def _on_conv_res_changed(self, text):
         self.settings.setValue("convert/resolution", text)

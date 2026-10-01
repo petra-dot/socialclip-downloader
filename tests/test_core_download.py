@@ -250,3 +250,52 @@ def test_generic_failure_cleans_up_partial(monkeypatch, tmp_path):
     assert result.status == "error"
     assert not part.exists()
     assert not artifact.exists()
+
+
+def test_failure_preserves_pre_existing_same_base_part(monkeypatch, tmp_path):
+    """A stale <base>*.part this run never touched must survive a failure.
+
+    The recorded in-flight artifact is clip.webm, so cleanup may only remove
+    clip.webm and its exact temp clip.webm.part, never the clip.mp4.part /
+    clip.mp4 left behind by an earlier run.
+    """
+    stale_part = tmp_path / "clip.mp4.part"
+    stale_part.write_text("from another run")
+    stale_artifact = tmp_path / "clip.mp4"
+    stale_artifact.write_text("from another run")
+    ours = tmp_path / "clip.webm"
+    ours.write_text("half")
+    ours_part = tmp_path / "clip.webm.part"
+    ours_part.write_text("half")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "downloading", "downloaded_bytes": 1,
+                      "total_bytes": 10, "filename": str(ours)})
+            raise RuntimeError("network died")
+
+        def prepare_filename(self, info):
+            return str(ours)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cancel=lambda: False,
+    )
+    assert result.status == "error"
+    assert stale_part.exists(), "pre-existing .part must not be deleted"
+    assert stale_artifact.exists(), "pre-existing artifact must not be deleted"
+    assert not ours.exists()
+    assert not ours_part.exists()

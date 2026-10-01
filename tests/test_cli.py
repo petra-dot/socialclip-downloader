@@ -252,8 +252,59 @@ def test_convert_no_copy_without_to_is_usage_error():
     assert "--to" in proc.stderr
 
 
-def test_convert_resolution_flag_is_gone():
-    """`--resolution` was inert once `--to` owned video; removed, not ignored."""
-    proc = run_cli("convert", "x.mp4", "--resolution", "720")
-    assert proc.returncode == 2
-    assert "--resolution" in proc.stderr
+def test_convert_resolution_reaches_format_path(monkeypatch, capsys):
+    """`--resolution` scales video format targets; it must reach convert_file."""
+    captured = {}
+
+    def fake(input_path, output_type=None, target_resolution=None,
+             target_format=None, copy_streams=None):
+        captured["fmt"] = target_format
+        captured["resolution"] = target_resolution
+        from core.manifest import DownloadResult
+        return DownloadResult(status="ok", path="C:/o.mkv", extension="mkv",
+                              message="Converted to C:/o.mkv")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.convert.convert_file", fake)
+    rc = cli.main(["convert", "x.mp4", "--to", "mkv", "--resolution", "720",
+                   "--json"])
+    assert rc == 0
+    assert captured["fmt"] == "mkv"
+    assert captured["resolution"] == 720
+
+
+def test_convert_audio_resolution_does_not_error(monkeypatch, capsys):
+    """`--resolution` is accepted but ignored for audio targets."""
+    captured = {}
+
+    def fake(input_path, output_type=None, target_resolution=None,
+             target_format=None, copy_streams=None):
+        captured["fmt"] = target_format
+        captured["resolution"] = target_resolution
+        from core.manifest import DownloadResult
+        return DownloadResult(status="ok", path="C:/o.mp3", extension="mp3",
+                              message="Converted to C:/o.mp3")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.convert.convert_file", fake)
+    rc = cli.main(["convert", "x.mp4", "--to", "mp3", "--resolution", "720",
+                   "--json"])
+    assert rc == 0
+    assert captured["fmt"] == "mp3"
+
+
+def test_convert_resolution_defaults_to_1080(monkeypatch, capsys):
+    captured = {}
+
+    def fake(input_path, output_type=None, target_resolution=None,
+             target_format=None, copy_streams=None):
+        captured["resolution"] = target_resolution
+        from core.manifest import DownloadResult
+        return DownloadResult(status="ok", path="C:/o.mkv", extension="mkv",
+                              message="Converted to C:/o.mkv")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.convert.convert_file", fake)
+    rc = cli.main(["convert", "x.mp4", "--to", "mkv", "--json"])
+    assert rc == 0
+    assert captured["resolution"] == 1080
