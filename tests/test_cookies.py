@@ -4,6 +4,7 @@ import pytest
 
 import sites.cookies as cookies
 from sites.cookies import (
+    cookie_file_for,
     default_cookie_dir,
     detect_platform,
     get_cookie_message,
@@ -89,3 +90,9 @@ def test_cookie_message_facebook_mentions_filename():
 
 def test_cookie_message_unknown_is_empty():
     assert get_cookie_message("nope") == ""
+
+
+def test_cookie_file_for_finds_and_misses(tmp_path):
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    assert cookie_file_for("youtube", str(tmp_path)).endswith("youtube_cookies.txt")
+    assert cookie_file_for("tiktok", str(tmp_path)) == ""

@@ -57,10 +57,8 @@ def _has_cookie_file(directory: str) -> bool:
         return False
 
 
-def get_cookie_path(url: str, cookie_dir: str = None) -> str:
-    platform = detect_platform(url)
-    if not platform:
-        return ""
+def cookie_file_for(platform: str, cookie_dir: str = None) -> str:
+    """Path to this platform's cookie file, or "" when absent."""
     if cookie_dir is None:
         cookie_dir = default_cookie_dir()
     candidates = [
@@ -70,6 +68,18 @@ def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     for path in candidates:
         if os.path.isfile(path):
             return path
+    return ""
+
+
+def get_cookie_path(url: str, cookie_dir: str = None) -> str:
+    platform = detect_platform(url)
+    if not platform:
+        return ""
+    if cookie_dir is None:
+        cookie_dir = default_cookie_dir()
+    path = cookie_file_for(platform, cookie_dir)
+    if path:
+        return path
     try:
         for fname in os.listdir(cookie_dir):
             if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
