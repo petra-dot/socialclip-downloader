@@ -13,21 +13,46 @@ from utils.ydl_opts import (
 )
 
 
+class DownloadCancelled(Exception):
+    """Raised from the progress hook when the caller requests cancellation."""
+
+
+def _cleanup_partial(path):
+    """Remove the artifact and <base>*.part siblings this run created."""
+    import glob
+    if not path:
+        return
+    base, _ = os.path.splitext(path)
+    for candidate in [path] + glob.glob(base + "*.part"):
+        try:
+            if os.path.isfile(candidate):
+                os.remove(candidate)
+        except OSError:
+            pass
+
+
 def download_one(url, outtmpl, output_type, convert, target_resolution,
-                 cookies_file=None, progress=None):
+                 cookies_file=None, progress=None, cancel=None,
+                 subtitles=False, embed_thumbnail=False, format_id=None):
+    in_flight = {"path": ""}
     try:
         from yt_dlp import YoutubeDL
 
-        hooks = []
-        if progress:
-            def hook(d):
+        def hook(d):
+            # yt-dlp puts the in-progress filename in the progress dict.
+            if d.get("filename"):
+                in_flight["path"] = d["filename"]
+            if cancel and cancel():
+                raise DownloadCancelled()
+            if progress:
                 if d.get("status") == "downloading":
                     total = d.get("total_bytes") or d.get("total_bytes_estimate")
                     if total:
                         progress(int(d.get("downloaded_bytes", 0) / total * 100))
                 elif d.get("status") == "finished":
                     progress(100)
-            hooks.append(hook)
+
+        hooks = [hook] if (progress or cancel) else []
 
         ydl_opts = _nle_ydl_opts(
             outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file
@@ -96,6 +121,9 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         manifest.bytes = os.path.getsize(final_path) if os.path.isfile(final_path) else 0
         return manifest
 
+    except DownloadCancelled:
+        _cleanup_partial(in_flight["path"])
+        return error_result("cancelled", "Cancelled.", url)
     except Exception as e:
         category, message = classify_error(strip_ansi(str(e)), url)
         return error_result(category, message, url)

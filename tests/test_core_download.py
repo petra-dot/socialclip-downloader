@@ -1,4 +1,8 @@
-from core.download import download_one
+import os
+
+import pytest
+
+from core.download import DownloadCancelled, download_one
 
 
 class FakeYDL:
@@ -121,3 +125,95 @@ def test_download_one_classifies_exception(monkeypatch, tmp_path):
     assert result.status == "error"
     assert result.error_category == "blocked"
     assert "Facebook" in result.message
+
+
+class CancellingYDL:
+    """Fake yt-dlp that fires the progress hook then checks cancel."""
+
+    def __init__(self, opts):
+        self.opts = opts
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def extract_info(self, url, download=True):
+        for hook in self.opts.get("progress_hooks", []):
+            hook({"status": "downloading", "downloaded_bytes": 1, "total_bytes": 10})
+        raise DownloadCancelled()
+
+    def prepare_filename(self, info):
+        return ""
+
+
+def test_cancel_returns_cancelled_result(monkeypatch, tmp_path):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", CancellingYDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cancel=lambda: True,
+    )
+    assert result.status == "error"
+    assert result.error_category == "cancelled"
+
+
+def test_cancel_removes_partial_files(monkeypatch, tmp_path):
+    partial = tmp_path / "clip.mp4.part"
+    partial.write_text("half")
+    artifact = tmp_path / "clip.mp4"
+    artifact.write_text("half")
+
+    class YDL(CancellingYDL):
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "downloading", "downloaded_bytes": 1,
+                      "total_bytes": 10, "filename": str(artifact)})
+            raise DownloadCancelled()
+
+        def prepare_filename(self, info):
+            return str(artifact)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cancel=lambda: True,
+    )
+    assert result.error_category == "cancelled"
+    assert not partial.exists()
+    assert not artifact.exists()
+
+
+def test_no_cancel_callable_is_unchanged(monkeypatch, tmp_path):
+    """A plain download with no cancel callable behaves exactly as before."""
+    real = tmp_path / "clip.mp4"
+    real.write_text("done")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            return {"id": "x", "title": "T", "ext": "mp4", "height": 720}
+
+        def prepare_filename(self, info):
+            return str(real)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    result = download_one(
+        "https://example.com/x",
+        outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "ok"
+    assert result.path == str(real)
