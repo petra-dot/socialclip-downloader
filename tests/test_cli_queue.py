@@ -2,6 +2,9 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+import cli
 
 
 def run_cli(*args, env=None):
@@ -28,3 +31,69 @@ def test_queue_clear_empties(tmp_path):
     assert json.loads(proc.stdout)["cleared"] >= 1
     proc = run_cli("queue", "list", "--json", env=env)
     assert json.loads(proc.stdout)["jobs"] == []
+
+
+def test_queue_override_used_in_process(tmp_path, monkeypatch, capsys):
+    from sites.cookies import default_cookie_dir
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    default_path = Path(default_cookie_dir()) / "queue.json"
+    assert not default_path.exists(), f"precondition: {default_path} already exists"
+
+    rc = cli.main(["queue", "add", "https://a.com/1", "--json"])
+    capsys.readouterr()
+
+    assert rc == cli.EXIT_OK
+    assert (tmp_path / "q.json").exists()
+    assert not default_path.exists()
+
+
+def test_queue_run_ytdlp_missing_exit3(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: True)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+
+    rc = cli.main(["queue", "run", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert rc == cli.EXIT_DEP == 3
+    assert data["status"] == "error"
+    assert data["error_category"] == "other"
+    assert "yt-dlp" in data["message"]
+
+
+def test_queue_run_ffmpeg_missing_exit3(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: True)
+
+    rc = cli.main(["queue", "run", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert rc == cli.EXIT_DEP == 3
+    assert data["status"] == "error"
+    assert data["error_category"] == "ffmpeg"
+
+
+def test_queue_run_ok_summary(tmp_path, monkeypatch, capsys):
+    import core.download
+    from core.manifest import DownloadResult
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    assert cli.main(["queue", "add", "https://a.com/1", "--json"]) == cli.EXIT_OK
+    capsys.readouterr()
+
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr(
+        core.download, "download_one",
+        lambda *a, **k: DownloadResult(status="ok", path=str(tmp_path / "o.mp4")),
+    )
+
+    rc = cli.main(["queue", "run", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert rc == cli.EXIT_OK
+    for key in ("run", "done", "failed", "cancelled"):
+        assert key in data
+    assert data["run"] == 1
+    assert data["done"] == 1

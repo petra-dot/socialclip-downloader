@@ -168,6 +168,10 @@ def _cmd_queue(args) -> int:
         return EXIT_OK
 
     if command == "run":
+        if _ytdlp_missing():
+            return _dep_error(
+                args, "other", "yt-dlp not found. Install it with: pip install yt-dlp",
+            )
         if _ffmpeg_missing():
             return _dep_error(
                 args, "ffmpeg",
@@ -193,8 +197,6 @@ def _cmd_queue(args) -> int:
         else:
             print(f"run {run}: {done} done, {failed} failed, {cancelled} cancelled")
         return EXIT_OK
-
-    return EXIT_USAGE
 
 
 def _cmd_manifest_schema(args) -> int:
