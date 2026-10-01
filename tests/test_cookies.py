@@ -17,6 +17,7 @@ from sites.cookies import (
     [
         ("https://www.youtube.com/watch?v=1", "youtube"),
         ("https://youtu.be/abc", "youtube"),
+        ("https://m.youtube.com/watch?v=1", "youtube"),
         ("https://v.douyin.com/xyz", "douyin"),
         ("https://www.instagram.com/reel/1", "instagram"),
         ("https://x.com/u/status/1", "twitter"),
@@ -25,6 +26,9 @@ from sites.cookies import (
         ("https://www.facebook.com/reel/931231782795079", "facebook"),
         ("https://fb.watch/abc", "facebook"),
         ("https://example.com/video", ""),
+        ("https://app.box.com/s/xyz", ""),
+        ("https://www.reddit.com/r/videos/x.com", ""),
+        ("youtu.be", "youtube"),
     ],
 )
 def test_detect_platform(url, expected):

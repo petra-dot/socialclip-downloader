@@ -45,7 +45,7 @@ def test_download_json_success_stdout_is_pure_json(monkeypatch, capsys):
             extension="mp4", message="Download finished: C:/fake/out.mp4",
         )
 
-    monkeypatch.setattr("utils.ffmpeg.ffmpeg_path", lambda: "ffmpeg-real")
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
     monkeypatch.setattr("core.download.download_one", fake_download_one)
 
     rc = cli.main(["download", "https://example.com/x", "--json"])
@@ -99,6 +99,46 @@ def test_convert_ffmpeg_missing_returns_dep_exit(monkeypatch, capsys):
     data = json.loads(captured.out)
     assert data["status"] == "error"
     assert data["error_category"] == "ffmpeg"
+
+
+def test_download_defaults_to_no_convert(monkeypatch, capsys):
+    """Without --convert the CLI must keep the original quality, like the GUI."""
+    seen = {}
+
+    def fake_download_one(url, outtmpl, output_type, convert,
+                          target_resolution, cookies_file=None, progress=None):
+        seen["convert"] = convert
+        return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
+                              extension="mp4", message="Download finished")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.download.download_one", fake_download_one)
+
+    rc = cli.main(["download", "https://example.com/x", "--json"])
+
+    assert rc == 0
+    assert seen["convert"] is False
+
+
+def test_download_convert_flag_opts_in(monkeypatch, capsys):
+    seen = {}
+
+    def fake_download_one(url, outtmpl, output_type, convert,
+                          target_resolution, cookies_file=None, progress=None):
+        seen["convert"] = convert
+        seen["resolution"] = target_resolution
+        return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
+                              extension="mp4", message="Conversion completed")
+
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr("core.download.download_one", fake_download_one)
+
+    rc = cli.main(["download", "https://example.com/x", "--json",
+                   "--convert", "--resolution", "720"])
+
+    assert rc == 0
+    assert seen["convert"] is True
+    assert seen["resolution"] == 720
 
 
 def test_download_json_real_ytdlp_stdout_is_one_object(monkeypatch, capsys, tmp_path):

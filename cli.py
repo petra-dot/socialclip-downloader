@@ -59,7 +59,7 @@ def _cmd_download(args) -> int:
     output_type = "MP3" if args.format == "mp3" else "MP4"
     result = download_one(
         args.url, outtmpl=outtmpl, output_type=output_type,
-        convert=output_type == "MP4", target_resolution=args.resolution,
+        convert=args.convert, target_resolution=args.resolution,
         cookies_file=args.cookies,
     )
     return _emit(result, args.json)
@@ -121,7 +121,10 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--json", action="store_true")
     d.add_argument("--output")
     d.add_argument("--format", choices=["mp4", "mp3"], default="mp4")
-    d.add_argument("--resolution", type=int, default=1080)
+    d.add_argument("--convert", action="store_true",
+                   help="re-encode down to --resolution (default: keep original)")
+    d.add_argument("--resolution", type=int, default=1080,
+                   help="target height, only used with --convert")
     d.add_argument("--cookies")
     d.set_defaults(func=_cmd_download)
 
