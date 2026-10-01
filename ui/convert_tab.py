@@ -3,7 +3,8 @@ import os
 
 from PyQt5 import QtWidgets, QtCore
 
-from utils.file_utils import default_download_folder, CONV_OUTPUT_FORMATS, RESOLUTIONS
+from core import formats
+from utils.file_utils import default_download_folder, RESOLUTIONS
 from workers.convert_worker import ConvertFileWorker
 
 
@@ -35,11 +36,12 @@ class ConvertTab(QtWidgets.QWidget):
         layout.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
-        self.conv_output_combo.addItems(CONV_OUTPUT_FORMATS)
+        for fmt in formats.for_kind("video") + formats.for_kind("audio"):
+            self.conv_output_combo.addItem(fmt.label, fmt.key)
         saved_output = self.settings.value("convert/output")
-        if saved_output in CONV_OUTPUT_FORMATS:
-            self.conv_output_combo.setCurrentText(saved_output)
-        self.conv_output_combo.currentTextChanged.connect(self._on_conv_output_changed)
+        idx = self.conv_output_combo.findData(saved_output)
+        self.conv_output_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.conv_output_combo.currentIndexChanged.connect(self._on_conv_output_changed)
         conv_opts.addWidget(QtWidgets.QLabel("Convert to:"))
         conv_opts.addWidget(self.conv_output_combo)
         self.conv_res_combo = QtWidgets.QComboBox()
@@ -49,6 +51,14 @@ class ConvertTab(QtWidgets.QWidget):
         self.conv_res_combo.currentTextChanged.connect(self._on_conv_res_changed)
         conv_opts.addWidget(QtWidgets.QLabel("Resolution (for video):"))
         conv_opts.addWidget(self.conv_res_combo)
+        self.copy_combo = QtWidgets.QComboBox()
+        self.copy_combo.addItem("Auto", None)
+        self.copy_combo.addItem("Copy streams", True)
+        self.copy_combo.addItem("Re-encode", False)
+        self.copy_combo.currentIndexChanged.connect(self._on_conv_copy_changed)
+        conv_opts.addWidget(QtWidgets.QLabel("Streams:"))
+        conv_opts.addWidget(self.copy_combo)
+        self._update_conv_controls()
         layout.addLayout(conv_opts)
         conv_btn_row = QtWidgets.QHBoxLayout()
         self.convert_file_btn = QtWidgets.QPushButton("Convert Selected File")
@@ -67,8 +77,20 @@ class ConvertTab(QtWidgets.QWidget):
         sb = self.console_log.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def _on_conv_output_changed(self, text):
-        self.settings.setValue("convert/output", text)
+    def _on_conv_output_changed(self, _index):
+        key = self.conv_output_combo.currentData()
+        if key:
+            self.settings.setValue("convert/output", key)
+        self._update_conv_controls()
+
+    def _on_conv_copy_changed(self, _index):
+        self._update_conv_controls()
+
+    def _update_conv_controls(self):
+        fmt = formats.get(self.conv_output_combo.currentData())
+        is_audio = fmt is not None and fmt.kind == "audio"
+        force_copy = self.copy_combo.currentData() is True
+        self.conv_res_combo.setEnabled(not (is_audio or force_copy))
 
     def _on_conv_res_changed(self, text):
         self.settings.setValue("convert/resolution", text)
@@ -95,18 +117,18 @@ class ConvertTab(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "Missing", "Selected file path does not exist.")
             return
 
-        out_sel = self.conv_output_combo.currentText()
-        if "MP4" in out_sel:
-            out_type = "MP4"
-        elif "MP3" in out_sel:
-            out_type = "MP3"
-        else:
-            out_type = "WAV"
-        target_res = int(self.conv_res_combo.currentText())
+        out_key = self.conv_output_combo.currentData()
+        copy_streams = self.copy_combo.currentData()
+        target_res = (
+            int(self.conv_res_combo.currentText())
+            if self.conv_res_combo.isEnabled()
+            else None
+        )
 
         self.convert_file_btn.setEnabled(False)
         self.conv_worker = ConvertFileWorker(
-            path, out_type, target_resolution=target_res if out_type == "MP4" else None
+            path, target_format=out_key, copy_streams=copy_streams,
+            target_resolution=target_res,
         )
         self.conv_worker.status_signal.connect(self.log)
         self.conv_worker.finished_signal.connect(self.on_conv_finished)
