@@ -48,6 +48,19 @@ def test_audio_target_transcodes_when_audio_mismatched():
     assert plan.acodec == "mp3"
 
 
+def test_audio_force_copy_wins_over_mismatch():
+    plan = plan_conversion(_src("h264", "aac"), get("mp3"), copy_streams=True)
+    assert plan.mode == "remux"
+    assert plan.vcodec == ""
+    assert plan.acodec == "copy"
+
+
+def test_audio_auto_still_transcodes_on_mismatch():
+    plan = plan_conversion(_src("h264", "aac"), get("mp3"))
+    assert plan.mode == "transcode"
+    assert plan.acodec == "mp3"
+
+
 def test_gif_never_remuxes():
     plan = plan_conversion(_src("h264", "aac"), get("gif"))
     assert plan.mode == "transcode"

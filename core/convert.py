@@ -16,6 +16,8 @@ def plan_conversion(src_info, target, copy_streams=None):
     a = (src_info or {}).get("acodec", "") or ""
 
     if target.kind == "audio":
+        if copy_streams is True:
+            return ConvertPlan("remux", "", "copy", target.container)
         if copy_streams is False or a not in target.remux_a:
             return ConvertPlan("transcode", "", target.acodec, target.container)
         return ConvertPlan("remux", "", "copy", target.container)
