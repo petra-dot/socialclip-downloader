@@ -42,8 +42,5 @@ jobs:
           # Treat everything else as warning (nice stats, no fail)
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Skip tests (no test suite – GUI/downloader project)
-        run: |
-          echo "No unit tests required for this GUI application"
-          echo "If you add tests later, create a 'tests/' folder and remove this step"
-          exit 0
+      - name: Run tests
+        run: python -m pytest -q

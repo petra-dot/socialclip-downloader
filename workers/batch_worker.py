@@ -4,7 +4,7 @@ import subprocess
 from PyQt5 import QtCore
 from yt_dlp import YoutubeDL
 
-from sites.cookies import detect_platform, get_platform_display_name
+from sites.errors import classify_error
 from utils.ydl_opts import _nle_ydl_opts, _ffmpeg_to_nle_mp4, ffprobe_get_height, strip_ansi
 
 
@@ -85,15 +85,8 @@ class BatchDownloadWorker(QtCore.QThread):
 
             except Exception as e:
                 error_msg = strip_ansi(str(e))
-                if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
-                    platform = detect_platform(url) if url else ""
-                    site_name = get_platform_display_name(platform) if platform else "The site"
-                    error_msg = f"{site_name} blocked. Load cookies.txt and try again."
-                elif "Requested format" in error_msg:
-                    error_msg = "Format not available. Video may be region-locked."
-                elif "ffmpeg" in error_msg.lower():
-                    error_msg = "ffmpeg is not installed or not in PATH. Install it from https://ffmpeg.org/download.html and add to PATH."
-                self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} \u2014 {error_msg}")
+                _, message = classify_error(error_msg, url)
+                self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} \u2014 {message}")
                 failed += 1
 
         if self._cancelled:

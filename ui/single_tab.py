@@ -8,7 +8,8 @@ from yt_dlp import YoutubeDL
 from utils.file_utils import clean_title, get_uploader, make_unique_filepath, default_download_folder, OUTPUT_FORMATS, RESOLUTIONS
 from utils.ydl_opts import strip_ansi
 from workers.download_worker import DownloadWorker
-from sites.cookies import get_cookie_path, detect_platform, get_cookie_message, get_platform_display_name
+from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
+from sites.errors import classify_error
 
 
 PLACEHOLDER = "-"
@@ -350,17 +351,16 @@ class SingleTab(QtWidgets.QWidget):
         if seq != self._fetch_seq:
             return
         url = self.url_input.text().strip()
-        platform = detect_platform(url) if url else ""
-        if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs"]):
-            site_name = get_platform_display_name(platform) if platform else "The site"
-            self.log(f"{site_name} blocked the request. Load a cookies.txt file in the Cookies field and try again.")
-            extra = get_cookie_message(platform)
+        category, message = classify_error(error_msg, url)
+        if category == "blocked":
+            self.log(message)
+            extra = get_cookie_message(detect_platform(url) if url else "")
             if extra:
                 self.log(extra)
-        elif "Requested format" in error_msg:
-            self.log("Could not find a downloadable format. The video may be unavailable or region-locked.")
+        elif category in ("format", "ffmpeg"):
+            self.log(message)
         else:
-            self.log(f"Metadata fetch failed: {error_msg}")
+            self.log(f"Metadata fetch failed: {message}")
 
     def on_download(self):
         if self.worker and self.worker.isRunning():

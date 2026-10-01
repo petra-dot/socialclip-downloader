@@ -3,7 +3,7 @@ import subprocess
 
 from PyQt5 import QtCore
 
-from sites.cookies import detect_platform, get_platform_display_name
+from sites.errors import classify_error
 from utils.ydl_opts import _nle_ydl_opts, _ffmpeg_to_nle_mp4, ffprobe_get_height, strip_ansi
 
 
@@ -114,20 +114,7 @@ class DownloadWorker(QtCore.QThread):
 
         except Exception as e:
             error_msg = strip_ansi(str(e))
-            if any(k in error_msg for k in ["Sign in to confirm", "bot", "cookies", "reloaded", "reload", "page needs", "Requested format"]):
-                if "Requested format" in error_msg:
-                    self.finished_signal.emit(
-                        "Could not find a downloadable format. Try a different video or check if it is region-locked."
-                    )
-                else:
-                    platform = detect_platform(self.url) if self.url else ""
-                    site_name = get_platform_display_name(platform) if platform else "The site"
-                    self.finished_signal.emit(
-                        f"{site_name} blocked the request. Load a cookies.txt file in the Cookies field and try again."
-                    )
-            elif "ffmpeg" in error_msg.lower():
-                self.finished_signal.emit(
-                    "ffmpeg is not installed or not in PATH. Install it from https://ffmpeg.org/download.html and add to PATH."
-                )
-            else:
-                self.finished_signal.emit(f"Error during download/conversion: {error_msg}")
+            category, message = classify_error(error_msg, self.url)
+            if category == "other":
+                message = f"Error during download/conversion: {message}"
+            self.finished_signal.emit(message)
