@@ -27,7 +27,13 @@ def _emit(result, as_json: bool) -> int:
 def _cmd_download(args) -> int:
     from utils.ffmpeg import ffmpeg_path
     if ffmpeg_path() == "ffmpeg" and not _on_path("ffmpeg"):
-        print("error: ffmpeg not found", file=sys.stderr)
+        from core.manifest import error_result
+        result = error_result(
+            "ffmpeg",
+            "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
+            args.url,
+        )
+        _emit(result, args.json)
         return EXIT_DEP
     from core.download import download_one
     from utils.file_utils import default_download_folder
