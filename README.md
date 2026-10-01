@@ -28,16 +28,26 @@ YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, Facebook, and anything 
 Grab the build for your OS from the
 [releases page](https://github.com/petra-dot/socialclip-downloader/releases):
 
-- Windows: `socialclip-downloader.exe`
-- macOS: `socialclip-downloader`
-- Linux: `socialclip-downloader`
+- Windows: `socialclip-downloader-windows.exe`
+- macOS: `socialclip-downloader-macos`
+- Linux: `socialclip-downloader-linux`
 
-You still need **ffmpeg** on your system (see below); the binaries do not bundle it.
+ffmpeg is bundled, so no separate install is needed.
+
+**macOS (unsigned binary).** The build is not code-signed or notarized, so
+Gatekeeper will block it on first launch ("cannot be opened because the
+developer cannot be verified"). Pick one:
+
+- Right-click the file, choose **Open**, then **Open** again; or
+- `xattr -dr com.apple.quarantine socialclip-downloader-macos` in Terminal; or
+- System Settings → Privacy & Security → **Open Anyway**.
+
+**Linux.** Mark it executable: `chmod +x socialclip-downloader-linux`.
 
 ### Option B: Run from source
 
 1. **Python 3.8+**: Download from [python.org](https://www.python.org/downloads/)
-2. **FFmpeg**: Required for media processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
+2. **FFmpeg**: Required for media processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH, or set `SOCIALCLIP_FFMPEG` to its path
 
 ```bash
 pip install -r requirements.txt
@@ -69,7 +79,8 @@ socialclip-downloader/
 │   └── icon.ico
 ├── sites/
 │   ├── __init__.py
-│   └── cookies.py
+│   ├── cookies.py
+│   └── errors.py
 ├── ui/
 │   ├── __init__.py
 │   ├── main_window.py
@@ -79,15 +90,20 @@ socialclip-downloader/
 ├── utils/
 │   ├── __init__.py
 │   ├── file_utils.py
+│   ├── ffmpeg.py
 │   └── ydl_opts.py
 ├── workers/
 │   ├── __init__.py
 │   ├── batch_worker.py
 │   ├── convert_worker.py
-│   └── download_worker.py
+│   ├── download_worker.py
+│   └── pipeline.py
+├── tests/
 ├── socialclip_downloader.py
 ├── requirements.txt
+├── requirements-dev.txt
 ├── run.bat
+├── run.sh
 ├── build.bat
 └── socialclip_downloader.spec
 ```
