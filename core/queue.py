@@ -40,6 +40,16 @@ def resolve_outtmpl(options: Optional[dict]) -> str:
     )
 
 
+_INT_FIELDS = ("bytes", "height", "attempts")
+
+
+def _coerce_int(value) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _coerce_jobs(raw_jobs) -> List[QueueJob]:
     if not isinstance(raw_jobs, list):
         return []
@@ -48,9 +58,12 @@ def _coerce_jobs(raw_jobs) -> List[QueueJob]:
         if not isinstance(raw, dict):
             continue
         try:
-            jobs.append(QueueJob(**raw))
+            job = QueueJob(**raw)
         except (TypeError, ValueError):
             continue
+        for name in _INT_FIELDS:
+            setattr(job, name, _coerce_int(getattr(job, name)))
+        jobs.append(job)
     return jobs
 
 
@@ -131,9 +144,9 @@ class Queue:
         job = self.next_pending()
         if job is None:
             return None
-        job.state = "running"
-        job.attempts += 1
         try:
+            job.state = "running"
+            job.attempts += 1
             result = executor(job)
         except Exception as exc:  # noqa: BLE001 - never let a job crash the loop
             job.state = "failed"

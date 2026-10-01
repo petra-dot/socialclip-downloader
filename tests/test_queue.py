@@ -177,3 +177,35 @@ def test_cancel_job_marks_non_terminal_cancelled():
     assert q.cancel_job(job.id) is True
     assert job.state == "cancelled"
     assert q.cancel_job(job.id) is False
+
+
+def test_store_coerces_string_int_fields(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({
+        "version": 1,
+        "jobs": [{"id": "a", "url": "https://a.com/1",
+                  "attempts": "x", "bytes": "y", "height": "z"}],
+    }))
+    q = Queue(QueueStore(str(path)))
+    q.store.load()
+    assert q.jobs[0].attempts == 0
+    assert q.jobs[0].bytes == 0
+    assert q.jobs[0].height == 0
+
+
+def test_run_once_does_not_raise_on_corrupt_job(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({
+        "version": 1,
+        "jobs": [{"id": "a", "url": "https://a.com/1",
+                  "attempts": "x", "bytes": "y"}],
+    }))
+    q = Queue(QueueStore(str(path)))
+    q.store.load()
+
+    def executor(j):
+        return DownloadResult(status="ok", url=j.url)
+
+    done = q.run_once(executor)
+    assert done.state == "done"
+    assert done.attempts == 1

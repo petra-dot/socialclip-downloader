@@ -1,7 +1,3 @@
-import os
-
-import pytest
-
 from core.download import DownloadCancelled, download_one
 
 

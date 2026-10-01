@@ -107,6 +107,7 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.setColumnWidth(1, 90)
         self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.batch_table.cellClicked.connect(self.on_cell_clicked)
         queue_layout.addWidget(self.batch_table)
 
         self.progress_bar = QtWidgets.QProgressBar()
@@ -249,9 +250,30 @@ class QueueTab(QtWidgets.QWidget):
         row = self.batch_table.rowCount()
         self.batch_table.insertRow(row)
         self.batch_table.setItem(row, 0, QtWidgets.QTableWidgetItem(job.url))
-        self.batch_table.setItem(row, 1, QtWidgets.QTableWidgetItem(job.state))
+        status_item = QtWidgets.QTableWidgetItem(job.state)
+        if job.state == "pending":
+            status_item.setToolTip("Click to cancel this queued item")
+        self.batch_table.setItem(row, 1, status_item)
         self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(job.message or ""))
         self._row_for_id[job.id] = row
+
+    def _job_at_row(self, row):
+        for job in self.queue.jobs:
+            if self._row_for_id.get(job.id) == row:
+                return job
+        return None
+
+    def on_cell_clicked(self, row, column):
+        if column != 1:
+            return
+        job = self._job_at_row(row)
+        if job is None or job.state != "pending":
+            return
+        if not self.queue.cancel_job(job.id):
+            return
+        self.queue.store.save()
+        self._set_row_status(row, "cancelled", "Cancelled.")
+        self.batch_log("Cancelled a pending item.")
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
