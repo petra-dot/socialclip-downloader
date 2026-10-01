@@ -514,3 +514,5 @@ class SingleTab(QtWidgets.QWidget):
         self.progress_bar.setVisible(False)
         if self._last_path:
             self.open_folder_btn.setVisible(True)
+        else:
+            self.open_folder_btn.setVisible(False)

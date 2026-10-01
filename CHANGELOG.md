@@ -16,6 +16,10 @@
 - New pure helpers: `utils/ui_helpers.py` (`looks_like_url`,
   `reveal_in_folder`) and cookie lookup helpers in `sites/cookies.py`
 
+### Deferred
+- Batch tab per-item percentage progress (`running <pct>%`): v0.8 rows are
+  state-only; the per-item percentage in the row is a follow-up
+
 ## v0.7.0 - 2026-10-01
 ### Added
 - Headless `core/` package (Qt-free) shared by the GUI and the CLI:

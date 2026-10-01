@@ -2,14 +2,14 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt5 import QtCore, QtWidgets  # noqa: E402
+from PyQt5 import QtWidgets  # noqa: E402
 
 from core.manifest import DownloadResult  # noqa: E402
 from workers.batch_worker import BatchDownloadWorker  # noqa: E402
 
 
 def test_batch_emits_item_states(monkeypatch):
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
     seen = []
 
@@ -33,7 +33,7 @@ def test_batch_emits_item_states(monkeypatch):
 
 
 def test_batch_emits_cancelled_for_skipped(monkeypatch):
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
     seen = []
 
