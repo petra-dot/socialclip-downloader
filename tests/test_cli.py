@@ -250,3 +250,10 @@ def test_convert_no_copy_without_to_is_usage_error():
     proc = run_cli("convert", "x.mp4", "--no-copy")
     assert proc.returncode == 2
     assert "--to" in proc.stderr
+
+
+def test_convert_resolution_flag_is_gone():
+    """`--resolution` was inert once `--to` owned video; removed, not ignored."""
+    proc = run_cli("convert", "x.mp4", "--resolution", "720")
+    assert proc.returncode == 2
+    assert "--resolution" in proc.stderr

@@ -95,9 +95,7 @@ def _cmd_convert(args) -> int:
         result = convert_file(args.file, target_format=target_format,
                               copy_streams=args.copy_streams)
     else:
-        output_type = "MP3"
-        result = convert_file(args.file, output_type,
-                              args.resolution if output_type == "MP4" else None)
+        result = convert_file(args.file, "MP3")
     return _emit(result, args.json)
 
 
@@ -265,7 +263,6 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--to",
                    help="target format key from the registry (e.g. mp4, mkv, webm, "
                         "mp3, wav, flac); defaults to the legacy MP3 path")
-    c.add_argument("--resolution", type=int, default=1080)
     c.add_argument("--copy", dest="copy_streams", action="store_true",
                    default=None,
                    help="stream-copy without re-encoding (requires --to)")
