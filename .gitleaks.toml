@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "netscape-cookie-file"
+description = "Netscape-format cookies.txt export (session credentials)"
+regex = '''Netscape\s+HTTP\s+Cookie'''
+tags = ["cookies", "credentials"]
