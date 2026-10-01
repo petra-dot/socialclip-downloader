@@ -5,6 +5,7 @@ class DownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
     progress_signal = QtCore.pyqtSignal(int)
+    path_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None):
         super().__init__()
@@ -41,4 +42,5 @@ class DownloadWorker(QtCore.QThread):
             cookies_file=self.cookies_file,
             progress=self.progress_signal.emit,
         )
+        self.path_signal.emit((result.path or "") if result.status == "ok" else "")
         self.finished_signal.emit(result.message or result.path or result.status)

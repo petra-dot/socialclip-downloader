@@ -15,6 +15,7 @@ from utils.file_utils import (
     RESOLUTIONS,
 )
 from utils.ydl_opts import strip_ansi
+from utils.ui_helpers import looks_like_url, reveal_in_folder
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
 from sites.errors import classify_error
@@ -90,6 +91,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_url = ""
         self._fetch_seq = 0
         self._thumb_seq = 0
+        self._last_path = ""
         self.settings = QtCore.QSettings()
         self.init_ui()
 
@@ -103,6 +105,12 @@ class SingleTab(QtWidgets.QWidget):
         self.url_input = QtWidgets.QLineEdit()
         self.url_input.setPlaceholderText("Paste video URL here")
         self.url_input.editingFinished.connect(self._on_url_changed)
+        self.url_input.installEventFilter(self)
+        self._url_timer = QtCore.QTimer(self)
+        self._url_timer.setSingleShot(True)
+        self._url_timer.setInterval(600)
+        self._url_timer.timeout.connect(self._maybe_autofetch)
+        self.url_input.textChanged.connect(self._on_url_text_changed)
         url_row.addWidget(self.url_input)
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
@@ -182,6 +190,11 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.clicked.connect(self.on_download)
         download_bar.addWidget(self.download_btn)
 
+        self.open_folder_btn = QtWidgets.QPushButton("Open folder")
+        self.open_folder_btn.setVisible(False)
+        self.open_folder_btn.clicked.connect(self._on_open_folder)
+        download_bar.addWidget(self.open_folder_btn)
+
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -251,6 +264,38 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_url = ""
         self.fetch_meta_btn.setEnabled(True)
         self.fetch_meta_btn.setText("Fetch")
+
+    def _on_url_text_changed(self, _text):
+        self.open_folder_btn.setVisible(False)
+        self._last_path = ""
+        self._url_timer.start()
+
+    def _maybe_autofetch(self):
+        if not looks_like_url(self.url_input.text()):
+            return
+        if self.fetch_worker and self.fetch_worker.isRunning():
+            return
+        self.on_fetch_metadata()
+
+    def _fill_from_clipboard(self):
+        if self.url_input.text().strip():
+            return
+        text = QtWidgets.QApplication.clipboard().text()
+        if text and looks_like_url(text):
+            self.url_input.setText(text.strip())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._fill_from_clipboard()
+
+    def eventFilter(self, obj, event):
+        if obj is self.url_input and event.type() == QtCore.QEvent.FocusIn:
+            self._fill_from_clipboard()
+        return super().eventFilter(obj, event)
+
+    def _on_open_folder(self):
+        if self._last_path:
+            reveal_in_folder(self._last_path)
 
     def on_browse_cookies(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -456,10 +501,16 @@ class SingleTab(QtWidgets.QWidget):
         )
         self.worker.status_signal.connect(self.log)
         self.worker.progress_signal.connect(self.progress_bar.setValue)
+        self.worker.path_signal.connect(self._on_worker_path)
         self.worker.finished_signal.connect(self.on_worker_finished)
         self.worker.start()
+
+    def _on_worker_path(self, path):
+        self._last_path = path or ""
 
     def on_worker_finished(self, msg: str):
         self.log(msg)
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
+        if self._last_path:
+            self.open_folder_btn.setVisible(True)
