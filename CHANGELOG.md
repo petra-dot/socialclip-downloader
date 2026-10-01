@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.9.0 - 2026-10-01
+### Added
+- Persistent download queue (`core/queue.py`): `Queue`/`QueueStore` hold jobs
+  as plain data (no threads), saved to `queue.json` in the app config
+  directory. Set `SOCIALCLIP_QUEUE` to override the path. The GUI Queue tab
+  and the CLI share the same file
+- `socialclip queue add|list|run|clear` commands, each with `--json` output;
+  `run` processes pending jobs one at a time and saves after each
+- Queue tab (`ui/batch_tab.py:QueueTab`), replacing the old Batch tab: a URL
+  table with per-item status plus **Add URLs**, **Paste**, **Pause**/**Resume**,
+  **Cancel**, and **Clear finished**
+- `workers/queue_worker.py` drives the queue on a `QThread`, one job at a time,
+  reporting through Qt signals
+- Mid-download cancel: `core.download.download_one` takes a `cancel` callable
+  checked in the yt-dlp progress hook and a new `cancelled` error category,
+  distinct from the six in `sites/errors.py` and a terminal queue state
+
+### Changed
+- The Batch tab is now the Queue tab; the per-URL progress model is replaced by
+  a persistent, resumable queue
+
+### Removed
+- `workers/batch_worker.py` (superseded by `workers/queue_worker.py`)
+
 ## v0.8.0 - 2026-10-01
 ### Added
 - Doctor health report (`core/doctor.py`) covering ffmpeg presence/version,

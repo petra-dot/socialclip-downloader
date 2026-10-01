@@ -12,7 +12,7 @@ Desktop application for downloading videos and audio from YouTube, Douyin, Insta
 ## Features
 
 - **Single download** — paste a URL and metadata is fetched automatically; preview thumbnail, download as MP4 or MP3, then **Open folder** to reveal the saved file
-- **Batch download** — paste multiple URLs (type them, or **Paste** from the clipboard), then watch a per-URL table of statuses as each file downloads
+- **Queue** — add multiple URLs (type them, or **Paste** from the clipboard), then run them one at a time with pause, resume, per-item cancel, and cancel-all; the queue is saved to disk so it survives a restart
 - **File converter** — convert MP4 to MP3/WAV, downscale resolution
 - **Doctor** — first-run welcome and a **Doctor** report (ffmpeg, cookies, network reachability) from the Help menu
 - **Resolution targeting** — 720p, 1080p, 1440p, 2160p
@@ -75,6 +75,10 @@ socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [-
 socialclip convert FILE [--to mp4|mp3|wav] [--resolution 1080]
 socialclip doctor
 socialclip manifest-schema
+socialclip queue add URL [URL ...]
+socialclip queue list
+socialclip queue run
+socialclip queue clear
 ```
 
 - `download` — fetch one URL and save it as MP4 or MP3.
@@ -82,6 +86,11 @@ socialclip manifest-schema
 - `doctor` — health report: ffmpeg presence/version, cookie files found, and
   network reachability. Exits `0` when ffmpeg is found, `3` otherwise.
 - `manifest-schema` — print the JSON Schema for the result manifest.
+- `queue add|list|run|clear` — manage a persistent download queue:
+  - `add` — append one or more URLs as pending jobs.
+  - `list` — print each job's state and URL.
+  - `run` — process pending jobs one at a time, saving after each.
+  - `clear` — remove every job from the queue.
 
 Add `--json` to `download`, `convert`, or `doctor` for machine-readable output:
 exactly one JSON object on stdout, human-readable text on stderr.
@@ -98,7 +107,34 @@ $ socialclip doctor --json
 - `cookies` — one entry per supported platform: `{platform, found, path}`.
 - `network` — `{ok, detail}`; `ok` is `true`/`false`/`null` and never raises.
 
+The `queue` commands also take `--json` (`add`/`clear` report a count, `list`
+reports the jobs, `run` reports a summary):
+
+```console
+$ socialclip queue list --json
+{"schema_version": "1.0", "jobs": [{"id": "9f2c...", "url": "https://...", "state": "pending", "message": "", "path": null}]}
+```
+
+A job's state is one of `pending`, `running`, `done`, `failed`, `cancelled`,
+or `paused`. **Cancelled** is its own outcome (and the `/cancelled` error
+category): stopping a download that the queue itself started never removes or
+overwrites a file that already existed, it only cleans up the partial file it
+created.
+
+The queue is stored as JSON in the app config directory (`queue.json`, next to
+the auto-detected cookie files). Set `SOCIALCLIP_QUEUE` to a path to override
+it; the GUI **Queue** tab and the CLI commands share the same file.
+
 From source, use `python cli.py <command>` instead of `socialclip`.
+
+## Queue
+
+The **Queue** tab (which replaced the old Batch tab in v0.9) holds a table of
+URLs with per-item status. **Add URLs** or **Paste** to enqueue, then **Start**
+to download them one at a time. While running you can **Pause**/**Resume**,
+**Cancel** the current item, or **Clear finished** to drop everything in a
+terminal state (`done`, `failed`, `cancelled`). The queue is reloaded on
+startup, so unfinished jobs are still there after a restart.
 
 ## Cookie Authentication
 
@@ -120,6 +156,14 @@ socialclip-downloader/
 │   ├── __init__.py
 │   ├── cookies.py
 │   └── errors.py
+├── core/
+│   ├── __init__.py
+│   ├── queue.py
+│   ├── download.py
+│   ├── convert.py
+│   ├── manifest.py
+│   ├── doctor.py
+│   └── pipeline.py
 ├── ui/
 │   ├── __init__.py
 │   ├── main_window.py
@@ -133,7 +177,7 @@ socialclip-downloader/
 │   └── ydl_opts.py
 ├── workers/
 │   ├── __init__.py
-│   ├── batch_worker.py
+│   ├── queue_worker.py
 │   ├── convert_worker.py
 │   ├── download_worker.py
 │   └── pipeline.py
