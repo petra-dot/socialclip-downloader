@@ -45,7 +45,11 @@ def test_cookie_path_unknown_platform(tmp_path):
     assert get_cookie_path("https://example.com/x", str(tmp_path)) == ""
 
 
-def test_default_cookie_dir_prefers_cwd_when_present():
+def test_default_cookie_dir_prefers_cwd_when_it_has_cookies(tmp_path, monkeypatch):
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    (workdir / "youtube_cookies.txt").write_text("c")
+    monkeypatch.chdir(workdir)
     assert default_cookie_dir() == os.getcwd()
 
 
