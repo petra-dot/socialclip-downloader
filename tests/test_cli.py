@@ -40,6 +40,25 @@ def test_convert_json_stdout_is_pure_json(tmp_path):
     assert proc.returncode == 1
 
 
+def test_doctor_json_reports_schema_1_1(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "core.doctor.run_checks",
+        lambda **kw: {
+            "schema_version": "1.1",
+            "ffmpeg": {"found": True, "path": "/x/ffmpeg", "version": "ffmpeg version 6"},
+            "cookies": [],
+            "network": {"ok": True, "detail": "ok"},
+        },
+    )
+    rc = cli.main(["doctor", "--json"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    data = json.loads(captured.out)
+    assert data["schema_version"] == "1.1"
+    assert data["ffmpeg"]["found"] is True
+    assert "cookies" in data and "network" in data
+
+
 def test_usage_error_returns_2():
     proc = run_cli("download")  # missing URL
     assert proc.returncode == 2

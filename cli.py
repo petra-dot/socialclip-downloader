@@ -79,14 +79,22 @@ def _cmd_convert(args) -> int:
 
 
 def _cmd_doctor(args) -> int:
-    from utils.ffmpeg import find_ffmpeg
-    found = find_ffmpeg()
-    data = {"ffmpeg": found or None, "ffmpeg_found": bool(found)}
+    from core.doctor import run_checks
+    report = run_checks()
     if args.json:
-        print(json.dumps(data))
+        print(json.dumps(report))
     else:
-        print(f"ffmpeg: {found or 'NOT FOUND'}")
-    return EXIT_OK if found else EXIT_DEP
+        ff = report["ffmpeg"]
+        print(f"ffmpeg: {ff['path'] or 'NOT FOUND'}")
+        if ff.get("version"):
+            print(f"  {ff['version']}")
+        found = [c for c in report["cookies"] if c["found"]]
+        print(f"cookies: {len(found)} of {len(report['cookies'])} platforms")
+        for c in found:
+            print(f"  {c['platform']}: {c['path']}")
+        net = report["network"]
+        print(f"network: {net['detail']}")
+    return EXIT_OK if report["ffmpeg"]["found"] else EXIT_DEP
 
 
 def _cmd_manifest_schema(args) -> int:
