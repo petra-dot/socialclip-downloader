@@ -29,6 +29,14 @@ def main():
 
     from ui.main_window import MainWindow
 
+    from utils.ffmpeg import find_ffmpeg
+    if not find_ffmpeg():
+        print("Warning: ffmpeg was not found on PATH or in common install locations.")
+        print("Downloads that need merging or conversion will fail. Install with:")
+        print("  Windows: winget install Gyan.FFmpeg")
+        print("  macOS:   brew install ffmpeg")
+        print("  Linux:   sudo apt install ffmpeg")
+
     app = QtWidgets.QApplication(sys.argv)
 
     window = MainWindow()

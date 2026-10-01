@@ -5,7 +5,9 @@ from PyQt5 import QtCore
 from yt_dlp import YoutubeDL
 
 from sites.errors import classify_error
+from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import _nle_ydl_opts, _ffmpeg_to_nle_mp4, ffprobe_get_height, strip_ansi
+from workers.pipeline import plan_postprocess
 
 
 class BatchDownloadWorker(QtCore.QThread):
@@ -59,7 +61,7 @@ class BatchDownloadWorker(QtCore.QThread):
                 if self.output_type == "MP3":
                     mp3_path = os.path.splitext(downloaded_file)[0] + ".mp3"
                     cmd = [
-                        "ffmpeg", "-i", downloaded_file,
+                        ffmpeg_path(), "-i", downloaded_file,
                         "-q:a", "0", "-map", "a",
                         "-y", mp3_path,
                     ]
@@ -68,7 +70,7 @@ class BatchDownloadWorker(QtCore.QThread):
                         raise Exception(f"ffmpeg error: {result.stderr.decode(errors='ignore')}")
                     final_file = mp3_path
                 else:
-                    if self.target_resolution < final_height and final_height > 0:
+                    if plan_postprocess("MP4", True, final_height, self.target_resolution) == "convert":
                         base, _ = os.path.splitext(downloaded_file)
                         out_file = f"{base}_{self.target_resolution}p.mp4"
                         result = _ffmpeg_to_nle_mp4(downloaded_file, out_file, self.target_resolution)

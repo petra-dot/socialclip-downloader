@@ -2,6 +2,8 @@ import os
 import re
 import subprocess
 
+from utils.ffmpeg import ffmpeg_path, ffprobe_path
+
 
 def _nle_safe_format_selector() -> str:
     return (
@@ -16,7 +18,7 @@ def _nle_safe_format_selector() -> str:
 def ffprobe_get_height(path: str) -> int:
     try:
         cmd = [
-            "ffprobe", "-v", "error",
+            ffprobe_path(), "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=height",
             "-of", "csv=p=0",
@@ -56,6 +58,9 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         "age_limit": 99,
         "no_color": True,
     }
+    resolved_ffmpeg = ffmpeg_path()
+    if resolved_ffmpeg != "ffmpeg":
+        opts["ffmpeg_location"] = resolved_ffmpeg
     if progress_hooks:
         opts["progress_hooks"] = progress_hooks
     if cookies_file and os.path.isfile(cookies_file):
@@ -66,7 +71,7 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
 def _ffmpeg_to_nle_mp4(input_path: str, output_path: str, scale_height: int = None) -> subprocess.CompletedProcess:
     vf = f"scale=-2:{scale_height}" if scale_height else "scale=trunc(iw/2)*2:trunc(ih/2)*2"
     cmd = [
-        "ffmpeg", "-i", input_path,
+        ffmpeg_path(), "-i", input_path,
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "18",

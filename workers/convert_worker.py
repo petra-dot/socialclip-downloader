@@ -3,6 +3,7 @@ import subprocess
 
 from PyQt5 import QtCore
 
+from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import _ffmpeg_to_nle_mp4, ffprobe_get_height
 
 
@@ -28,7 +29,7 @@ class ConvertFileWorker(QtCore.QThread):
                     out_path = base + ".mp3"
                     self.status_signal.emit(f"Converting to MP3: {out_path}")
                     cmd = [
-                        "ffmpeg", "-i", self.input_path,
+                        ffmpeg_path(), "-i", self.input_path,
                         "-q:a", "0", "-map", "a",
                         "-y", out_path,
                     ]
@@ -36,7 +37,7 @@ class ConvertFileWorker(QtCore.QThread):
                     out_path = base + ".wav"
                     self.status_signal.emit(f"Converting to WAV: {out_path}")
                     cmd = [
-                        "ffmpeg", "-i", self.input_path,
+                        ffmpeg_path(), "-i", self.input_path,
                         "-vn", "-acodec", "pcm_s16le",
                         "-ar", "44100", "-ac", "2",
                         "-y", out_path,

@@ -26,6 +26,8 @@ ui/convert_tab.py          local file format/resolution conversion
 workers/download_worker.py single download + MP3/resolution post-process
 workers/batch_worker.py    loop over URLs, per-item error handling
 workers/convert_worker.py  local file conversion
+workers/pipeline.py        plan_postprocess() decision table
+utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos
 tests/                     pytest suite for pure logic
@@ -61,9 +63,12 @@ helpers testable. CI lints and runs pytest.
 
 ## Gotchas
 
-- ffmpeg/ffprobe are called as bare `"ffmpeg"`/`"ffprobe"`, so they must be on
-  PATH. Facebook and other multi-stream sources hard-fail without ffmpeg.
-  Install: `winget install Gyan.FFmpeg` (Win), `brew install ffmpeg` (mac).
+- ffmpeg/ffprobe are located by `utils/ffmpeg.py` (`ffmpeg_path()` /
+  `ffprobe_path()`): env override `SOCIALCLIP_FFMPEG` or `FFMPEG_LOCATION`,
+  then PATH, then common install dirs. `_nle_ydl_opts` passes the path to
+  yt-dlp as `ffmpeg_location`. Facebook and other multi-stream sources still
+  fail if ffmpeg is absent. Install: `winget install Gyan.FFmpeg` (Win),
+  `brew install ffmpeg` (mac).
 - Cookie auto-detect uses `os.getcwd()` (`sites/cookies.py:get_cookie_path`),
   which breaks when the app launches from another directory.
 - `ydl_opts.py` postprocessor key uses yt-dlp's intentional misspelling
