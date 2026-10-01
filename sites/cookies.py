@@ -1,21 +1,36 @@
 import os
 import re
+from urllib.parse import urlparse
 
 
+# Matched with re.fullmatch against the URL's hostname, so substrings
+# ("app.box.com" matching "x.com") cannot false-positive.
 PLATFORM_PATTERNS = [
-    (r"(?:www\.)?youtube\.com|youtu\.be", "youtube"),
-    (r"(?:www\.)?douyin\.com|v\.douyin\.com|iesdouyin\.com", "douyin"),
-    (r"(?:www\.)?instagram\.com", "instagram"),
-    (r"(?:www\.)?twitter\.com|x\.com", "twitter"),
-    (r"(?:www\.)?tiktok\.com|vm\.tiktok\.com", "tiktok"),
-    (r"(?:www\.)?bilibili\.com", "bilibili"),
-    (r"(?:www\.)?facebook\.com|fb\.watch|fb\.com", "facebook"),
+    (r"(?:[\w-]+\.)*youtube\.com|(?:[\w-]+\.)*youtu\.be", "youtube"),
+    (r"(?:[\w-]+\.)*(?:ies)?douyin\.com", "douyin"),
+    (r"(?:[\w-]+\.)*instagram\.com", "instagram"),
+    (r"(?:[\w-]+\.)*twitter\.com|(?:[\w-]+\.)*x\.com", "twitter"),
+    (r"(?:[\w-]+\.)*tiktok\.com", "tiktok"),
+    (r"(?:[\w-]+\.)*bilibili\.com", "bilibili"),
+    (r"(?:[\w-]+\.)*facebook\.com|fb\.watch|(?:[\w-]+\.)*fb\.com", "facebook"),
 ]
 
 
+def _hostname(url: str) -> str:
+    if "//" not in url:
+        url = "//" + (url or "")
+    try:
+        return (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
 def detect_platform(url: str) -> str:
+    host = _hostname(url or "")
+    if not host:
+        return ""
     for pattern, name in PLATFORM_PATTERNS:
-        if re.search(pattern, url, re.IGNORECASE):
+        if re.fullmatch(pattern, host):
             return name
     return ""
 
