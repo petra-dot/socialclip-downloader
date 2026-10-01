@@ -191,3 +191,29 @@ def test_audio_format_never_emits_scale_filter(monkeypatch, tmp_path):
         monkeypatch, tmp_path, "in.mp4", "h264", "aac", "mp3", 1080, 720
     )
     assert "-vf" not in argv
+
+
+def test_failed_format_conversion_removes_partial_output(monkeypatch, tmp_path):
+    """A failed ffmpeg run must not leave a corrupt file under the target ext."""
+    src = tmp_path / "in.mp4"
+    src.write_text("x")
+    out = tmp_path / "in.mkv"
+
+    class Failing:
+        returncode = 1
+        stderr = b"boom"
+
+    def run(cmd, **kwargs):
+        # Simulate ffmpeg writing a partial output before failing.
+        out.write_text("partial")
+        return Failing()
+
+    monkeypatch.setattr("core.convert.subprocess.run", run)
+    monkeypatch.setattr(
+        "core.convert.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 0, "container": ""},
+    )
+    result = convert_file(str(src), target_format="mkv")
+    assert result.status == "error"
+    assert result.error_category == "ffmpeg"
+    assert not out.exists()

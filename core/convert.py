@@ -80,6 +80,13 @@ def _convert_to_format(input_path, fmt, copy_streams, target_resolution=None,
     run = subprocess.run if runner is None else runner
     result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
+        # ffmpeg may have written a partial output before failing; never leave
+        # a corrupt file behind under the target extension.
+        try:
+            if os.path.isfile(out_path):
+                os.remove(out_path)
+        except OSError:
+            pass
         return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
 
     mode = "Remuxed" if plan.mode == "remux" and not vf else "Converted"
