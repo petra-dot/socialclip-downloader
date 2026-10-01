@@ -104,3 +104,76 @@ def test_store_corrupt_file_loads_empty(tmp_path):
     store = QueueStore(str(path))
     store.load()
     assert store.to_dict()["jobs"] == []
+
+
+def test_store_jobs_null_loads_empty(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({"version": 1, "jobs": None}))
+    store = QueueStore(str(path))
+    store.load()
+    assert store.to_dict()["jobs"] == []
+
+
+def test_store_jobs_dict_loads_empty(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({"version": 1, "jobs": {"a": 1}}))
+    store = QueueStore(str(path))
+    store.load()
+    assert store.to_dict()["jobs"] == []
+
+
+def test_store_skips_bad_job_keeps_good(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({
+        "version": 1,
+        "jobs": [
+            {"id": "good", "url": "https://a.com/1"},
+            {"id": "bad", "bogus_key": 1},
+        ],
+    }))
+    store = QueueStore(str(path))
+    store.load()
+    assert len(store.jobs) == 1
+    assert store.jobs[0].url == "https://a.com/1"
+
+
+def test_store_bad_load_does_not_delete_file(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({"version": 1, "jobs": {"a": 1}}))
+    store = QueueStore(str(path))
+    store.load()
+    assert path.exists()
+
+
+def test_run_once_empty_queue_returns_none():
+    q = Queue()
+    assert q.run_once(lambda j: None) is None
+
+
+def test_run_once_non_result_return_is_failed():
+    q = Queue()
+    q.add("https://a.com/1", {})
+    done = q.run_once(lambda j: {"status": "ok"})
+    assert done.state == "failed"
+    assert done.message == "executor returned no result"
+
+
+def test_run_once_records_generic_failure():
+    q = Queue()
+    q.add("https://a.com/1", {})
+
+    def executor(j):
+        return DownloadResult(status="error", url=j.url,
+                              error_category="network", message="No network.")
+
+    done = q.run_once(executor)
+    assert done.state == "failed"
+    assert done.message == "No network."
+
+
+def test_cancel_job_marks_non_terminal_cancelled():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    assert q.cancel_job(job.id) is True
+    assert job.state == "cancelled"
+    assert q.cancel_job(job.id) is False

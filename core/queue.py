@@ -30,6 +30,20 @@ class QueueJob:
     )
 
 
+def _coerce_jobs(raw_jobs) -> List[QueueJob]:
+    if not isinstance(raw_jobs, list):
+        return []
+    jobs: List[QueueJob] = []
+    for raw in raw_jobs:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            jobs.append(QueueJob(**raw))
+        except (TypeError, ValueError):
+            continue
+    return jobs
+
+
 class QueueStore:
     def __init__(self, path: str):
         self.path = path
@@ -49,8 +63,7 @@ class QueueStore:
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             return
         self.paused = bool(data.get("paused", False))
-        for raw in data.get("jobs", []):
-            self.jobs.append(QueueJob(**raw))
+        self.jobs.extend(_coerce_jobs(data.get("jobs")))
 
     def save(self) -> None:
         if not self.path:
@@ -73,8 +86,7 @@ class QueueStore:
         store = cls("")
         if isinstance(data, dict) and data.get("version") == STORE_VERSION:
             store.paused = bool(data.get("paused", False))
-            for raw in data.get("jobs", []):
-                store.jobs.append(QueueJob(**raw))
+            store.jobs.extend(_coerce_jobs(data.get("jobs")))
         return store
 
 
@@ -101,7 +113,9 @@ class Queue:
                 return job
         return None
 
-    def run_once(self, executor: Callable[[QueueJob], Optional[DownloadResult]]):
+    def run_once(
+        self, executor: Callable[[QueueJob], Optional[DownloadResult]]
+    ) -> Optional[QueueJob]:
         if self.paused:
             return None
         job = self.next_pending()
@@ -115,8 +129,9 @@ class Queue:
             job.state = "failed"
             job.message = str(exc)
             return job
-        if result is None:
-            job.state = "done"
+        if not isinstance(result, DownloadResult):
+            job.state = "failed"
+            job.message = "executor returned no result"
             return job
         if result.status == "ok":
             job.state = "done"
