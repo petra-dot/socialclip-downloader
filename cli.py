@@ -24,17 +24,34 @@ def _emit(result, as_json: bool) -> int:
     return EXIT_OK if data["status"] == "ok" else EXIT_FAIL
 
 
-def _cmd_download(args) -> int:
+def _ytdlp_missing() -> bool:
+    import importlib.util
+    return importlib.util.find_spec("yt_dlp") is None
+
+
+def _ffmpeg_missing() -> bool:
     from utils.ffmpeg import ffmpeg_path
-    if ffmpeg_path() == "ffmpeg" and not _on_path("ffmpeg"):
-        from core.manifest import error_result
-        result = error_result(
-            "ffmpeg",
+    return ffmpeg_path() == "ffmpeg" and not _on_path("ffmpeg")
+
+
+def _dep_error(args, category: str, message: str, url: str = "") -> int:
+    from core.manifest import error_result
+    _emit(error_result(category, message, url), args.json)
+    return EXIT_DEP
+
+
+def _cmd_download(args) -> int:
+    if _ytdlp_missing():
+        return _dep_error(
+            args, "other", "yt-dlp not found. Install it with: pip install yt-dlp",
+            args.url,
+        )
+    if _ffmpeg_missing():
+        return _dep_error(
+            args, "ffmpeg",
             "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
             args.url,
         )
-        _emit(result, args.json)
-        return EXIT_DEP
     from core.download import download_one
     from utils.file_utils import default_download_folder
     out_dir = args.output or default_download_folder()
@@ -49,6 +66,11 @@ def _cmd_download(args) -> int:
 
 
 def _cmd_convert(args) -> int:
+    if _ffmpeg_missing():
+        return _dep_error(
+            args, "ffmpeg",
+            "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
+        )
     from core.convert import convert_file
     output_type = {"mp4": "MP4", "mp3": "MP3", "wav": "WAV"}[args.to]
     result = convert_file(args.file, output_type,

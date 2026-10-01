@@ -1,4 +1,4 @@
-from workers.pipeline import plan_postprocess
+from core.pipeline import plan_postprocess
 
 
 def test_mp3_is_audio():

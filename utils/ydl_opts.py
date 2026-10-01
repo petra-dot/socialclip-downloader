@@ -70,6 +70,10 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         },
         "noplaylist": True,
         "updatetime": False,
+        # Silence yt-dlp's own console output so callers own stdout; progress
+        # hooks still fire, so the GUI progress bar keeps working.
+        "quiet": True,
+        "noprogress": True,
         "no_warnings": False,
         "ignoreerrors": False,
         "age_limit": 99,

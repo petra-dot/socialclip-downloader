@@ -18,7 +18,7 @@ local. No telemetry, no server.
 ```
 socialclip_downloader.py   entry point + __version__
 cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, pipeline)
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
 ui/main_window.py          QTabWidget shell holding the three tabs
@@ -28,7 +28,6 @@ ui/convert_tab.py          local file format/resolution conversion
 workers/download_worker.py single download + MP3/resolution post-process
 workers/batch_worker.py    loop over URLs, per-item error handling
 workers/convert_worker.py  local file conversion
-workers/pipeline.py        plan_postprocess() decision table
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos

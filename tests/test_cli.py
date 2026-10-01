@@ -73,3 +73,52 @@ def test_download_ffmpeg_missing_json_emits_pure_json(monkeypatch, capsys):
     assert data["schema_version"] == "1.0"
     assert data["status"] == "error"
     assert data["error_category"] == "ffmpeg"
+
+
+def test_download_ytdlp_missing_returns_dep_exit(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: True)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+
+    rc = cli.main(["download", "https://example.com/x", "--json"])
+
+    captured = capsys.readouterr()
+    assert rc == 3
+    assert captured.err == ""
+    data = json.loads(captured.out)
+    assert data["status"] == "error"
+
+
+def test_convert_ffmpeg_missing_returns_dep_exit(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: True)
+
+    rc = cli.main(["convert", "x.mp4", "--json"])
+
+    captured = capsys.readouterr()
+    assert rc == 3
+    assert captured.err == ""
+    data = json.loads(captured.out)
+    assert data["status"] == "error"
+    assert data["error_category"] == "ffmpeg"
+
+
+def test_download_json_real_ytdlp_stdout_is_one_object(monkeypatch, capsys, tmp_path):
+    """Exercise the real yt-dlp layer offline; only the dep gate is bypassed.
+
+    Regression guard: without silencing yt-dlp, `[generic] ...` lines land on
+    stdout ahead of the JSON and break the one-object contract.
+    """
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+
+    rc = cli.main([
+        "download", "not-a-real-url://x", "--json", "--output", str(tmp_path),
+    ])
+
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.err == ""
+    assert "[generic]" not in captured.out
+    data = json.loads(captured.out)  # exactly one JSON object, nothing else
+    assert data["status"] == "error"
+    assert captured.out.strip().startswith("{")
+    assert captured.out.strip().endswith("}")

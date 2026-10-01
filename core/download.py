@@ -89,6 +89,9 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
 
         manifest = result_from_info(info, final_path, url)
         manifest.message = message
+        # Extension must describe the artifact we actually hand back, not the
+        # container yt-dlp extracted (e.g. MP3 output keeps info["ext"] == "mp4").
+        manifest.extension = os.path.splitext(final_path)[1].lstrip(".")
         manifest.height = final_height or manifest.height
         manifest.bytes = os.path.getsize(final_path) if os.path.isfile(final_path) else 0
         return manifest

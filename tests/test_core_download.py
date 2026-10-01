@@ -79,6 +79,25 @@ def test_download_one_skip_equal_carries_message(monkeypatch, tmp_path):
     assert "resolution equals target" in result.message
 
 
+def test_mp3_extension_matches_final_artifact(monkeypatch, tmp_path):
+    class P:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeYDL)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.download.subprocess.run", lambda *a, **k: P())
+    monkeypatch.setattr("core.download.os.remove", lambda p: None)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP3", convert=True, target_resolution=1080,
+    )
+    assert result.status == "ok"
+    assert result.path.endswith(".mp3")
+    assert result.extension == "mp3"  # not the source container ("mp4")
+
+
 def test_download_one_classifies_exception(monkeypatch, tmp_path):
     class Boom:
         def __init__(self, opts):
