@@ -17,6 +17,8 @@ local. No telemetry, no server.
 
 ```
 socialclip_downloader.py   entry point + __version__
+cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert)
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
 ui/main_window.py          QTabWidget shell holding the three tabs
@@ -30,8 +32,13 @@ workers/pipeline.py        plan_postprocess() decision table
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos
+docs/plans/                implementation plans
+docs/specs/                design specs
 tests/                     pytest suite for pure logic
 ```
+
+`core/` is Qt-free by rule: it must not import PyQt5/PySide so the CLI can use it
+without a display. Enforced by `tests/test_core_isolation.py`.
 
 ## Commands
 

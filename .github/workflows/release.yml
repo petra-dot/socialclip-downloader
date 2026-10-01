@@ -19,14 +19,20 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            os_short: windows
             artifact: socialclip-windows
             path: dist/socialclip-downloader-windows.exe
+            cli_path: dist/socialclip-windows.exe
           - os: macos-latest
+            os_short: macos
             artifact: socialclip-macos
             path: dist/socialclip-downloader-macos
+            cli_path: dist/socialclip-macos
           - os: ubuntu-latest
+            os_short: linux
             artifact: socialclip-linux
             path: dist/socialclip-downloader-linux
+            cli_path: dist/socialclip-linux
     steps:
       - uses: actions/checkout@v4
 
@@ -83,12 +89,18 @@ jobs:
             pyinstaller --onefile --name socialclip-downloader-linux \
               $ADD socialclip_downloader.py
           fi
+          # Console CLI build: the --windowed GUI binary has no stdout on
+          # Windows, so the CLI ships as its own --console executable.
+          pyinstaller --onefile --console --name socialclip-${{ matrix.os_short }} \
+            $ADD cli.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.path }}
+          path: |
+            ${{ matrix.path }}
+            ${{ matrix.cli_path }}
           if-no-files-found: error
 
   release:

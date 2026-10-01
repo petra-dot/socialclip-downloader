@@ -63,6 +63,34 @@ python socialclip_downloader.py
 
 Launchers: `run.bat` (Windows), `run.sh` (macOS/Linux).
 
+## Command-line usage
+
+The same engine is available headless through `cli.py`, and as a console
+binary (`socialclip-windows.exe`, `socialclip-macos`, `socialclip-linux`) on
+the [releases page](https://github.com/petra-dot/socialclip-downloader/releases).
+
+```bash
+socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE]
+socialclip convert FILE [--to mp4|mp3|wav] [--resolution 1080]
+socialclip doctor
+socialclip manifest-schema
+```
+
+- `download` — fetch one URL and save it as MP4 or MP3.
+- `convert` — convert a local file to MP4/MP3/WAV, optionally downscaling.
+- `doctor` — report whether ffmpeg was found.
+- `manifest-schema` — print the JSON Schema for the result manifest.
+
+Add `--json` to `download`, `convert`, or `doctor` for machine-readable output:
+exactly one JSON object on stdout, human-readable text on stderr.
+
+```console
+$ socialclip doctor --json
+{"ffmpeg": "/usr/bin/ffmpeg", "ffmpeg_found": true}
+```
+
+From source, use `python cli.py <command>` instead of `socialclip`.
+
 ## Cookie Authentication
 
 Some sites block downloads without cookies. For each platform you use:
