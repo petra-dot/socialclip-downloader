@@ -74,7 +74,21 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             os.remove(downloaded_file)
             final_path = out_file
 
+        if action == "skip_low":
+            message = (f"Skipped conversion: source ({final_height}p) is lower than "
+                       f"target ({target_resolution}p). No upscaling.")
+        elif action == "skip_equal":
+            message = (f"Skipped conversion: source resolution equals target "
+                       f"({final_height}p).")
+        elif action == "audio":
+            message = f"MP3 saved: {final_path}"
+        elif action == "convert":
+            message = f"Conversion completed: {final_path}"
+        else:
+            message = f"Download finished: {final_path}"
+
         manifest = result_from_info(info, final_path, url)
+        manifest.message = message
         manifest.height = final_height or manifest.height
         manifest.bytes = os.path.getsize(final_path) if os.path.isfile(final_path) else 0
         return manifest
