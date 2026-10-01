@@ -80,7 +80,7 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         "no_color": True,
     }
     resolved_ffmpeg = ffmpeg_path()
-    if resolved_ffmpeg != "ffmpeg":
+    if resolved_ffmpeg != "ffmpeg" and os.path.isfile(resolved_ffmpeg):
         opts["ffmpeg_location"] = resolved_ffmpeg
     if progress_hooks:
         opts["progress_hooks"] = progress_hooks
