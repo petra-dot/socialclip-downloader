@@ -43,6 +43,8 @@ def _convert_to_format(input_path, fmt, copy_streams, runner=None):
     out_path = os.path.splitext(input_path)[0] + "." + fmt.extension
 
     if fmt.key == "gif":
+        # GIF carries no audio: `-an` drops the audio stream. The palette filter
+        # is the whole video recipe; no `-c:v`/`-c:a` flags are emitted here.
         vf = (
             "fps=15,scale=320:-1:flags=lanczos,split[a][b];"
             "[a]palettegen[p];[b][p]paletteuse"
@@ -54,7 +56,7 @@ def _convert_to_format(input_path, fmt, copy_streams, runner=None):
             cmd.append("-vn")
         else:
             cmd += ["-c:v", plan.vcodec]
-        if plan.acodec and plan.acodec != "none":
+        if plan.acodec:
             cmd += ["-c:a", plan.acodec]
         cmd += ["-f", plan.container, "-y", out_path]
 
