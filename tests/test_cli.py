@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 
@@ -22,7 +23,16 @@ def test_manifest_schema_prints_json_with_version():
 
 def test_convert_json_stdout_is_pure_json(tmp_path):
     src = tmp_path / "missing.mp4"
-    proc = run_cli("convert", str(src), "--json")
+    # Point the ffmpeg resolver at a real file so the dependency gate passes
+    # deterministically on runners that lack ffmpeg; the test targets the
+    # missing-input path, not the dependency path.
+    fake_ffmpeg = tmp_path / "ffmpeg"
+    fake_ffmpeg.write_text("")
+    env = {**os.environ, "SOCIALCLIP_FFMPEG": str(fake_ffmpeg)}
+    proc = subprocess.run(
+        [sys.executable, "cli.py", "convert", str(src), "--json"],
+        capture_output=True, text=True, env=env,
+    )
     # one JSON object on stdout, nothing else
     data = json.loads(proc.stdout)
     assert data["status"] == "error"
@@ -156,7 +166,8 @@ def test_download_json_real_ytdlp_stdout_is_one_object(monkeypatch, capsys, tmp_
 
     captured = capsys.readouterr()
     assert rc == 1
-    assert captured.err == ""
+    # Contract: stdout carries exactly one JSON object. stderr may carry
+    # yt-dlp's own warnings (e.g. Python-version deprecation on CI).
     assert "[generic]" not in captured.out
     data = json.loads(captured.out)  # exactly one JSON object, nothing else
     assert data["status"] == "error"
