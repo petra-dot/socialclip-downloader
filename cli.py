@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import shutil
 import sys
 
@@ -97,6 +98,105 @@ def _cmd_doctor(args) -> int:
     return EXIT_OK if report["ffmpeg"]["found"] else EXIT_DEP
 
 
+def _queue_path() -> str:
+    from sites.cookies import default_cookie_dir
+    override = os.environ.get("SOCIALCLIP_QUEUE")
+    if override:
+        return override
+    return os.path.join(default_cookie_dir(), "queue.json")
+
+
+def _load_queue():
+    from core.queue import Queue, QueueStore
+    store = QueueStore(_queue_path())
+    store.load()
+    return Queue(store)
+
+
+def _job_dict(job) -> dict:
+    return {"id": job.id, "url": job.url, "state": job.state,
+            "message": job.message, "path": job.path}
+
+
+def _queue_executor(job):
+    from core.download import download_one
+    from utils.file_utils import default_download_folder
+    opts = job.options or {}
+    out_dir = opts.get("output_dir") or default_download_folder()
+    outtmpl = f"{out_dir}/%(title)s.%(ext)s"
+    return download_one(
+        job.url,
+        outtmpl=outtmpl,
+        output_type=opts.get("output_type", "MP4"),
+        convert=opts.get("convert", False),
+        target_resolution=opts.get("target_resolution", 1080),
+        cookies_file=opts.get("cookies_file"),
+    )
+
+
+def _cmd_queue(args) -> int:
+    command = args.queue_command
+    queue = _load_queue()
+
+    if command == "add":
+        queue.add_many(args.urls)
+        queue.store.save()
+        n = len(args.urls)
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION, "added": n}))
+        else:
+            print(f"added {n}")
+        return EXIT_OK
+
+    if command == "list":
+        jobs = [_job_dict(j) for j in queue.jobs]
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION, "jobs": jobs}))
+        else:
+            for j in jobs:
+                print(f"{j['state']}\t{j['url']}")
+        return EXIT_OK
+
+    if command == "clear":
+        n = len(queue.jobs)
+        queue.jobs.clear()
+        queue.store.save()
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION, "cleared": n}))
+        else:
+            print(f"cleared {n}")
+        return EXIT_OK
+
+    if command == "run":
+        if _ffmpeg_missing():
+            return _dep_error(
+                args, "ffmpeg",
+                "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
+            )
+        run = done = failed = cancelled = 0
+        while True:
+            job = queue.run_once(_queue_executor)
+            if job is None:
+                break
+            queue.store.save()
+            run += 1
+            if job.state == "done":
+                done += 1
+            elif job.state == "failed":
+                failed += 1
+            elif job.state == "cancelled":
+                cancelled += 1
+        result = {"schema_version": SCHEMA_VERSION, "run": run, "done": done,
+                  "failed": failed, "cancelled": cancelled}
+        if args.json:
+            print(json.dumps(result))
+        else:
+            print(f"run {run}: {done} done, {failed} failed, {cancelled} cancelled")
+        return EXIT_OK
+
+    return EXIT_USAGE
+
+
 def _cmd_manifest_schema(args) -> int:
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -149,6 +249,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     ms = sub.add_parser("manifest-schema")
     ms.set_defaults(func=_cmd_manifest_schema)
+
+    q = sub.add_parser("queue")
+    qsub = q.add_subparsers(dest="queue_command", required=True)
+
+    qa = qsub.add_parser("add")
+    qa.add_argument("urls", nargs="+")
+    qa.add_argument("--json", action="store_true")
+    qa.set_defaults(func=_cmd_queue)
+
+    ql = qsub.add_parser("list")
+    ql.add_argument("--json", action="store_true")
+    ql.set_defaults(func=_cmd_queue)
+
+    qr = qsub.add_parser("run")
+    qr.add_argument("--json", action="store_true")
+    qr.set_defaults(func=_cmd_queue)
+
+    qc = qsub.add_parser("clear")
+    qc.add_argument("--json", action="store_true")
+    qc.set_defaults(func=_cmd_queue)
 
     return parser
 
