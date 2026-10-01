@@ -166,6 +166,8 @@ socialclip-downloader/
 │   ├── queue.py
 │   ├── download.py
 │   ├── convert.py
+│   ├── formats.py
+│   ├── probe.py
 │   ├── manifest.py
 │   ├── doctor.py
 │   └── pipeline.py
@@ -188,6 +190,7 @@ socialclip-downloader/
 │   └── pipeline.py
 ├── tests/
 ├── socialclip_downloader.py
+├── cli.py
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── run.bat

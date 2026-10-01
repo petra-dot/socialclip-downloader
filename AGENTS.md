@@ -17,9 +17,11 @@ local. No telemetry, no server.
 
 ```
 socialclip_downloader.py   entry point + __version__
-cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, queue, pipeline)
+cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema/queue)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, pipeline)
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
+core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
+core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
 core/queue.py              persistent download queue + QueueStore (thread-free)
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
@@ -77,6 +79,12 @@ helpers testable. CI lints and runs pytest.
 - Reuse the shared combos in `utils/file_utils.py` (`OUTPUT_FORMATS`,
   `RESOLUTIONS`) instead of hardcoding lists; convert-tab formats come from
   the `core/formats.py` registry.
+- Remux legality is defined by the per-format allow-lists in `core/formats.py`
+  (`remux_v` / `remux_a`), never by ad-hoc compatibility checks in the
+  converter. `core.convert.plan_conversion` is pure and gets the test suite.
+- `core.convert.convert_file` keeps the legacy three-format path
+  (`output_type` in MP3/WAV/MP4 + optional resolution) byte-identical. The
+  format path (`target_format`) is additive; do not rewrite the legacy branch.
 - Route any new user-facing error copy through
   `sites.errors.classify_error`; do not re-add keyword lists to the workers.
 - Cancel is a callable checked in the yt-dlp progress hook

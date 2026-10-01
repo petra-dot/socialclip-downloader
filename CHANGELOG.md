@@ -2,27 +2,54 @@
 
 ## v0.9.0 - 2026-10-01
 ### Added
-- Persistent download queue (`core/queue.py`): `Queue`/`QueueStore` hold jobs
-  as plain data (no threads), saved to `queue.json` in the app config
-  directory. Set `SOCIALCLIP_QUEUE` to override the path. The GUI Queue tab
-  and the CLI share the same file
+- **Queue** — persistent download queue (`core/queue.py`): `Queue`/`QueueStore`
+  hold jobs as plain data (no threads), saved to `queue.json` in the app config
+  directory. Set `SOCIALCLIP_QUEUE` to override the path. The GUI Queue tab and
+  the CLI share the same file
 - `socialclip queue add|list|run|clear` commands, each with `--json` output;
   `run` processes pending jobs one at a time and saves after each
 - Queue tab (`ui/batch_tab.py:QueueTab`), replacing the old Batch tab: a URL
   table with per-item status plus **Add URLs**, **Paste**, **Pause**/**Resume**,
-  **Cancel**, and **Clear finished**
+  **Cancel** (the current item and per-row), and **Clear finished**
 - `workers/queue_worker.py` drives the queue on a `QThread`, one job at a time,
   reporting through Qt signals
-- Mid-download cancel: `core.download.download_one` takes a `cancel` callable
+- Mid-download abort: `core.download.download_one` takes a `cancel` callable
   checked in the yt-dlp progress hook and a new `cancelled` error category,
-  distinct from the six in `sites/errors.py` and a terminal queue state
+  distinct from the six in `sites/errors.py` and a terminal queue state; the
+  partial file it created is cleaned up
+- **Conversion formats** — curated 14-format registry (`core/formats.py`):
+  video `mp4`, `mkv`, `webm`, `mov`, `avi`, `gif`; audio `mp3`, `m4a`, `wav`,
+  `flac`, `ogg`, `opus`, `aac`, `wma`. Each format declares its container,
+  codec pair, extension, and remux allow-lists
+- Auto remux-vs-transcode (`core.convert.plan_conversion`): remux (fast,
+  lossless) when the source streams are already in the target's
+  `remux_v`/`remux_a` allow-lists, otherwise transcode to the format's codec
+  pair. Legality is defined by the allow-lists, never by ad-hoc guessing
+- `core/probe.py`: one `ffprobe` call returning
+  `{vcodec, acodec, height, container}`; never raises, and empty codecs force a
+  transcode plan
+- "Copy streams" control in the Convert tab (Auto / Copy / Re-encode)
+- `socialclip convert FILE --to <format> [--copy|--no-copy]`; an unknown key
+  exits `2` and lists the valid formats
+- Flat minimal app icon, wired at runtime (`assets/icon.ico`)
 
 ### Changed
 - The Batch tab is now the Queue tab; the per-URL progress model is replaced by
   a persistent, resumable queue
-- `socialclip convert --to` now names a registered output format rather than a
-  fixed `output_type`; `--to wav` produces the same audio via the format path
-  instead of the legacy WAV path
+- `socialclip convert --to` now names a registered format key instead of a
+  fixed `output_type`; omitting `--to` keeps the previous `output_type`
+  behaviour (`--to wav`, for example, produces the same audio through the
+  format path rather than the legacy WAV path)
+- `convert --resolution` was removed (it was inert once the format path took
+  over video); resolution now applies to video format targets in the GUI
+
+### Fixed
+- Queue job snapshots are emitted to the GUI instead of the live `QueueJob`
+  object, so a slot can no longer read state mutated on the worker thread
+- The queue is written through a per-process tmp file, so concurrent GUI and CLI
+  saves cannot clobber each other's partial file
+- Partial files are cleaned up after any failed download, not only cancellation
+- The window icon is imported from `QtGui`, so it renders correctly at runtime
 
 ### Removed
 - `workers/batch_worker.py` (superseded by `workers/queue_worker.py`)
