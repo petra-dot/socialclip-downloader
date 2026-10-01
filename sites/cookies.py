@@ -81,7 +81,8 @@ def get_platform_display_name(platform: str) -> str:
 
 def get_cookie_message(platform: str) -> str:
     messages = {
-        "douyin": "Douyin requires cookies. Export from your browser after visiting douyin.com and save as douyin_cookies.txt.",
+        "douyin": "Douyin requires cookies. Export from your browser after "
+        "visiting douyin.com and save as douyin_cookies.txt.",
         "instagram": "Instagram may require cookies. Export and save as instagram_cookies.txt.",
         "twitter": "Twitter/X may require cookies. Export and save as twitter_cookies.txt.",
         "tiktok": "TikTok may require cookies. Export and save as tiktok_cookies.txt.",

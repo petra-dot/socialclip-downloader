@@ -420,7 +420,6 @@ class SingleTab(QtWidgets.QWidget):
         if self.checkbox_timestamp.isChecked():
             base_filename += "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        temp_outtmpl = os.path.join(save_dir, base_filename + ".%(ext)s")
         tmp_opts = {
             "skip_download": True,
             "noplaylist": True,
@@ -430,8 +429,8 @@ class SingleTab(QtWidgets.QWidget):
             tmp_opts["cookiefile"] = cf
         with YoutubeDL(tmp_opts) as ydl_tmp:
             predicted = ydl_tmp.prepare_filename(info)
-        pred_dir, pred_name = os.path.split(predicted)
-        pred_base, pred_ext = os.path.splitext(pred_name)
+        _, pred_name = os.path.split(predicted)
+        _, pred_ext = os.path.splitext(pred_name)
         ext = pred_ext.lstrip(".") or "mp4"
 
         final_path = make_unique_filepath(save_dir, base_filename, ext, fallback_id=vid_id)

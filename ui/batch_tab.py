@@ -3,7 +3,6 @@ import os
 
 from PyQt5 import QtWidgets, QtCore
 
-from sites.cookies import get_cookie_path
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
 from workers.batch_worker import BatchDownloadWorker
 
