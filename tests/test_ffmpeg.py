@@ -44,6 +44,18 @@ def test_returns_empty_when_missing_everywhere():
     ) == ""
 
 
+def test_bundled_ffmpeg_wins_when_present(tmp_path):
+    bundled = tmp_path / "ffmpeg"
+    bundled.write_text("")
+    assert find_ffmpeg(
+        env={},
+        which=lambda name: "/x/ffmpeg",
+        exists=lambda p: os.path.abspath(p) == os.path.abspath(str(bundled)),
+        candidate_dirs=[],
+        bundle_dir=str(tmp_path),
+    ) == str(bundled)
+
+
 def test_ffmpeg_path_falls_back_to_bare_name(monkeypatch):
     monkeypatch.setattr(ffmpeg_mod, "find_ffmpeg", lambda **kwargs: "")
     ffmpeg_mod.reset_cache()

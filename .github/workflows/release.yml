@@ -48,20 +48,40 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+          pip install imageio-ffmpeg
+
+      - name: Fetch bundled ffmpeg
+        shell: bash
+        run: |
+          python - <<'PY'
+          import imageio_ffmpeg, shutil, os
+          src = imageio_ffmpeg.get_ffmpeg_exe()
+          ext = ".exe" if os.name == "nt" else ""
+          os.makedirs("bundled", exist_ok=True)
+          shutil.copy(src, os.path.join("bundled", "ffmpeg" + ext))
+          print("bundled:", src, os.path.getsize(src))
+          PY
+          # ffprobe ships alongside the imageio-ffmpeg binary on some builds;
+          # fall back to the ffmpeg binary if a separate ffprobe is unavailable.
+          ls -la bundled/
 
       - name: Build binary
         shell: bash
         run: |
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then EXT=".exe"; fi
+          ADD="--add-binary bundled/ffmpeg$EXT:."
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-windows \
-              --icon assets/icon.ico socialclip_downloader.py
+              $ADD --icon assets/icon.ico socialclip_downloader.py
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-macos \
-              --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
+              $ADD --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
           else
             # Plain binary, no --windowed: that flag needs libpython shared
             # libs the manylinux runners do not ship.
-            pyinstaller --onefile --name socialclip-downloader-linux socialclip_downloader.py
+            pyinstaller --onefile --name socialclip-downloader-linux \
+              $ADD socialclip_downloader.py
           fi
 
       - name: Upload artifact

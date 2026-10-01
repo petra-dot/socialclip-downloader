@@ -15,21 +15,38 @@ def _nle_safe_format_selector() -> str:
     )
 
 
+def _ffprobe_height(path: str) -> int:
+    cmd = [
+        ffprobe_path(), "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=height",
+        "-of", "csv=p=0",
+        path,
+    ]
+    out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
+    if out:
+        return int(out.splitlines()[0].strip())
+    return 0
+
+
+def _ffmpeg_height(path: str) -> int:
+    # Fallback for when ffprobe is unavailable (bundled builds ship only ffmpeg).
+    cmd = [ffmpeg_path(), "-i", path]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    match = re.search(rb"Video:.*?(\d{2,5})x(\d{2,5})", proc.stderr)
+    if match:
+        return int(match.group(2))
+    return 0
+
+
 def ffprobe_get_height(path: str) -> int:
-    try:
-        cmd = [
-            ffprobe_path(), "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=height",
-            "-of", "csv=p=0",
-            path,
-        ]
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
-        if out:
-            line = out.splitlines()[0].strip()
-            return int(line)
-    except Exception:
-        pass
+    for probe in (_ffprobe_height, _ffmpeg_height):
+        try:
+            height = probe(path)
+            if height:
+                return height
+        except Exception:
+            continue
     return 0
 
 

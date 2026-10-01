@@ -28,11 +28,33 @@ def _candidate_dirs():
     return ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/snap/bin"]
 
 
-def find_ffmpeg(env=None, which=None, exists=None, candidate_dirs=None):
-    """Locate the ffmpeg binary: env override, then PATH, then common install dirs."""
+def _bundle_dir():
+    """Directory of PyInstaller-bundled binaries, or the app dir when frozen.
+
+    Empty string when not frozen and nothing is bundled in this checkout.
+    """
+    meipass = getattr(sys, "_MEIPASS", "")
+    if meipass:
+        return meipass
+    here = os.path.dirname(os.path.abspath(__file__))
+    if glob.glob(os.path.join(here, "ffmpeg*")):
+        return here
+    return ""
+
+
+def find_ffmpeg(env=None, which=None, exists=None, candidate_dirs=None, bundle_dir=None):
+    """Locate ffmpeg: bundled copy first, then env override, PATH, install dirs."""
     env = os.environ if env is None else env
     which = shutil.which if which is None else which
     exists = os.path.isfile if exists is None else exists
+
+    if bundle_dir is None:
+        bundle_dir = _bundle_dir()
+    if bundle_dir:
+        for name in ("ffmpeg", "ffmpeg.exe"):
+            candidate = os.path.join(bundle_dir, name)
+            if exists(candidate):
+                return candidate
 
     override = env.get("SOCIALCLIP_FFMPEG") or env.get("FFMPEG_LOCATION")
     if override and exists(override):
