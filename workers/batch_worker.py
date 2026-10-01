@@ -8,6 +8,7 @@ from core.download import download_one
 class BatchDownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
+    item_signal = QtCore.pyqtSignal(int, str, object)
 
     def __init__(self, urls, save_dir, output_type, target_resolution, cookies_file):
         super().__init__()
@@ -28,10 +29,13 @@ class BatchDownloadWorker(QtCore.QThread):
         outtmpl = os.path.join(self.save_dir, "%(title)s.%(ext)s")
         for i, url in enumerate(self.urls, 1):
             if self._cancelled:
+                for skipped in range(i - 1, total):
+                    self.item_signal.emit(skipped, "cancelled", None)
                 self.status_signal.emit("Batch cancelled by user.")
                 break
 
             self.status_signal.emit(f"[ {i} / {total} ] Starting: {url}")
+            self.item_signal.emit(i - 1, "running", None)
             result = download_one(
                 url,
                 outtmpl=outtmpl,
@@ -43,9 +47,11 @@ class BatchDownloadWorker(QtCore.QThread):
 
             if result.status == "ok":
                 name = os.path.basename(result.path) if result.path else (result.message or "ok")
+                self.item_signal.emit(i - 1, "done", result)
                 self.status_signal.emit(f"[ {i} / {total} ] Done: {name}")
                 succeeded += 1
             else:
+                self.item_signal.emit(i - 1, "failed", result)
                 self.status_signal.emit(f"[ {i} / {total} ] Failed: {url} \u2014 {result.message}")
                 failed += 1
 
