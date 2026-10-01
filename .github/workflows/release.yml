@@ -34,6 +34,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Verify tag matches __version__
+        shell: bash
+        run: |
+          version=$(python -c "import socialclip_downloader; print(socialclip_downloader.__version__)")
+          if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
+            echo "ERROR: tag ${GITHUB_REF_NAME} does not match __version__ $version"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

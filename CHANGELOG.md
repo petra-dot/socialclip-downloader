@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.6.1 - 2026-10-01
+### Added
+- Per-OS release binaries (Windows/macOS/Linux) built by GitHub Actions
+- HiDPI scaling and settings persistence (save dir, cookies, convert options,
+  window geometry)
+- macOS/Linux launcher (`run.sh`)
+
+### Fixed
+- ffmpeg is now located via env override / PATH / common install dirs, and the
+  resolved path is passed to yt-dlp (installations outside PATH now work)
+- Cookie file lookup falls back to the app directory when the launch directory
+  has none
+- Shared `classify_error` used by all download paths (consistent messages)
+
 ## v0.6.0 - 2026-09-02
 ### Added
 - Facebook support (videos, Reels, single and batch download)

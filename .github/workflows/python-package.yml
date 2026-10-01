@@ -21,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -44,3 +46,18 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Check version matches the latest tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          version=$(python -c "import socialclip_downloader; print(socialclip_downloader.__version__)")
+          if [ -z "$tag" ]; then
+            echo "No tags yet; skipping."
+          elif [ "$tag" != "v$version" ]; then
+            echo "ERROR: __version__ is '$version' but latest tag is '$tag'."
+            echo "Bump __version__ in socialclip_downloader.py to match."
+            exit 1
+          else
+            echo "Version $version matches tag $tag."
+          fi
