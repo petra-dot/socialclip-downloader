@@ -20,13 +20,13 @@ jobs:
         include:
           - os: windows-latest
             artifact: socialclip-windows
-            path: dist/socialclip-downloader.exe
+            path: dist/socialclip-downloader-windows.exe
           - os: macos-latest
             artifact: socialclip-macos
-            path: dist/socialclip-downloader
+            path: dist/socialclip-downloader-macos
           - os: ubuntu-latest
             artifact: socialclip-linux
-            path: dist/socialclip-downloader
+            path: dist/socialclip-downloader-linux
     steps:
       - uses: actions/checkout@v4
 
@@ -44,15 +44,15 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            pyinstaller --onefile --windowed --name socialclip-downloader \
+            pyinstaller --onefile --windowed --name socialclip-downloader-windows \
               --icon assets/icon.ico socialclip_downloader.py
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            pyinstaller --onefile --windowed --name socialclip-downloader \
+            pyinstaller --onefile --windowed --name socialclip-downloader-macos \
               --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
           else
             # Plain binary, no --windowed: that flag needs libpython shared
             # libs the manylinux runners do not ship.
-            pyinstaller --onefile --name socialclip-downloader socialclip_downloader.py
+            pyinstaller --onefile --name socialclip-downloader-linux socialclip_downloader.py
           fi
 
       - name: Upload artifact
