@@ -4,7 +4,41 @@ import os
 from PyQt5 import QtWidgets, QtCore
 
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
+from utils.ui_helpers import looks_like_url
 from workers.batch_worker import BatchDownloadWorker
+
+
+def parse_url_lines(text: str) -> list:
+    seen = set()
+    urls = []
+    for line in (text or "").splitlines():
+        url = line.strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+    return urls
+
+
+class BulkPasteDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add URLs")
+        self.resize(520, 320)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(QtWidgets.QLabel("Paste one URL per line:"))
+        self.text = QtWidgets.QTextEdit()
+        self.text.setPlaceholderText("https://...\nhttps://...")
+        layout.addWidget(self.text)
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def urls(self):
+        return parse_url_lines(self.text.toPlainText())
 
 
 class BatchTab(QtWidgets.QWidget):
@@ -12,6 +46,7 @@ class BatchTab(QtWidgets.QWidget):
         super().__init__()
         self.cookies_file_ref = cookies_file_ref
         self.batch_worker = None
+        self._row_for_index = []
         self.settings = QtCore.QSettings()
         self.init_ui()
 
@@ -23,9 +58,25 @@ class BatchTab(QtWidgets.QWidget):
         urls_heading = QtWidgets.QLabel("URLs")
         urls_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         batch_layout.addWidget(urls_heading)
-        self.batch_urls_text = QtWidgets.QTextEdit()
-        self.batch_urls_text.setPlaceholderText("Paste one URL per line")
-        batch_layout.addWidget(self.batch_urls_text)
+
+        urls_toolbar = QtWidgets.QHBoxLayout()
+        self.add_urls_btn = QtWidgets.QPushButton("Add URLs")
+        self.add_urls_btn.clicked.connect(self.on_add_urls)
+        urls_toolbar.addWidget(self.add_urls_btn)
+        self.paste_urls_btn = QtWidgets.QPushButton("Paste")
+        self.paste_urls_btn.clicked.connect(self.on_paste_urls)
+        urls_toolbar.addWidget(self.paste_urls_btn)
+        urls_toolbar.addStretch(1)
+        batch_layout.addLayout(urls_toolbar)
+
+        self.batch_table = QtWidgets.QTableWidget(0, 3)
+        self.batch_table.setHorizontalHeaderLabels(["URL", "Status", "Detail"])
+        self.batch_table.horizontalHeader().setStretchLastSection(True)
+        self.batch_table.setColumnWidth(0, 340)
+        self.batch_table.setColumnWidth(1, 90)
+        self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        batch_layout.addWidget(self.batch_table)
 
         opts_heading = QtWidgets.QLabel("Output")
         opts_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
@@ -121,14 +172,58 @@ class BatchTab(QtWidgets.QWidget):
             self.batch_save_dir_input.setText(folder)
             self._on_batch_save_dir_changed()
 
+    def _append_urls(self, urls):
+        valid = [u for u in urls if looks_like_url(u)]
+        skipped = len(urls) - len(valid)
+        for url in valid:
+            row = self.batch_table.rowCount()
+            self.batch_table.insertRow(row)
+            self.batch_table.setItem(row, 0, QtWidgets.QTableWidgetItem(url))
+            self.batch_table.setItem(row, 1, QtWidgets.QTableWidgetItem("pending"))
+            self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(""))
+        if skipped:
+            self.batch_log(f"Skipped {skipped} line(s) that did not look like a URL.")
+
+    def on_add_urls(self):
+        dialog = BulkPasteDialog(self)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            self._append_urls(dialog.urls())
+
+    def on_paste_urls(self):
+        self._append_urls(parse_url_lines(QtWidgets.QApplication.clipboard().text()))
+
+    def _set_row_status(self, row, status, detail=""):
+        if 0 <= row < self.batch_table.rowCount():
+            self.batch_table.item(row, 1).setText(status)
+            self.batch_table.item(row, 2).setText(detail or "")
+
+    def _on_item(self, index, state, result):
+        row = self._row_for_index[index] if index < len(self._row_for_index) else index
+        if state == "running":
+            self._set_row_status(row, "running")
+            self.batch_cancel_btn.setEnabled(True)
+        elif state == "done":
+            detail = os.path.basename(result.path) if result.path else ""
+            self._set_row_status(row, "done", detail)
+        elif state == "failed":
+            self._set_row_status(row, "failed", result.message or "")
+        elif state == "cancelled":
+            self._set_row_status(row, "cancelled")
+
     def on_start_batch(self):
         if self.batch_worker and self.batch_worker.isRunning():
             self.batch_log("Already running a batch. Wait for it to finish.")
             return
-        urls_text = self.batch_urls_text.toPlainText()
-        urls = [line.strip() for line in urls_text.split("\n") if line.strip()]
+        urls = []
+        self._row_for_index = []
+        for row in range(self.batch_table.rowCount()):
+            url = self.batch_table.item(row, 0).text().strip()
+            if url:
+                urls.append(url)
+                self._row_for_index.append(row)
+                self._set_row_status(row, "pending")
         if not urls:
-            QtWidgets.QMessageBox.warning(self, "No URLs", "Please paste at least one URL.")
+            QtWidgets.QMessageBox.warning(self, "No URLs", "Please add at least one URL.")
             return
         save_dir = self.batch_save_dir_input.text().strip() or default_download_folder()
         os.makedirs(save_dir, exist_ok=True)
@@ -142,6 +237,7 @@ class BatchTab(QtWidgets.QWidget):
         )
         self.batch_worker.status_signal.connect(self.batch_log)
         self.batch_worker.finished_signal.connect(self.on_batch_finished)
+        self.batch_worker.item_signal.connect(self._on_item)
         self.batch_worker.start()
 
     def on_cancel_batch(self):
