@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.0 - 2026-10-01
+### Added
+- Doctor health report (`core/doctor.py`) covering ffmpeg presence/version,
+  per-platform cookie files, and network reachability. `socialclip doctor`
+  renders it as text and `--json` as structured output; the report carries its
+  own `schema_version` `"1.1"` (the download result contract stays `"1.0"`)
+- First-run welcome dialog with the default save folder, ffmpeg status, and
+  cookie guidance; a **Doctor** action in the Help menu opens the full report
+  (`ui/dialogs.py`)
+- Single tab: auto-fetch on a pasted URL, clipboard fill on focus/show, and an
+  **Open folder** button that reveals the final artifact
+- Batch tab: per-URL table showing each item's status, plus a bulk **Paste**
+  action that appends URLs from the clipboard
+- New pure helpers: `utils/ui_helpers.py` (`looks_like_url`,
+  `reveal_in_folder`) and cookie lookup helpers in `sites/cookies.py`
+
 ## v0.7.0 - 2026-10-01
 ### Added
 - Headless `core/` package (Qt-free) shared by the GUI and the CLI:

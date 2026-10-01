@@ -1,6 +1,6 @@
 import sys
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 try:
     from PyQt5 import QtWidgets, QtCore

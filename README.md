@@ -11,9 +11,10 @@ Desktop application for downloading videos and audio from YouTube, Douyin, Insta
 
 ## Features
 
-- **Single download** — fetch metadata, preview thumbnail, download as MP4 or MP3
-- **Batch download** — paste multiple URLs, bulk download with per-file conversion
+- **Single download** — paste a URL and metadata is fetched automatically; preview thumbnail, download as MP4 or MP3, then **Open folder** to reveal the saved file
+- **Batch download** — paste multiple URLs (type them, or **Paste** from the clipboard), then watch a per-URL table of statuses as each file downloads
 - **File converter** — convert MP4 to MP3/WAV, downscale resolution
+- **Doctor** — first-run welcome and a **Doctor** report (ffmpeg, cookies, network reachability) from the Help menu
 - **Resolution targeting** — 720p, 1080p, 1440p, 2160p
 - **Auto cookie detection** — per-platform cookie files (`douyin_cookies.txt`, `youtube_cookies.txt`, etc.) are picked up automatically
 - **Platform-aware error messages** — shows the correct site name in blocked/cookie errors
@@ -78,16 +79,24 @@ socialclip manifest-schema
 
 - `download` — fetch one URL and save it as MP4 or MP3.
 - `convert` — convert a local file to MP4/MP3/WAV, optionally downscaling.
-- `doctor` — report whether ffmpeg was found.
+- `doctor` — health report: ffmpeg presence/version, cookie files found, and
+  network reachability. Exits `0` when ffmpeg is found, `3` otherwise.
 - `manifest-schema` — print the JSON Schema for the result manifest.
 
 Add `--json` to `download`, `convert`, or `doctor` for machine-readable output:
 exactly one JSON object on stdout, human-readable text on stderr.
 
+The doctor report carries its own `schema_version` (`"1.1"`), independent of the
+download result contract (`"1.0"`).
+
 ```console
 $ socialclip doctor --json
-{"ffmpeg": "/usr/bin/ffmpeg", "ffmpeg_found": true}
+{"schema_version": "1.1", "ffmpeg": {"found": true, "path": "/usr/bin/ffmpeg", "version": "ffmpeg version 6.1 Copyright (c) 2000-2024 the FFmpeg developers"}, "cookies": [{"platform": "YouTube", "found": false, "path": null}], "network": {"ok": true, "detail": "reachable"}}
 ```
+
+- `ffmpeg` — `{found, path, version}`; `path`/`version` are `null` when absent.
+- `cookies` — one entry per supported platform: `{platform, found, path}`.
+- `network` — `{ok, detail}`; `ok` is `true`/`false`/`null` and never raises.
 
 From source, use `python cli.py <command>` instead of `socialclip`.
 

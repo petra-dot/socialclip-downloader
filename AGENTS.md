@@ -19,9 +19,11 @@ local. No telemetry, no server.
 socialclip_downloader.py   entry point + __version__
 cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema)
 core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, pipeline)
+core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
 ui/main_window.py          QTabWidget shell holding the three tabs
+ui/dialogs.py              first-run welcome + Doctor report dialogs
 ui/single_tab.py           Fetch -> metadata cache -> Download (also FetchWorker)
 ui/batch_tab.py            one-URL-per-line bulk download
 ui/convert_tab.py          local file format/resolution conversion
@@ -31,6 +33,7 @@ workers/convert_worker.py  local file conversion
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos
+utils/ui_helpers.py        looks_like_url, reveal_in_folder (Qt-free)
 docs/plans/                implementation plans
 docs/specs/                design specs
 tests/                     pytest suite for pure logic
@@ -72,6 +75,8 @@ helpers testable. CI lints and runs pytest.
   `RESOLUTIONS`, `CONV_OUTPUT_FORMATS`) instead of hardcoding lists.
 - Route any new user-facing error copy through
   `sites.errors.classify_error`; do not re-add keyword lists to the workers.
+- The **doctor report** `schema_version` is `"1.1"`; the **download result**
+  contract stays `"1.0"`. They are independent numbers, bump them separately.
 - Conventional Commits (feat/fix/chore/docs). Never commit to `main` on shared
   work without the user asking.
 
