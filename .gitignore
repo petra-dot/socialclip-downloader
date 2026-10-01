@@ -58,6 +58,8 @@ Thumbs.db
 
 # Superpowers AI workspace
 .superpowers/
+superpowers/
+docs/superpowers/
 
 # Database files
 *.db

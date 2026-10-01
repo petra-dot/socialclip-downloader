@@ -7,6 +7,8 @@
 
 Desktop application for downloading videos and audio from YouTube, Douyin, Instagram, Twitter/X, TikTok, Bilibili, Facebook, and other yt-dlp-supported sites. Built with PyQt5 and yt-dlp. All processing is local.
 
+![SocialClip Downloader](docs/screenshots/app_main.png)
+
 ## Features
 
 - **Single download** — fetch metadata, preview thumbnail, download as MP4 or MP3
