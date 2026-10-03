@@ -121,9 +121,19 @@ Expected: PASS (7 tests).
 
 - [ ] **Step 5: Update the existing registry test that asserts the old list**
 
-`tests/test_formats.py::test_curated_fourteen_present` names the 14 formats.
-Update it to the new set (mp4, mkv, webm, mov, avi, gif, mp3, m4a, wav, aac) and
-any other assertion naming a removed format.
+`tests/test_formats.py` line ~41 `test_curated_fourteen_present` asserts the old
+14-key set. Rename it to `test_curated_formats_present` and assert the NEW
+10-format set exactly:
+
+```python
+def test_curated_formats_present():
+    expected = {"mp4", "mkv", "webm", "mov", "avi", "gif",
+                "mp3", "m4a", "wav", "aac"}
+    assert set(keys()) == expected
+```
+
+Also update any other assertion in that file that names a removed format
+(`ogg`, `opus`, `wma`, `flac`) or the old `mp4.remux_v`.
 
 Run: `python -m pytest tests/test_formats.py -v` — Expected: PASS.
 
@@ -227,9 +237,15 @@ Example shape:
 - [ ] **Step 4: Run the tests**
 
 Run: `python -m pytest tests/test_plan_conversion_editor.py tests/test_plan_conversion.py -v`
-Expected: PASS. Update `tests/test_plan_conversion.py`'s existing forced-copy
-assertions if they assert the old behaviour (it asserted forced copy always
-remuxes; that rule is now conditional on safety).
+
+**Delete `tests/test_plan_conversion.py::test_force_copy_keeps_copy_even_if_incompatible`**
+(around line 27-29). It asserts that a forced copy of `vp9/opus` to `mp4`
+remuxes with `vcodec="copy"` — exactly the behaviour this contract reverses.
+Its replacement assertion lives in `test_plan_conversion_editor.py`
+(`test_forced_copy_of_hostile_video_is_upgraded`). Do not weaken the new test
+to satisfy the old one.
+
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -307,8 +323,12 @@ def needs_universal_reencode(src_info: dict) -> bool:
 - [ ] **Step 4: Run the tests**
 
 Run: `python -m pytest tests/test_download_editor_contract.py tests/test_universal_reencode.py -v`
-Expected: PASS. Reconcile `tests/test_universal_reencode.py` if it asserts the
-old audio-agnostic behaviour.
+
+Reconcile `tests/test_universal_reencode.py`: it currently asserts only
+`vcodec`-driven behaviour. Keep its h264/aac and h264/mp3 "left alone" cases
+(they remain true), and any case asserting that a hostile *audio* codec with
+h264 video is left alone must be corrected — the new contract re-encodes it.
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
