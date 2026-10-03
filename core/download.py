@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from core.formats import EDITOR_SAFE_A
 from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
@@ -15,15 +16,23 @@ from utils.ydl_opts import (
 
 
 def needs_universal_reencode(src_info: dict) -> bool:
-    """True when an MP4's video stream is not H.264.
+    """True when a saved MP4 is not H.264 video + editor-safe audio.
 
-    WhatsApp and Facebook reject VP9/AV1/HEVC inside MP4. Sites such as
-    Instagram serve only those, so after downloading we re-encode to guarantee
-    the file is universally playable. An unconfirmed codec re-encodes too:
-    a needless re-encode is better than a file that uploads nowhere.
+    WhatsApp and Facebook reject VP9/AV1/HEVC videos and editors reject
+    Opus/Vorbis audio inside MP4. Sites such as Instagram serve those, so
+    after downloading we re-encode to guarantee the file is universally
+    playable. An unconfirmed codec re-encodes too: a needless re-encode is
+    better than a file that uploads nowhere.
     """
-    vcodec = ((src_info or {}).get("vcodec") or "").lower()
-    return vcodec != "h264"
+    info = src_info or {}
+    vcodec = (info.get("vcodec") or "").lower()
+    acodec = (info.get("acodec") or "").lower()
+    if vcodec != "h264":
+        return True
+    # An absent audio codec is fine (silent video); a present hostile one is not.
+    if acodec and acodec not in EDITOR_SAFE_A:
+        return True
+    return False
 
 
 class DownloadCancelled(Exception):

@@ -25,6 +25,11 @@ def test_h264_h264_aliases_are_left_alone():
     assert needs_universal_reencode({"vcodec": "h264", "acodec": "mp3"}) is False
 
 
+def test_h264_silent_video_is_left_alone():
+    # No audio stream is fine; only a *present* hostile audio codec re-encodes.
+    assert needs_universal_reencode({"vcodec": "h264", "acodec": ""}) is False
+
+
 def test_unknown_video_codec_is_reencoded():
     """If we cannot confirm H.264, guarantee compatibility by re-encoding."""
     assert needs_universal_reencode({"vcodec": "", "acodec": ""}) is True

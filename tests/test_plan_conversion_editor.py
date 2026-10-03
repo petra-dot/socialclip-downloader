@@ -42,3 +42,20 @@ def test_forced_copy_of_safe_codecs_still_copies():
 def test_forced_copy_of_hostile_audio_is_upgraded():
     plan = plan_conversion({"vcodec": "h264", "acodec": "opus"}, get("mp4"), copy_streams=True)
     assert plan.acodec != "copy", plan
+
+
+def test_forced_copy_to_audio_target_upgrades_hostile_audio():
+    from core.convert import plan_conversion
+    from core.formats import get
+    # An Opus source forced-copied to an mp3 target must not copy the Opus.
+    plan = plan_conversion({"vcodec": "h264", "acodec": "opus"}, get("mp3"), copy_streams=True)
+    assert plan.acodec != "copy", plan
+    assert plan.acodec == "mp3"
+
+
+def test_forced_copy_to_audio_target_copies_safe_audio():
+    from core.convert import plan_conversion
+    from core.formats import get
+    plan = plan_conversion({"vcodec": "h264", "acodec": "mp3"}, get("mp3"), copy_streams=True)
+    assert plan.mode == "remux"
+    assert plan.acodec == "copy"
