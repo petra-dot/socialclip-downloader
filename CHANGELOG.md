@@ -17,10 +17,10 @@
   checked in the yt-dlp progress hook and a new `cancelled` error category,
   distinct from the six in `sites/errors.py` and a terminal queue state; the
   partial file it created is cleaned up
-- **Conversion formats** — curated 14-format registry (`core/formats.py`):
+- **Conversion formats** — curated 10-format registry (`core/formats.py`):
   video `mp4`, `mkv`, `webm`, `mov`, `avi`, `gif`; audio `mp3`, `m4a`, `wav`,
-  `flac`, `ogg`, `opus`, `aac`, `wma`. Each format declares its container,
-  codec pair, extension, and remux allow-lists
+  `aac`. Each format declares its container, codec pair, extension, and remux
+  allow-lists
 - Auto remux-vs-transcode (`core.convert.plan_conversion`): remux (fast,
   lossless) when the source streams are already in the target's
   `remux_v`/`remux_a` allow-lists, otherwise transcode to the format's codec
@@ -42,6 +42,11 @@
   format path rather than the legacy WAV path)
 - `convert --resolution` was removed (it was inert once the format path took
   over video); resolution now applies to video format targets in the GUI
+- **Editor-safe output contract** — every download and every converter target
+  writes H.264 video with AAC, MP3, or PCM audio. `webm` is now written as
+  H.264/AAC instead of VP9/Opus, and non-conforming download sources (video or
+  audio) are re-encoded so the saved file opens in CapCut, Premiere Pro, After
+  Effects, and DaVinci Resolve
 
 ### Fixed
 - Queue job snapshots are emitted to the GUI instead of the live `QueueJob`
@@ -53,6 +58,8 @@
 
 ### Removed
 - `workers/batch_worker.py` (superseded by `workers/queue_worker.py`)
+- `ogg`, `opus`, `wma`, and `flac` converter formats: those containers and
+  codecs are rejected by the four target editors
 
 ## v0.8.0 - 2026-10-01
 ### Added

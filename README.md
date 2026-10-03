@@ -46,6 +46,8 @@ without uploading anything to a third-party service.
   and cancel-all. The queue is saved to disk, so it survives a restart.
 - **File converter** — convert a local file to any supported format, with
   automatic remux (fast, lossless) when the streams already fit the container.
+  Every output is editor-safe: H.264 video with AAC/MP3/PCM audio, so it
+  imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve.
 - **Format control** — choose a target resolution (720p / 1080p / 1440p /
   2160p), extract audio, or copy streams without re-encoding.
 - **Health check** — a built-in **Doctor** report covers ffmpeg, cookie files,
@@ -127,7 +129,7 @@ socialclip manifest-schema
 | Command | What it does |
 |---------|--------------|
 | `download` | Fetch one URL and save it as MP4 or MP3. |
-| `convert` | Convert a local file to a format key: `mp4`, `mkv`, `webm`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `flac`, `ogg`, `opus`, `aac`, `wma`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. |
+| `convert` | Convert a local file to a format key: `mp4`, `mkv`, `webm`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
 | `manifest-schema` | Print the JSON Schema for structured results. |
