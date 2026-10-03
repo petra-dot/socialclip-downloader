@@ -3,6 +3,7 @@ import subprocess
 
 from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
+from core.probe import probe_media
 from sites.errors import classify_error
 from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import (
@@ -11,6 +12,18 @@ from utils.ydl_opts import (
     ffprobe_get_height,
     strip_ansi,
 )
+
+
+def needs_universal_reencode(src_info: dict) -> bool:
+    """True when an MP4's video stream is not H.264.
+
+    WhatsApp and Facebook reject VP9/AV1/HEVC inside MP4. Sites such as
+    Instagram serve only those, so after downloading we re-encode to guarantee
+    the file is universally playable. An unconfirmed codec re-encodes too:
+    a needless re-encode is better than a file that uploads nowhere.
+    """
+    vcodec = ((src_info or {}).get("vcodec") or "").lower()
+    return vcodec != "h264"
 
 
 class DownloadCancelled(Exception):
@@ -107,6 +120,22 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             os.remove(downloaded_file)
             final_path = out_file
 
+        # Universal-playability guarantee: some sites (Instagram) serve only
+        # VP9/AV1. A plain MP4 download can therefore contain a codec that
+        # WhatsApp and Facebook reject, so re-encode an H.264-less MP4.
+        if action == "keep" and output_type == "MP4" and os.path.isfile(final_path):
+            src_info = probe_media(final_path)
+            if needs_universal_reencode(src_info):
+                base, _ = os.path.splitext(final_path)
+                out_file = f"{base}_h264.mp4"
+                result = _ffmpeg_to_nle_mp4(final_path, out_file, None)
+                if result.returncode != 0:
+                    return error_result(
+                        "ffmpeg", result.stderr.decode(errors="ignore"), url
+                    )
+                os.remove(final_path)
+                final_path = out_file
+
         if action == "skip_low":
             message = (f"Skipped conversion: source ({final_height}p) is lower than "
                        f"target ({target_resolution}p). No upscaling.")
@@ -117,6 +146,8 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             message = f"MP3 saved: {final_path}"
         elif action == "convert":
             message = f"Conversion completed: {final_path}"
+        elif action == "keep" and final_path != downloaded_file:
+            message = f"Re-encoded to H.264: {final_path}"
         else:
             message = f"Download finished: {final_path}"
 

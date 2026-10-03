@@ -22,6 +22,11 @@ class FakeYDL:
 def test_download_one_returns_ok_result(monkeypatch, tmp_path):
     monkeypatch.setattr("yt_dlp.YoutubeDL", FakeYDL)
     monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    # The file is already H.264, so the universal-playability step is a no-op.
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 1080, "container": "mp4"},
+    )
     result = download_one(
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
@@ -206,6 +211,10 @@ def test_no_cancel_callable_is_unchanged(monkeypatch, tmp_path):
             return str(real)
 
     monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 720, "container": "mp4"},
+    )
     result = download_one(
         "https://example.com/x",
         outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
