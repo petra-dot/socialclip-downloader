@@ -31,9 +31,9 @@ def test_mp4_transcodes_av1():
     assert plan.vcodec == "h264"
 
 
-def test_mkv_still_remuxes_hevc_and_av1():
-    """mkv is an internal format; remuxing modern codecs into it is correct."""
-    assert "hevc" in get("mkv").remux_v
-    assert "av1" in get("mkv").remux_v
+def test_mkv_only_remuxes_h264():
+    """Editor-safe contract: mkv copies H.264 and transcodes everything else."""
+    assert get("mkv").remux_v == ("h264",)
     plan = plan_conversion({"vcodec": "hevc", "acodec": "aac"}, get("mkv"))
-    assert plan.mode == "remux"
+    assert plan.mode == "transcode"
+    assert plan.vcodec == "h264"

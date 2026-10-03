@@ -79,7 +79,7 @@ def test_unknown_target_format_is_an_error(monkeypatch, tmp_path):
 def test_audio_container_muxers_are_pinned():
     assert get("m4a").container == "ipod"
     assert get("aac").container == "adts"
-    assert get("wma").container == "asf"
+    assert get("wav").container == "wav"
 
 
 def _capture_run(commands):

@@ -2,9 +2,16 @@
 
 Pure data table: no I/O, no ffmpeg, no Qt. Later stages use the per-format
 ``remux_v`` / ``remux_a`` allow-lists to decide remux vs re-encode.
+
+Only editor-safe codecs are ever written: every video format targets H.264 and
+every audio format targets AAC, MP3, or PCM, so output imports into CapCut,
+Premiere Pro, After Effects, and DaVinci Resolve.
 """
 
 from dataclasses import dataclass
+
+EDITOR_SAFE_V = ("h264",)
+EDITOR_SAFE_A = ("aac", "mp3", "pcm_s16le")
 
 
 @dataclass(frozen=True)
@@ -30,7 +37,7 @@ FORMATS = [
         acodec="aac",
         extension="mp4",
         remux_v=("h264",),
-        remux_a=("aac", "mp3", "ac3"),
+        remux_a=("aac", "mp3"),
     ),
     Format(
         key="mkv",
@@ -40,19 +47,19 @@ FORMATS = [
         vcodec="h264",
         acodec="aac",
         extension="mkv",
-        remux_v=("h264", "hevc", "vp9", "av1"),
-        remux_a=("aac", "mp3", "opus", "vorbis", "flac", "ac3"),
+        remux_v=("h264",),
+        remux_a=("aac", "mp3"),
     ),
     Format(
         key="webm",
-        label="WebM (VP9 + Opus)",
+        label="WebM (H.264 + AAC, editor-friendly)",
         kind="video",
         container="webm",
-        vcodec="vp9",
-        acodec="opus",
+        vcodec="h264",
+        acodec="aac",
         extension="webm",
-        remux_v=("vp9", "av1"),
-        remux_a=("opus", "vorbis"),
+        remux_v=("h264",),
+        remux_a=("aac", "mp3"),
     ),
     Format(
         key="mov",
@@ -62,18 +69,18 @@ FORMATS = [
         vcodec="h264",
         acodec="aac",
         extension="mov",
-        remux_v=("h264", "hevc", "prores"),
+        remux_v=("h264",),
         remux_a=("aac", "pcm_s16le"),
     ),
     Format(
         key="avi",
-        label="AVI (MPEG-4 + MP3)",
+        label="AVI (H.264 + MP3)",
         kind="video",
         container="avi",
-        vcodec="mpeg4",
+        vcodec="h264",
         acodec="mp3",
         extension="avi",
-        remux_v=("mpeg4", "mjpeg"),
+        remux_v=("h264",),
         remux_a=("mp3", "pcm_s16le"),
     ),
     Format(
@@ -89,7 +96,7 @@ FORMATS = [
     ),
     Format(
         key="mp3",
-        label="MP3",
+        label="MP3 (audio)",
         kind="audio",
         container="mp3",
         vcodec="",
@@ -100,7 +107,7 @@ FORMATS = [
     ),
     Format(
         key="m4a",
-        label="M4A (AAC)",
+        label="M4A (AAC audio)",
         kind="audio",
         container="ipod",
         vcodec="",
@@ -111,51 +118,18 @@ FORMATS = [
     ),
     Format(
         key="wav",
-        label="WAV (PCM)",
+        label="WAV (PCM audio)",
         kind="audio",
         container="wav",
         vcodec="",
         acodec="pcm_s16le",
         extension="wav",
         remux_v=(),
-        remux_a=("pcm_s16le", "pcm_s24le"),
-    ),
-    Format(
-        key="flac",
-        label="FLAC",
-        kind="audio",
-        container="flac",
-        vcodec="",
-        acodec="flac",
-        extension="flac",
-        remux_v=(),
-        remux_a=("flac",),
-    ),
-    Format(
-        key="ogg",
-        label="OGG (Vorbis)",
-        kind="audio",
-        container="ogg",
-        vcodec="",
-        acodec="libvorbis",
-        extension="ogg",
-        remux_v=(),
-        remux_a=("vorbis",),
-    ),
-    Format(
-        key="opus",
-        label="Opus",
-        kind="audio",
-        container="opus",
-        vcodec="",
-        acodec="libopus",
-        extension="opus",
-        remux_v=(),
-        remux_a=("opus",),
+        remux_a=("pcm_s16le",),
     ),
     Format(
         key="aac",
-        label="AAC",
+        label="AAC (audio)",
         kind="audio",
         container="adts",
         vcodec="",
@@ -163,17 +137,6 @@ FORMATS = [
         extension="aac",
         remux_v=(),
         remux_a=("aac",),
-    ),
-    Format(
-        key="wma",
-        label="WMA",
-        kind="audio",
-        container="asf",
-        vcodec="",
-        acodec="wmav2",
-        extension="wma",
-        remux_v=(),
-        remux_a=("wmav2",),
     ),
 ]
 
