@@ -17,16 +17,24 @@ def looks_like_url(text: str) -> bool:
 
 
 def reveal_command(path: str, platform: str = None) -> list:
+    """Build the command that reveals `path` in the OS file manager.
+
+    `path` may be a file (select it) or a directory (open it).
+    """
     platform = platform or sys.platform
+    is_dir = os.path.isdir(path)
     if platform.startswith("win"):
-        # explorer.exe parses its OWN argument line, not argv, so an unquoted
-        # path with spaces (or a path it dislikes) makes it silently open the
-        # default folder (Documents) instead of selecting the file. Quote it.
         native = path.replace("/", "\\")
+        if is_dir:
+            return ["explorer", '"{}"'.format(native)]
+        # explorer.exe parses its OWN argument line, not argv, so an unquoted
+        # /select,<path> (especially with spaces) silently opens the default
+        # folder (Documents) instead of selecting the file. Quote it.
         return ["explorer", '/select,"{}"'.format(native)]
     if platform == "darwin":
         return ["open", "-R", path]
-    return ["xdg-open", os.path.dirname(path)]
+    # Linux: xdg-open opens a directory directly; for a file, open its parent.
+    return ["xdg-open", path if is_dir else os.path.dirname(path)]
 
 
 def reveal_in_folder(path: str) -> None:
@@ -40,10 +48,6 @@ def reveal_in_folder(path: str) -> None:
         if parent and os.path.isdir(parent):
             path = parent
     try:
-        cmd = reveal_command(path)
-        if sys.platform.startswith("win") and not os.path.isfile(path):
-            # Fall back to opening the directory when we cannot select a file.
-            cmd = ["explorer", path.replace("/", "\\")]
-        subprocess.run(cmd, check=False)
+        subprocess.run(reveal_command(path), check=False)
     except Exception:
         pass
