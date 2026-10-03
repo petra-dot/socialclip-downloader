@@ -68,6 +68,26 @@ def test_target_format_remux_names_remuxed(monkeypatch, tmp_path):
     assert "Remuxed" in (result.message or "")
 
 
+def test_forced_copy_upgrade_reports_reencoded(monkeypatch, tmp_path):
+    """A forced copy of an editor-hostile source is upgraded to a transcode;
+    the message must say so instead of the plain 'Converted to ...'."""
+    src = tmp_path / "in.webm"
+    src.write_text("x")
+
+    class P:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr("core.convert.subprocess.run", lambda *a, **k: P())
+    monkeypatch.setattr(
+        "core.convert.probe_media",
+        lambda path, **k: {"vcodec": "vp9", "acodec": "opus", "height": 0, "container": ""},
+    )
+    result = convert_file(str(src), target_format="mp4", copy_streams=True)
+    assert result.status == "ok"
+    assert "Re-encoded for editor compatibility" in (result.message or "")
+
+
 def test_unknown_target_format_is_an_error(monkeypatch, tmp_path):
     src = tmp_path / "in.mp4"
     src.write_text("x")

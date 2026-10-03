@@ -98,12 +98,19 @@ def _convert_to_format(input_path, fmt, copy_streams, target_resolution=None,
             pass
         return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
 
-    mode = "Remuxed" if plan.mode == "remux" and not vf else "Converted"
+    if plan.mode == "transcode" and copy_streams is True:
+        # The caller asked to copy streams, but the source codec is editor
+        # hostile, so plan_conversion upgraded it to a transcode. Say so.
+        message = f"Re-encoded for editor compatibility: {out_path}"
+    elif plan.mode == "remux" and not vf:
+        message = f"Remuxed to {out_path}"
+    else:
+        message = f"Converted to {out_path}"
     return DownloadResult(
         status="ok",
         path=out_path,
         extension=fmt.extension,
-        message=f"{mode} to {out_path}",
+        message=message,
     )
 
 

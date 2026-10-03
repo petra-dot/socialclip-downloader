@@ -84,6 +84,58 @@ def test_download_one_skip_equal_carries_message(monkeypatch, tmp_path):
     assert "resolution equals target" in result.message
 
 
+def test_skip_low_still_runs_universal_reencode(monkeypatch, tmp_path):
+    """convert=True with target >= source returns skip_low, but a hostile
+    VP9/Opus MP4 must still be re-encoded before it is handed back."""
+    real = tmp_path / "clip.mp4"
+    real.write_text("vp9")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            return {"id": "x", "title": "T", "height": 720, "ext": "mp4"}
+
+        def prepare_filename(self, info):
+            return str(real)
+
+    argv_seen = []
+
+    class P:
+        returncode = 0
+        stderr = b""
+
+    def run(cmd, **kwargs):
+        argv_seen.append(cmd)
+        return P()
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "vp9", "acodec": "opus", "height": 720, "container": "mp4"},
+    )
+    monkeypatch.setattr("core.download.os.path.isfile", lambda p: True)
+    monkeypatch.setattr("core.download.os.path.getsize", lambda p: 123)
+    monkeypatch.setattr("core.download.os.remove", lambda p: None)
+    monkeypatch.setattr("utils.ydl_opts.subprocess.run", run)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=True, target_resolution=1080,
+    )
+    assert result.status == "ok"
+    assert argv_seen, "the universal re-encode must run for skip_low"
+    assert "libx264" in argv_seen[0], argv_seen[0]
+    assert result.path.endswith("_h264.mp4")
+
+
 def test_mp3_extension_matches_final_artifact(monkeypatch, tmp_path):
     class P:
         returncode = 0

@@ -49,7 +49,8 @@ without uploading anything to a third-party service.
   Every output is editor-safe: H.264 video with AAC/MP3/PCM audio, so it
   imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve.
 - **Format control** — choose a target resolution (720p / 1080p / 1440p /
-  2160p), extract audio, or copy streams without re-encoding.
+  2160p), extract audio, or copy streams when the codecs are already
+  editor-safe (a forced copy of a hostile codec is re-encoded).
 - **Health check** — a built-in **Doctor** report covers ffmpeg, cookie files,
   and network reachability, so you can fix problems before a download fails.
 - **Cross-platform** — Windows, macOS, and Linux, with prebuilt binaries that
@@ -129,7 +130,7 @@ socialclip manifest-schema
 | Command | What it does |
 |---------|--------------|
 | `download` | Fetch one URL and save it as MP4 or MP3. |
-| `convert` | Convert a local file to a format key: `mp4`, `mkv`, `webm`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
+| `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
 | `manifest-schema` | Print the JSON Schema for structured results. |

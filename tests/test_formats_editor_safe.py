@@ -28,15 +28,15 @@ def test_every_remux_audio_codec_is_editor_safe():
             assert codec in EDITOR_SAFE_A, (f.key, codec)
 
 
-def test_webm_is_served_with_safe_codecs():
-    webm = [f for f in FORMATS if f.key == "webm"][0]
-    assert webm.vcodec == "h264"
-    assert webm.acodec == "aac"
-
-
 def test_editor_hostile_containers_are_removed():
     for gone in ("ogg", "opus", "wma"):
         assert gone not in keys(), gone
+
+
+def test_webm_is_removed():
+    # WebM's muxer only accepts VP8/VP9/AV1 + Vorbis/Opus, all editor-hostile.
+    # There is no editor-safe WebM, so the format cannot exist.
+    assert "webm" not in keys()
 
 
 def test_safe_set_is_what_we_claim():

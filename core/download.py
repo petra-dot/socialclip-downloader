@@ -131,8 +131,13 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
 
         # Universal-playability guarantee: some sites (Instagram) serve only
         # VP9/AV1. A plain MP4 download can therefore contain a codec that
-        # WhatsApp and Facebook reject, so re-encode an H.264-less MP4.
-        if action == "keep" and output_type == "MP4" and os.path.isfile(final_path):
+        # WhatsApp and Facebook reject, so re-encode an H.264-less MP4. This
+        # runs for every retained MP4, including skip_low/skip_equal: a
+        # resolution decision must not skip the codec guarantee. The convert
+        # and audio actions already emit H.264/AAC or MP3.
+        reencoded = False
+        if (output_type == "MP4" and action in ("keep", "skip_low", "skip_equal")
+                and os.path.isfile(final_path)):
             src_info = probe_media(final_path)
             if needs_universal_reencode(src_info):
                 base, _ = os.path.splitext(final_path)
@@ -144,8 +149,11 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                     )
                 os.remove(final_path)
                 final_path = out_file
+                reencoded = True
 
-        if action == "skip_low":
+        if reencoded:
+            message = f"Re-encoded for editor compatibility: {final_path}"
+        elif action == "skip_low":
             message = (f"Skipped conversion: source ({final_height}p) is lower than "
                        f"target ({target_resolution}p). No upscaling.")
         elif action == "skip_equal":
@@ -155,8 +163,6 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             message = f"MP3 saved: {final_path}"
         elif action == "convert":
             message = f"Conversion completed: {final_path}"
-        elif action == "keep" and final_path != downloaded_file:
-            message = f"Re-encoded to H.264: {final_path}"
         else:
             message = f"Download finished: {final_path}"
 

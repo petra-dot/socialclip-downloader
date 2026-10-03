@@ -262,7 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("file")
     c.add_argument("--json", action="store_true")
     c.add_argument("--to",
-                   help="target format key from the registry (e.g. mp4, mkv, webm, "
+                   help="target format key from the registry (e.g. mp4, mkv, "
                         "mp3, wav, aac); defaults to the legacy MP3 path")
     c.add_argument("--resolution", type=int, default=1080,
                    help="target height for video format targets; ignored for audio")

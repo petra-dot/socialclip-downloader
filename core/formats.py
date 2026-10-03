@@ -51,17 +51,6 @@ FORMATS = [
         remux_a=("aac", "mp3"),
     ),
     Format(
-        key="webm",
-        label="WebM (H.264 + AAC, editor-friendly)",
-        kind="video",
-        container="webm",
-        vcodec="h264",
-        acodec="aac",
-        extension="webm",
-        remux_v=("h264",),
-        remux_a=("aac", "mp3"),
-    ),
-    Format(
         key="mov",
         label="MOV (H.264 + AAC)",
         kind="video",

@@ -56,10 +56,11 @@ codec is what matters).
 
 - **Editor-safe is the contract.** Output is H.264 video and AAC/MP3/PCM audio,
   always, for every format that carries that stream type.
-- **Formats keep their identity; codecs change.** `webm` remains available
-  (some users want the container) but is written with H.264 + AAC, not
-  VP9/Opus, so it still opens in editors. Where the standards conflict, the
-  editor contract wins.
+- **Formats keep their identity; codecs change** where that is possible. The
+  WebM muxer only accepts VP8/VP9/AV1 video and Vorbis/Opus audio, all
+  editor-hostile, so an editor-safe WebM cannot be produced and `webm` is
+  removed rather than mislabeled. Where the standards conflict, the editor
+  contract wins.
 - **Remux is only allowed when the source codec is already editor-safe.** A
   VP9/HEVC/AV1 source is transcoded to H.264 rather than copied.
 - **One shared rule table**, not scattered `if`s.
@@ -71,7 +72,7 @@ codec is what matters).
 ```python
 # Codecs an editor reliably accepts.
 EDITOR_SAFE_V = ("h264",)
-EDITOR_SAFE_A = ("aac", "mp3", "pcm_s16le", "pcm_s24le")
+EDITOR_SAFE_A = ("aac", "mp3", "pcm_s16le")
 
 @dataclass(frozen=True)
 class Format:
@@ -100,7 +101,7 @@ Rules encoded in the table:
   offered when the source is already H.264.
 - **`remux_a` may include opus/vorbis/flac only if the target's `acodec` is
   overridden** — simpler: `remux_a` is limited to editor-safe audio
-  (`aac`, `mp3`, `pcm_s16le`, `ac3`). Editor-hostile audio is transcoded.
+  (`aac`, `mp3`, `pcm_s16le`). Editor-hostile audio is transcoded.
 - `editor_safe` is not added; every format is editor-safe by construction.
 
 ### `core/convert.py`
@@ -115,7 +116,7 @@ Rules encoded in the table:
   message states the upgrade ("Re-encoded for editor compatibility"). An
   explicit copy of an already-safe codec still copies.
 - The vcodec written is always `h264` for a video target and the acodec is
-  always editor-safe. `webm` therefore produces an H.264/AAC WebM.
+  always editor-safe.
 
 ### `core/download.py`
 
@@ -134,9 +135,9 @@ download path and is extended to also check the audio codec:
 
 - The Convert tab labels each format and shows its output codecs; no format
   is marked "not for editing" because all are editor-safe after this change.
-- Formats whose *name* implies a codec (`webm`, `opus`) get a note in the
-  label, e.g. `WebM (H.264 + AAC — editor-friendly)`, so users are not
-  surprised that a `.webm` opens in Premiere.
+- Formats whose *name* implies a codec are labeled with the codec actually
+  written (for example `AVI (H.264 + MP3)`), so users know the codec before
+  they choose the container.
 
 ## The universal guarantee (what "mainstream" means here)
 
@@ -174,7 +175,7 @@ per-site logic, which would rot as sites change.
 - **Cost**: editor-safe output means VP9/AV1/Opus sources are always
   re-encoded, which takes time and loses a little quality. Accepted: a file an
   editor can open is the point.
-- **`webm` is no longer true WebM-streaming codecs.** Labeled clearly; a user
-  who wants real VP9 can still be served later via an explicit "streaming"
-  option if demand appears.
+- **`webm` is removed, not emulated.** WebM's muxer accepts only editor-hostile
+  codecs, so there is no editor-safe WebM to offer. A user who wants real VP9
+  can be served later via an explicit "streaming" option if demand appears.
 - **HEVC sources now always transcode.** Correct for compatibility; slower.
