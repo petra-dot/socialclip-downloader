@@ -1,0 +1,82 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        Before filing, please run `socialclip doctor` (or open **Help → Doctor**
+        in the app) — it reports ffmpeg, cookie, and network status, which
+        answers many download failures.
+
+        For a **security** issue, do not use this form. See SECURITY.md.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact clicks or commands that trigger it.
+      placeholder: |
+        1. Paste this URL: ...
+        2. Click Download
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error output
+      description: |
+        Paste the exact error text, or the `--json` output (machine-readable).
+        Do not paste the contents of a cookies file.
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Prebuilt release binary
+        - Running from source
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: "e.g. Windows 11 24H2, macOS 15.1, Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in the window title bar (e.g. v0.9.1).
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor report
+      description: Output of `socialclip doctor` (or Help → Doctor).
+      render: text
+    validations:
+      required: false
