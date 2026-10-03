@@ -1,6 +1,6 @@
 import os
 
-from utils.ui_helpers import looks_like_url, reveal_command
+from utils.ui_helpers import looks_like_url, reveal_command, reveal_shell_string
 
 
 def test_looks_like_url_accepts():
@@ -16,6 +16,26 @@ def test_looks_like_url_rejects():
 def test_reveal_command_windows_selects_file():
     # A non-existent path is treated as a file to select.
     assert reveal_command("C:/a/b.mp4", "win32") == ["explorer", '/select,"C:\\a\\b.mp4"']
+
+
+def test_reveal_shell_string_windows_quotes_the_whole_command():
+    """explorer.exe parses one raw command line; passing a pre-quoted argv
+    element misreads it and opens Documents. The whole command must be one
+    string (verified working on the user's machine)."""
+    s = reveal_shell_string("C:/a/b.mp4", "win32")
+    assert s == 'explorer /select,"C:\\a\\b.mp4"'
+
+
+def test_reveal_shell_string_windows_spaced_path():
+    s = reveal_shell_string("C:/My Videos/clip one.mp4", "win32")
+    assert s is not None
+    assert s.startswith("explorer /select,")
+    assert '"' in s
+
+
+def test_reveal_shell_string_none_on_other_platforms():
+    assert reveal_shell_string("/a/b.mp4", "darwin") is None
+    assert reveal_shell_string("/a/b.mp4", "linux") is None
 
 
 def test_reveal_command_windows_quotes_spaced_paths():
@@ -60,5 +80,6 @@ def test_reveal_in_folder_opens_parent_when_file_missing(tmp_path, monkeypatch):
     missing = tmp_path / "gone.mp4"
     reveal_in_folder(str(missing))
     assert ran, "expected a reveal command to run"
-    joined = " ".join(ran[0])
-    assert str(tmp_path) in joined, (ran, str(tmp_path))
+    # cmd is a shell string on Windows, a list elsewhere; both must name the dir.
+    arg = ran[0] if isinstance(ran[0], str) else " ".join(ran[0])
+    assert str(tmp_path) in arg, (ran, str(tmp_path))

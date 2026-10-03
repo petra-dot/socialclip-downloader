@@ -37,6 +37,25 @@ def reveal_command(path: str, platform: str = None) -> list:
     return ["xdg-open", path if is_dir else os.path.dirname(path)]
 
 
+def reveal_shell_string(path: str, platform: str = None):
+    """The Windows reveal command as ONE command-line string, or None.
+
+    explorer.exe parses a single raw command line rather than argv. Passing a
+    pre-quoted argv element (``["explorer", '/select,"C:\\..."']``) is misread
+    and opens the default folder (Documents) instead of selecting the file.
+    Passing the whole command as one string -- ``explorer /select,"C:\\..."`` --
+    works. Verified on Windows; returns None on other platforms, which use the
+    argv form from ``reveal_command``.
+    """
+    platform = platform or sys.platform
+    if not platform.startswith("win"):
+        return None
+    native = path.replace("/", "\\")
+    if os.path.isdir(path):
+        return 'explorer "{}"'.format(native)
+    return 'explorer /select,"{}"'.format(native)
+
+
 def reveal_in_folder(path: str) -> None:
     """Reveal `path` in the file manager.
 
@@ -48,6 +67,11 @@ def reveal_in_folder(path: str) -> None:
         if parent and os.path.isdir(parent):
             path = parent
     try:
-        subprocess.run(reveal_command(path), check=False)
+        shell_string = reveal_shell_string(path)
+        if shell_string is not None:
+            # Windows: one command string, or explorer opens the default folder.
+            subprocess.run(shell_string, shell=True, check=False)
+        else:
+            subprocess.run(reveal_command(path), check=False)
     except Exception:
         pass

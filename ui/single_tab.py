@@ -296,6 +296,8 @@ class SingleTab(QtWidgets.QWidget):
     def _on_open_folder(self):
         if self._last_path:
             reveal_in_folder(self._last_path)
+        else:
+            self.log("Nothing to reveal yet.")
 
     def on_browse_cookies(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
