@@ -6,12 +6,19 @@ from utils.ffmpeg import ffmpeg_path, ffprobe_path
 
 
 def _nle_safe_format_selector() -> str:
+    """Prefer H.264 + AAC so the merged MP4 plays everywhere.
+
+    WhatsApp and Facebook reject VP9/AV1-in-MP4 and Opus-in-MP4, so every
+    fallback is constrained to H.264 rather than falling back to an
+    unconstrained `bestvideo+bestaudio` (which can silently produce VP9/Opus
+    inside an .mp4). If no H.264 source exists, yt-dlp errors clearly instead
+    of handing back a file that uploads nowhere.
+    """
     return (
         "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
         "/bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]"
-        "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-        "/bestvideo+bestaudio"
-        "/best"
+        "/bestvideo[vcodec^=avc1]+bestaudio"
+        "/best[vcodec^=avc1]"
     )
 
 

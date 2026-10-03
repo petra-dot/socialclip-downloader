@@ -29,7 +29,7 @@ FORMATS = [
         vcodec="h264",
         acodec="aac",
         extension="mp4",
-        remux_v=("h264", "hevc", "av1"),
+        remux_v=("h264",),
         remux_a=("aac", "mp3", "ac3"),
     ),
     Format(

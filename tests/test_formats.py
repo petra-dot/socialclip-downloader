@@ -24,7 +24,9 @@ def test_audio_formats_have_no_video_remux_list():
 
 
 def test_known_containers():
-    assert get("mp4").remux_v == ("h264", "hevc", "av1")
+    # MP4 is the universal-sharing container: only H.264 is safe to remux
+    # (WhatsApp/Facebook reject HEVC, AV1, and VP9 inside .mp4).
+    assert get("mp4").remux_v == ("h264",)
     assert "vp9" not in get("mp4").remux_v
     assert "h264" not in get("webm").remux_v
     assert get("gif").remux_v == ()
