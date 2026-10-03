@@ -2,7 +2,7 @@ import os
 import subprocess
 from collections import namedtuple
 
-from core.formats import get
+from core.formats import EDITOR_SAFE_A, get
 from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
@@ -16,18 +16,27 @@ ConvertPlan = namedtuple("ConvertPlan", "mode vcodec acodec container")
 def plan_conversion(src_info, target, copy_streams=None):
     v = (src_info or {}).get("vcodec", "") or ""
     a = (src_info or {}).get("acodec", "") or ""
+    is_video = target.kind == "video"
 
-    if target.kind == "audio":
-        if copy_streams is True:
-            return ConvertPlan("remux", "", "copy", target.container)
+    # A forced copy is only honoured for editor-safe streams. Copying a VP9 or
+    # Opus source produces a file the editor rejects, so it is upgraded to a
+    # transcode even when the caller asked for a copy.
+    if copy_streams is True:
+        v_copy = v == "h264" if is_video else True
+        a_copy = a in EDITOR_SAFE_A
+        if v_copy and a_copy:
+            return ConvertPlan(
+                "remux", "copy" if is_video else "", "copy", target.container
+            )
+        return ConvertPlan("transcode", target.vcodec, target.acodec, target.container)
+
+    if not is_video:
         if copy_streams is False or a not in target.remux_a:
             return ConvertPlan("transcode", "", target.acodec, target.container)
         return ConvertPlan("remux", "", "copy", target.container)
 
     v_ok = v in target.remux_v
     a_ok = a in target.remux_a
-    if copy_streams is True:
-        return ConvertPlan("remux", "copy", "copy", target.container)
     if copy_streams is None and v_ok and a_ok and target.remux_v:
         return ConvertPlan("remux", "copy", "copy", target.container)
     return ConvertPlan("transcode", target.vcodec, target.acodec, target.container)

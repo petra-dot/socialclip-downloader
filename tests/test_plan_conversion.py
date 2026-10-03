@@ -23,12 +23,6 @@ def test_auto_transcodes_when_audio_not_allowed():
     assert plan.mode == "transcode"
 
 
-def test_force_copy_keeps_copy_even_if_incompatible():
-    plan = plan_conversion(_src("vp9", "opus"), get("mp4"), copy_streams=True)
-    assert plan.mode == "remux"
-    assert plan.vcodec == "copy"
-
-
 def test_force_transcode_never_copies():
     plan = plan_conversion(_src("h264", "aac"), get("mkv"), copy_streams=False)
     assert plan.mode == "transcode"
