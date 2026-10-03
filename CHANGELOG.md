@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.9.1 - 2026-10-03
+### Fixed
+- **Open folder** opened Documents instead of the download directory.
+  `explorer.exe` parses a single raw command line rather than argv, so a
+  pre-quoted `/select,` argument was misread; the reveal command is now passed
+  as one string on Windows. A missing file opens its containing folder, and the
+  Linux path no longer opens one level too high.
+- **Downloads rejected by WhatsApp and Facebook.** A file this app downloaded
+  was found to be VP9-in-MP4, which those platforms (and most editors) reject.
+  Every download is now re-encoded to H.264/AAC when its video *or* audio codec
+  is not universally supported. This also runs on the batch/queue path.
+- Instagram Reels failed with "Requested format is not available": the format
+  selector demanded H.264, but Reels often serve only VP9/AV1. The selector
+  accepts any available stream again and the guarantee is applied after
+  download instead.
+
+### Changed
+- **Editor-safe output contract.** Every file the app produces is H.264 video
+  with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After
+  Effects, and DaVinci Resolve. Remux only copies codecs that are already safe;
+  a forced copy of an unsupported codec is re-encoded and says so.
+- Removed `webm`, `ogg`, `opus`, `wma`, and `flac` (their containers cannot hold
+  an editor-safe codec). Remaining formats: `mp4`, `mkv`, `mov`, `avi`, `gif`,
+  `mp3`, `m4a`, `wav`, `aac`.
+
 ## v0.9.0 - 2026-10-01
 ### Added
 - **Queue** — persistent download queue (`core/queue.py`): `Queue`/`QueueStore`

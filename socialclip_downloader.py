@@ -1,7 +1,7 @@
 import os
 import sys
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 try:
     from PyQt5 import QtWidgets, QtCore, QtGui
