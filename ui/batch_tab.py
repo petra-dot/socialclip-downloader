@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets, QtCore
 
 from core.queue import Queue, QueueStore, TERMINAL_STATES
 from sites.cookies import default_cookie_dir
+from ui.platform_icons import icon_for_url
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
 from utils.ui_helpers import looks_like_url
 from workers.queue_worker import QueueWorker
@@ -249,7 +250,10 @@ class QueueTab(QtWidgets.QWidget):
     def _insert_job_row(self, job):
         row = self.batch_table.rowCount()
         self.batch_table.insertRow(row)
-        self.batch_table.setItem(row, 0, QtWidgets.QTableWidgetItem(job.url))
+        url_item = QtWidgets.QTableWidgetItem(job.url)
+        # Platform badge beside the URL so a long queue is scannable at a glance.
+        url_item.setIcon(icon_for_url(job.url))
+        self.batch_table.setItem(row, 0, url_item)
         status_item = QtWidgets.QTableWidgetItem(job.state)
         if job.state == "pending":
             status_item.setToolTip("Click to cancel this queued item")
