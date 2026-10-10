@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.9.2 - 2026-10-11
+### Added
+- Menu bar: **File** (Paste URL, Open download folder, Quit), **View** (Theme),
+  and **Help** (Doctor, About), with shortcuts `Ctrl+V`, `Ctrl+O`, `Ctrl+Q`, and
+  `Ctrl+1/2/3` to switch tabs
+- **Theme** selection (Default / Light / Dark), remembered between runs
+- Remove a queue row: right-click it, or highlight it and press `Delete` (the
+  context menu was mouse-only)
+- The Queue tab shows guidance when empty instead of a blank table
+- Platform badge beside each queued URL
+- **Open folder** on the Convert tab reveals the converted file
+- `Enter` in the URL field fetches, the desktop convention
+
+### Changed
+- Interactive inputs and the queue table carry accessible names; section
+  headings scale with the system font instead of a fixed pixel size
+- Recoverable mistakes (empty URL, no file, nothing to start) show an inline
+  hint instead of a modal dialog
+- Activity logs grow with the window instead of a fixed height
+
+### Fixed
+- **Dark theme was unreadable on Windows.** The palette was applied under the
+  native style, which ignores most of a custom `QPalette`, leaving light text
+  on light backgrounds; dark now applies under the Fusion style
+- **Thumbnail preview never loaded.** The pixmap was built from
+  `QtWidgets.QPixmap`, which does not exist; the exception was swallowed and
+  the label read "Failed to load"
+- **Cookie lookup and `queue.json` used the launch directory** (`os.getcwd()`),
+  so auto-detection broke when the app was started from elsewhere; both now
+  resolve against the app directory, with the working directory as a fallback
+- The first-run welcome froze the window for seconds: it ran a network probe
+  and an `ffmpeg -version` subprocess on the UI thread; it now checks only
+  whether ffmpeg exists
+- gitleaks flagged its own cookie test fixture; the rule is scoped to `tests/`
+
 ## v0.9.1 - 2026-10-03
 ### Fixed
 - **Open folder** opened Documents instead of the download directory.
