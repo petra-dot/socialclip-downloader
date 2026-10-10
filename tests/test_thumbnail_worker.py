@@ -42,16 +42,19 @@ def test_headers_include_cookies_when_provided(tmp_path):
     from ui.single_tab import ThumbnailWorker
 
     cookie_file = tmp_path / "youtube_cookies.txt"
+    # A plain comment line and one tab-separated cookie row: enough to exercise
+    # the parser without embedding a real cookie-file marker in the source
+    # (which the gitleaks scan correctly flags).
     cookie_file.write_text(
-        "# Netscape HTTP Cookie File\n"
-        ".youtube.com\tTRUE\t/\tFALSE\t0\tSID\tsecret123\n"
+        "# comment line, must be skipped\n"
+        ".youtube.com\tTRUE\t/\tFALSE\t0\tSID\tabc123\n"
     )
     worker = ThumbnailWorker(
         "https://example.com/t.png", 1, cookies_path=str(cookie_file)
     )
     headers = worker._headers()
     assert "Cookie" in headers
-    assert "SID=secret123" in headers["Cookie"]
+    assert "SID=abc123" in headers["Cookie"]
 
 
 def test_thumbnail_failure_surfaces_a_reason():

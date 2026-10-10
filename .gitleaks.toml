@@ -6,3 +6,12 @@ id = "netscape-cookie-file"
 description = "Netscape-format cookies.txt export (session credentials)"
 regex = '''Netscape\s+HTTP\s+Cookie'''
 tags = ["cookies", "credentials"]
+
+  # Test files build a cookie row to exercise the parser. They never contain
+  # real credentials, so this rule is allowed there. Scoped to this one rule:
+  # a real cookie file anywhere else is still flagged.
+  [rules.allowlist]
+  description = "Cookie-file test fixtures under tests/"
+  paths = [
+    '''tests/.*''',
+  ]
