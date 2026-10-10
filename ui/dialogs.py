@@ -15,7 +15,13 @@ def _ffmpeg_line(report):
 def show_welcome(parent=None):
     folder = default_download_folder()
     try:
-        report = run_checks()
+        # The welcome only needs to know whether ffmpeg exists. Skip the
+        # network probe and the `ffmpeg -version` subprocess: on a first run
+        # they froze the window for seconds before it opened.
+        report = run_checks(
+            probe=lambda: (None, "not checked"),
+            runner=lambda cmd: None,
+        )
     except Exception:
         report = {}
 
