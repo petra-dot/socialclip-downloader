@@ -7,7 +7,7 @@ import pathlib
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from ui.style import THEMES
+from ui.style import THEMES, THEME_LABELS
 
 UI_DIR = pathlib.Path(__file__).resolve().parent.parent / "ui"
 
@@ -43,6 +43,11 @@ def test_the_qt_classes_are_where_we_claim():
 
 def test_theme_modes_are_the_three_expected():
     assert THEMES == ("system", "light", "dark")
+
+
+def test_every_theme_mode_has_a_label():
+    assert set(THEME_LABELS) == set(THEMES)
+    assert THEME_LABELS["system"] == "Default"
 
 
 def test_convert_worker_announces_output_path():

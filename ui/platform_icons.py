@@ -48,14 +48,24 @@ _cache = {}
 
 def platform_icon(platform: str, size: int = 16):
     """A QIcon badge for a platform key. Cached; requires a Qt app."""
-    from PyQt5 import QtGui, QtCore
+    from PyQt5 import QtGui, QtCore, QtWidgets
 
-    key = (platform or "", size)
+    # Draw at device pixels so the badge is `size` layout pixels on HiDPI
+    # displays too, instead of a blurry 16 physical pixels.
+    dpr = 1.0
+    app = QtWidgets.QApplication.instance()
+    if app is not None:
+        screen = app.primaryScreen()
+        if screen is not None:
+            dpr = screen.devicePixelRatio() or 1.0
+
+    key = (platform or "", size, dpr)
     if key in _cache:
         return _cache[key]
 
     letter, color = badge_spec(platform)
-    pixmap = QtGui.QPixmap(size, size)
+    pixels = max(1, int(round(size * dpr)))
+    pixmap = QtGui.QPixmap(pixels, pixels)
     pixmap.fill(QtCore.Qt.transparent)
 
     painter = QtGui.QPainter(pixmap)
@@ -63,11 +73,11 @@ def platform_icon(platform: str, size: int = 16):
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         painter.setBrush(QtGui.QColor(color))
         painter.setPen(QtCore.Qt.NoPen)
-        radius = size * 0.28
-        painter.drawRoundedRect(0, 0, size, size, radius, radius)
+        radius = pixels * 0.28
+        painter.drawRoundedRect(0, 0, pixels, pixels, radius, radius)
 
         font = painter.font()
-        font.setPixelSize(int(size * 0.62))
+        font.setPixelSize(int(pixels * 0.62))
         font.setBold(True)
         painter.setFont(font)
         painter.setPen(QtGui.QColor("#FFFFFF"))
@@ -75,6 +85,7 @@ def platform_icon(platform: str, size: int = 16):
     finally:
         painter.end()
 
+    pixmap.setDevicePixelRatio(dpr)
     icon = QtGui.QIcon(pixmap)
     _cache[key] = icon
     return icon

@@ -143,6 +143,8 @@ class SingleTab(QtWidgets.QWidget):
         self.url_input.setAccessibleName("Video URL")
         self.url_input.setPlaceholderText("Paste video URL here")
         self.url_input.editingFinished.connect(self._on_url_changed)
+        # Enter fetches, the desktop convention for a URL field.
+        self.url_input.returnPressed.connect(self.on_fetch_metadata)
         self.url_input.installEventFilter(self)
         self._url_timer = QtCore.QTimer(self)
         self._url_timer.setSingleShot(True)
@@ -457,6 +459,7 @@ class SingleTab(QtWidgets.QWidget):
             self.show_hint("Paste a video URL first.")
             return
         self.show_hint("")
+        self._url_timer.stop()
         if self.fetch_worker and self.fetch_worker.isRunning():
             self.log("Already fetching. Waiting for current request...")
             return

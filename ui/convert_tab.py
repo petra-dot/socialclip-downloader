@@ -58,6 +58,7 @@ class ConvertTab(QtWidgets.QWidget):
         conv_opts.addWidget(QtWidgets.QLabel("Resolution (for video):"))
         conv_opts.addWidget(self.conv_res_combo)
         self.copy_combo = QtWidgets.QComboBox()
+        self.copy_combo.setAccessibleName("Stream handling")
         self.copy_combo.addItem("Auto", None)
         self.copy_combo.addItem("Copy streams", True)
         self.copy_combo.addItem("Re-encode", False)

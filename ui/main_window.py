@@ -4,7 +4,7 @@ from ui.single_tab import SingleTab
 from ui.batch_tab import QueueTab
 from ui.convert_tab import ConvertTab
 from ui.dialogs import show_welcome, show_doctor
-from ui.style import THEMES, apply_theme
+from ui.style import THEMES, THEME_LABELS, apply_theme
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -64,7 +64,9 @@ class MainWindow(QtWidgets.QWidget):
         theme_menu = view_menu.addMenu("&Theme")
         self._theme_actions = {}
         for mode in THEMES:
-            action = QtWidgets.QAction(mode.capitalize(), self, checkable=True)
+            action = QtWidgets.QAction(
+                THEME_LABELS.get(mode, mode.capitalize()), self, checkable=True
+            )
             action.triggered.connect(lambda _c, m=mode: self.set_theme(m))
             theme_menu.addAction(action)
             self._theme_actions[mode] = action

@@ -102,6 +102,12 @@ class QueueTab(QtWidgets.QWidget):
         urls_toolbar.addStretch(1)
         queue_layout.addLayout(urls_toolbar)
 
+        # Inline hint for recoverable mistakes, instead of a modal popup.
+        self.hint_label = QtWidgets.QLabel("")
+        self.hint_label.setVisible(False)
+        self.hint_label.setWordWrap(True)
+        queue_layout.addWidget(self.hint_label)
+
         self.batch_table = QtWidgets.QTableWidget(0, 3)
         self.batch_table.setAccessibleName("Download queue")
         self.batch_table.setHorizontalHeaderLabels(["URL", "Status", "Detail"])
@@ -114,6 +120,21 @@ class QueueTab(QtWidgets.QWidget):
         # Right-click a row to remove a mistakenly added link.
         self.batch_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.batch_table.customContextMenuRequested.connect(self.on_table_context_menu)
+        # Keyboard path to the row action: the context menu needs a mouse.
+        del_shortcut = QtWidgets.QShortcut(QtCore.Qt.Key_Delete, self.batch_table)
+        del_shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        del_shortcut.activated.connect(self.on_remove_selected)
+
+        # Guidance shown over the table while the queue is empty.
+        self.empty_label = QtWidgets.QLabel(
+            "No downloads queued yet.\n\n"
+            "Click Add URLs or Paste to queue videos here.",
+            self.batch_table.viewport(),
+        )
+        self.empty_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.empty_label.setWordWrap(True)
+        self.empty_label.setVisible(False)
+        self.batch_table.viewport().installEventFilter(self)
         queue_layout.addWidget(self.batch_table)
 
         self.progress_bar = QtWidgets.QProgressBar()
@@ -188,6 +209,10 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_console_log.setAccessibleName("Queue activity log")
         queue_layout.addWidget(self.batch_console_log, 1)
 
+    def show_hint(self, text: str):
+        self.hint_label.setText(text)
+        self.hint_label.setVisible(bool(text))
+
     def batch_log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
         self.batch_console_log.append(f"[{ts}] {msg}")
@@ -256,6 +281,16 @@ class QueueTab(QtWidgets.QWidget):
         self._row_for_id = {}
         for job in self.queue.jobs:
             self._insert_job_row(job)
+        self._update_empty_state()
+
+    def _update_empty_state(self):
+        self.empty_label.setGeometry(self.batch_table.viewport().rect())
+        self.empty_label.setVisible(self.batch_table.rowCount() == 0)
+
+    def eventFilter(self, obj, event):
+        if obj is self.batch_table.viewport() and event.type() == QtCore.QEvent.Resize:
+            self._update_empty_state()
+        return super().eventFilter(obj, event)
 
     def _insert_job_row(self, job):
         row = self.batch_table.rowCount()
@@ -312,6 +347,16 @@ class QueueTab(QtWidgets.QWidget):
         elif chosen is cancel_action:
             self.on_cell_clicked(index.row(), 1)
 
+    def on_remove_selected(self):
+        """Delete key: remove the highlighted row (keyboard equivalent of the
+        right-click 'Remove from queue')."""
+        row = self.batch_table.currentRow()
+        if row < 0:
+            return
+        job = self._job_at_row(row)
+        if job is not None:
+            self.on_remove_job(job)
+
     def on_remove_job(self, job):
         if not self.queue.remove_job(job.id):
             self.batch_log("That item is running; cancel it first.")
@@ -351,15 +396,14 @@ class QueueTab(QtWidgets.QWidget):
         if self.queue_worker and self.queue_worker.isRunning():
             self.batch_log("Queue is already running.")
             return
-        self.queue.resume()
-        self.queue.store.save()
         has_pending = any(j.state == "pending" for j in self.queue.jobs)
         if not has_pending:
             self.refresh_table()
-            QtWidgets.QMessageBox.warning(
-                self, "Nothing to do", "Add at least one URL before starting."
-            )
+            self.show_hint("Add at least one URL before starting.")
             return
+        self.show_hint("")
+        self.queue.resume()
+        self.queue.store.save()
         self.batch_start_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
         self.pause_btn.setText("Pause")

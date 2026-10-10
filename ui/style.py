@@ -11,6 +11,14 @@ THEME_LIGHT = "light"
 THEME_DARK = "dark"
 THEMES = (THEME_SYSTEM, THEME_LIGHT, THEME_DARK)
 
+# "system" uses Qt's default palette, which on Windows is the light one. Call
+# it "Default" rather than promising it follows the OS theme.
+THEME_LABELS = {
+    THEME_SYSTEM: "Default",
+    THEME_LIGHT: "Light",
+    THEME_DARK: "Dark",
+}
+
 
 def make_heading(label):
     """Style a QLabel as a section heading, scaled from the app font."""
