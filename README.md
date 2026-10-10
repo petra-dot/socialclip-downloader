@@ -9,7 +9,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 
-![SocialClip Downloader](docs/screenshots/app_main.png)
+**Download a single video:** paste a link, fetch metadata and a thumbnail, then download:
+
+![SocialClip Downloader, Download tab](docs/screenshots/app_download.png)
+
+**Queue a batch:** each row shows a platform badge, its status, and the result:
+
+![SocialClip Downloader, Queue tab](docs/screenshots/app_queue.png)
 
 </div>
 
