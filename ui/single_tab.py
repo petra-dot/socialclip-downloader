@@ -19,6 +19,7 @@ from utils.ui_helpers import looks_like_url, reveal_in_folder
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
 from sites.errors import classify_error
+from ui.style import make_heading
 
 
 PLACEHOLDER = "-"
@@ -139,6 +140,7 @@ class SingleTab(QtWidgets.QWidget):
         # URL row
         url_row = QtWidgets.QHBoxLayout()
         self.url_input = QtWidgets.QLineEdit()
+        self.url_input.setAccessibleName("Video URL")
         self.url_input.setPlaceholderText("Paste video URL here")
         self.url_input.editingFinished.connect(self._on_url_changed)
         self.url_input.installEventFilter(self)
@@ -160,7 +162,7 @@ class SingleTab(QtWidgets.QWidget):
         info_section_layout.setSpacing(4)
 
         info_heading = QtWidgets.QLabel("Video Info")
-        info_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(info_heading)
         info_section_layout.addWidget(info_heading)
 
         meta_layout = QtWidgets.QHBoxLayout()
@@ -185,16 +187,18 @@ class SingleTab(QtWidgets.QWidget):
 
         # --- Output ---
         output_heading = QtWidgets.QLabel("Output")
-        output_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(output_heading)
         main.addWidget(output_heading)
 
         fmt_row = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()
+        self.output_combo.setAccessibleName("Output format")
         self.output_combo.addItems(OUTPUT_FORMATS)
         fmt_row.addWidget(QtWidgets.QLabel("Format:"))
         fmt_row.addWidget(self.output_combo)
         fmt_row.addSpacing(12)
         self.resolution_combo = QtWidgets.QComboBox()
+        self.resolution_combo.setAccessibleName("Target resolution")
         self.resolution_combo.addItems(RESOLUTIONS)
         self.resolution_combo.setCurrentText("1080")
         fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
@@ -213,6 +217,7 @@ class SingleTab(QtWidgets.QWidget):
         self.save_dir_input = QtWidgets.QLineEdit(
             restore_or(default_download_folder(), self.settings.value("single/save_dir"))
         )
+        self.save_dir_input.setAccessibleName("Download folder")
         self.save_dir_input.editingFinished.connect(self._on_save_dir_changed)
         save_layout.addWidget(self.save_dir_input)
         browse_btn = QtWidgets.QPushButton("Browse")
@@ -247,6 +252,7 @@ class SingleTab(QtWidgets.QWidget):
         self.cookies_input = QtWidgets.QLineEdit(
             self.settings.value("single/cookies", "") or ""
         )
+        self.cookies_input.setAccessibleName("Cookies file path")
         self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)

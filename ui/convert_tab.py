@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets, QtCore
 from core import formats
 from utils.file_utils import default_download_folder, RESOLUTIONS
 from workers.convert_worker import ConvertFileWorker
+from ui.style import make_heading
 
 
 class ConvertTab(QtWidgets.QWidget):
@@ -21,10 +22,11 @@ class ConvertTab(QtWidgets.QWidget):
         layout.setSpacing(6)
 
         file_heading = QtWidgets.QLabel("File")
-        file_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(file_heading)
         layout.addWidget(file_heading)
         file_row = QtWidgets.QHBoxLayout()
         self.file_path_input = QtWidgets.QLineEdit()
+        self.file_path_input.setAccessibleName("File to convert")
         file_row.addWidget(self.file_path_input)
         pick_btn = QtWidgets.QPushButton("Select File...")
         pick_btn.clicked.connect(self.on_pick_file)
@@ -32,10 +34,11 @@ class ConvertTab(QtWidgets.QWidget):
         layout.addLayout(file_row)
 
         conv_heading = QtWidgets.QLabel("Convert")
-        conv_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(conv_heading)
         layout.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
+        self.conv_output_combo.setAccessibleName("Convert to format")
         for fmt in formats.for_kind("video") + formats.for_kind("audio"):
             self.conv_output_combo.addItem(fmt.label, fmt.key)
         saved_output = self.settings.value("convert/output")
@@ -45,6 +48,7 @@ class ConvertTab(QtWidgets.QWidget):
         conv_opts.addWidget(QtWidgets.QLabel("Convert to:"))
         conv_opts.addWidget(self.conv_output_combo)
         self.conv_res_combo = QtWidgets.QComboBox()
+        self.conv_res_combo.setAccessibleName("Convert target resolution")
         self.conv_res_combo.addItems(RESOLUTIONS)
         saved_res = self.settings.value("convert/resolution")
         self.conv_res_combo.setCurrentText(saved_res if saved_res in RESOLUTIONS else "1080")

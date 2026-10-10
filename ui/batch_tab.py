@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets, QtCore
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.cookies import default_cookie_dir
 from ui.platform_icons import icon_for_url
+from ui.style import make_heading
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
 from utils.ui_helpers import looks_like_url
 from workers.queue_worker import QueueWorker
@@ -85,7 +86,7 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.setSpacing(6)
 
         urls_heading = QtWidgets.QLabel("Queue")
-        urls_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(urls_heading)
         queue_layout.addWidget(urls_heading)
 
         urls_toolbar = QtWidgets.QHBoxLayout()
@@ -102,6 +103,7 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addLayout(urls_toolbar)
 
         self.batch_table = QtWidgets.QTableWidget(0, 3)
+        self.batch_table.setAccessibleName("Download queue")
         self.batch_table.setHorizontalHeaderLabels(["URL", "Status", "Detail"])
         self.batch_table.horizontalHeader().setStretchLastSection(True)
         self.batch_table.setColumnWidth(0, 340)
@@ -120,13 +122,14 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addWidget(self.progress_bar)
 
         opts_heading = QtWidgets.QLabel("Output")
-        opts_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
+        make_heading(opts_heading)
         queue_layout.addWidget(opts_heading)
 
         queue_save_layout = QtWidgets.QHBoxLayout()
         self.batch_save_dir_input = QtWidgets.QLineEdit(
             restore_or(default_download_folder(), self.settings.value("batch/save_dir"))
         )
+        self.batch_save_dir_input.setAccessibleName("Queue download folder")
         self.batch_save_dir_input.editingFinished.connect(self._on_batch_save_dir_changed)
         queue_save_layout.addWidget(self.batch_save_dir_input)
         batch_browse_btn = QtWidgets.QPushButton("Browse")
@@ -136,10 +139,12 @@ class QueueTab(QtWidgets.QWidget):
 
         queue_opts_layout = QtWidgets.QHBoxLayout()
         self.batch_output_combo = QtWidgets.QComboBox()
+        self.batch_output_combo.setAccessibleName("Queue output format")
         self.batch_output_combo.addItems(OUTPUT_FORMATS)
         queue_opts_layout.addWidget(QtWidgets.QLabel("Output:"))
         queue_opts_layout.addWidget(self.batch_output_combo)
         self.batch_resolution_combo = QtWidgets.QComboBox()
+        self.batch_resolution_combo.setAccessibleName("Queue target resolution")
         self.batch_resolution_combo.addItems(RESOLUTIONS)
         self.batch_resolution_combo.setCurrentText("1080")
         queue_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
@@ -151,6 +156,7 @@ class QueueTab(QtWidgets.QWidget):
         cookies_label.setFixedWidth(130)
         cookies_row.addWidget(cookies_label)
         self.batch_cookies_input = QtWidgets.QLineEdit()
+        self.batch_cookies_input.setAccessibleName("Queue cookies file path")
         self.batch_cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
         self.batch_cookies_input.setText(
             self.cookies_file_ref.get("path", "") or self.settings.value("batch/cookies", "") or ""
