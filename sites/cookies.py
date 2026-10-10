@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from urllib.parse import urlparse
 
 
@@ -35,39 +36,61 @@ def detect_platform(url: str) -> str:
     return ""
 
 
-def default_cookie_dir() -> str:
-    """Directory to look for cookie files in.
+def app_dir() -> str:
+    """The directory the app runs from.
 
-    Prefers the current working directory (where the user runs / drops the
-    file), but falls back to the app directory so packaged builds work when
-    launched from elsewhere.
+    Next to the script in a source run, next to the executable in a frozen
+    build. Stable no matter which directory the app was launched from, which
+    is what makes it a reliable place for cookies and the queue file.
     """
-    cwd = os.getcwd()
-    if _has_cookie_file(cwd):
-        return cwd
-    return os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _has_cookie_file(directory: str) -> bool:
+def default_cookie_dir() -> str:
+    """Where cookie files live by default: the app directory.
+
+    The app tells users to drop cookies "next to the app", so that is the
+    primary location. The working directory is still searched as a fallback
+    (see ``_cookie_search_dirs``), but it no longer decides the result.
+    """
+    return app_dir()
+
+
+def _cookie_search_dirs() -> list:
+    """Directories to look in for cookie files, most specific first: the app
+    directory, then the working directory."""
+    dirs = [app_dir()]
     try:
-        return any(
-            name.lower().endswith("_cookies.txt") for name in os.listdir(directory)
-        )
+        cwd = os.getcwd()
     except OSError:
-        return False
+        cwd = ""
+    if cwd and cwd not in dirs:
+        dirs.append(cwd)
+    return dirs
+
+
+def _find_cookie(platform: str, directory: str) -> str:
+    for name in (f"{platform}_cookies.txt", f"{platform}.txt"):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path):
+            return path
+    return ""
 
 
 def cookie_file_for(platform: str, cookie_dir: str = None) -> str:
-    """Path to this platform's cookie file, or "" when absent."""
-    if cookie_dir is None:
-        cookie_dir = default_cookie_dir()
-    candidates = [
-        os.path.join(cookie_dir, f"{platform}_cookies.txt"),
-        os.path.join(cookie_dir, f"{platform}.txt"),
-    ]
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
+    """Path to this platform's cookie file, or "" when absent.
+
+    With an explicit ``cookie_dir`` only that directory is checked; otherwise
+    the search dirs are used.
+    """
+    if cookie_dir is not None:
+        return _find_cookie(platform, cookie_dir)
+    for directory in _cookie_search_dirs():
+        found = _find_cookie(platform, directory)
+        if found:
+            return found
     return ""
 
 
@@ -75,17 +98,18 @@ def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     platform = detect_platform(url)
     if not platform:
         return ""
-    if cookie_dir is None:
-        cookie_dir = default_cookie_dir()
-    path = cookie_file_for(platform, cookie_dir)
-    if path:
-        return path
-    try:
-        for fname in os.listdir(cookie_dir):
-            if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
-                return os.path.join(cookie_dir, fname)
-    except OSError:
-        pass
+    dirs = [cookie_dir] if cookie_dir is not None else _cookie_search_dirs()
+    for directory in dirs:
+        found = _find_cookie(platform, directory)
+        if found:
+            return found
+        # Fuzzy fallback: any *_cookies.txt whose name mentions the platform.
+        try:
+            for fname in os.listdir(directory):
+                if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
+                    return os.path.join(directory, fname)
+        except OSError:
+            pass
     return ""
 
 

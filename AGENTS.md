@@ -107,8 +107,10 @@ helpers testable. CI lints and runs pytest.
   yt-dlp as `ffmpeg_location`. Facebook and other multi-stream sources still
   fail if ffmpeg is absent. Install: `winget install Gyan.FFmpeg` (Win),
   `brew install ffmpeg` (mac).
-- Cookie auto-detect uses `os.getcwd()` (`sites/cookies.py:get_cookie_path`),
-  which breaks when the app launches from another directory.
+- Cookie lookup (`sites/cookies.py`) resolves against `app_dir()` (next to the
+  script, or the frozen exe), then the working directory. `default_cookie_dir()`
+  is the app directory and also decides where `queue.json` lives, so the queue
+  no longer moves with the launch directory.
 - `ydl_opts.py` postprocessor key uses yt-dlp's intentional misspelling
   `ffmpegvideoconvertor` and `preferedformat`. Do not "fix" the spelling.
 - Duration from yt-dlp can be a float; coerce to `int` before `:02d` formatting.

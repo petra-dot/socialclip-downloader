@@ -50,33 +50,35 @@ def test_cookie_path_unknown_platform(tmp_path):
     assert get_cookie_path("https://example.com/x", str(tmp_path)) == ""
 
 
-def test_default_cookie_dir_prefers_cwd_when_it_has_cookies(tmp_path, monkeypatch):
+def test_default_cookie_dir_is_the_app_dir_not_cwd(tmp_path, monkeypatch):
+    # Launching from a directory with a stray cookie file must not change where
+    # the app looks: the app directory is the stable location.
     workdir = tmp_path / "work"
     workdir.mkdir()
     (workdir / "youtube_cookies.txt").write_text("c")
     monkeypatch.chdir(workdir)
-    assert default_cookie_dir() == os.getcwd()
+    expected = os.path.dirname(os.path.dirname(os.path.abspath(cookies.__file__)))
+    assert default_cookie_dir() == expected
+    assert cookies.app_dir() == expected
 
 
-def test_default_cookie_dir_falls_back_to_app_dir(tmp_path, monkeypatch):
+def test_cookie_path_finds_app_dir_cookie(tmp_path, monkeypatch):
     empty = tmp_path / "empty-cwd"
     empty.mkdir()
     monkeypatch.chdir(empty)
-    assert default_cookie_dir() == os.path.dirname(os.path.abspath(cookies.__file__))
+    monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path))
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    expected = str(tmp_path / "youtube_cookies.txt")
+    assert get_cookie_path("https://youtu.be/x") == expected
 
 
-def test_cookie_path_uses_app_dir_when_cwd_is_barren(tmp_path, monkeypatch):
-    empty = tmp_path / "empty-cwd"
-    empty.mkdir()
-    monkeypatch.chdir(empty)
-    app_dir = os.path.dirname(os.path.abspath(cookies.__file__))
-    cookie_file = os.path.join(app_dir, "youtube_cookies.txt")
-    with open(cookie_file, "w") as handle:
-        handle.write("c")
-    try:
-        assert get_cookie_path("https://youtu.be/x") == cookie_file
-    finally:
-        os.remove(cookie_file)
+def test_cookie_path_still_finds_cwd_cookie(tmp_path, monkeypatch):
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "youtube_cookies.txt").write_text("c")
+    monkeypatch.chdir(work)
+    monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path / "elsewhere"))
+    assert get_cookie_path("https://youtu.be/x") == str(work / "youtube_cookies.txt")
 
 
 def test_display_name_known_and_fallback():
