@@ -4,6 +4,7 @@ from PyQt5 import QtCore
 class ConvertFileWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
+    output_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, input_path, output_type="MP3", target_resolution=None,
                  target_format=None, copy_streams=None):
@@ -22,4 +23,6 @@ class ConvertFileWorker(QtCore.QThread):
             self.input_path, self.output_type, self.target_resolution,
             self.target_format, self.copy_streams,
         )
+        if result.path:
+            self.output_signal.emit(result.path)
         self.finished_signal.emit(result.message or result.path or result.status)

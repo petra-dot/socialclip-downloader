@@ -153,7 +153,7 @@ class QueueTab(QtWidgets.QWidget):
 
         cookies_row = QtWidgets.QHBoxLayout()
         cookies_label = QtWidgets.QLabel("Cookies file:")
-        cookies_label.setFixedWidth(130)
+        cookies_label.setMinimumWidth(130)
         cookies_row.addWidget(cookies_label)
         self.batch_cookies_input = QtWidgets.QLineEdit()
         self.batch_cookies_input.setAccessibleName("Queue cookies file path")
@@ -184,8 +184,9 @@ class QueueTab(QtWidgets.QWidget):
 
         self.batch_console_log = QtWidgets.QTextEdit()
         self.batch_console_log.setReadOnly(True)
-        self.batch_console_log.setFixedHeight(200)
-        queue_layout.addWidget(self.batch_console_log)
+        self.batch_console_log.setMinimumHeight(120)
+        self.batch_console_log.setAccessibleName("Queue activity log")
+        queue_layout.addWidget(self.batch_console_log, 1)
 
     def batch_log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")

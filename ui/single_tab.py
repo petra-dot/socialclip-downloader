@@ -244,10 +244,16 @@ class SingleTab(QtWidgets.QWidget):
         download_bar.addWidget(self.progress_bar)
         main.addLayout(download_bar)
 
+        # Inline hint for recoverable mistakes, instead of a modal popup.
+        self.hint_label = QtWidgets.QLabel("")
+        self.hint_label.setVisible(False)
+        self.hint_label.setWordWrap(True)
+        main.addWidget(self.hint_label)
+
         # --- Cookies ---
         cookies_row = QtWidgets.QHBoxLayout()
         cookies_label = QtWidgets.QLabel("Cookies file:")
-        cookies_label.setFixedWidth(130)
+        cookies_label.setMinimumWidth(130)
         cookies_row.addWidget(cookies_label)
         self.cookies_input = QtWidgets.QLineEdit(
             self.settings.value("single/cookies", "") or ""
@@ -260,18 +266,22 @@ class SingleTab(QtWidgets.QWidget):
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         clear_cookies_btn = QtWidgets.QPushButton("Clear")
-        clear_cookies_btn.setFixedWidth(50)
+        clear_cookies_btn.setMinimumWidth(50)
         clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
         cookies_row.addWidget(clear_cookies_btn)
         main.addLayout(cookies_row)
 
-        main.addStretch()
-
-        # Console
+        # Console grows with the window instead of a fixed height, so a tall
+        # window shows more log rather than more empty space.
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
-        self.console_log.setFixedHeight(180)
-        main.addWidget(self.console_log)
+        self.console_log.setMinimumHeight(120)
+        self.console_log.setAccessibleName("Activity log")
+        main.addWidget(self.console_log, 1)
+
+    def show_hint(self, text: str):
+        self.hint_label.setText(text)
+        self.hint_label.setVisible(bool(text))
 
     def log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -444,8 +454,9 @@ class SingleTab(QtWidgets.QWidget):
     def on_fetch_metadata(self):
         url = self.url_input.text().strip()
         if not url:
-            QtWidgets.QMessageBox.warning(self, "No URL", "Please paste a URL first.")
+            self.show_hint("Paste a video URL first.")
             return
+        self.show_hint("")
         if self.fetch_worker and self.fetch_worker.isRunning():
             self.log("Already fetching. Waiting for current request...")
             return
@@ -494,13 +505,14 @@ class SingleTab(QtWidgets.QWidget):
             return
         url = self.url_input.text().strip()
         if not url:
-            QtWidgets.QMessageBox.warning(self, "No URL", "Please paste a URL first.")
+            self.show_hint("Paste a video URL first.")
             return
 
         info = self._cached_info
         if not info:
-            QtWidgets.QMessageBox.warning(self, "No Metadata", "Click Fetch first to get video info.")
+            self.show_hint("Click Fetch to load the video info before downloading.")
             return
+        self.show_hint("")
 
         save_dir = self.save_dir_input.text().strip() or default_download_folder()
         os.makedirs(save_dir, exist_ok=True)

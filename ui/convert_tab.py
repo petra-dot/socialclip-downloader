@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets, QtCore
 
 from core import formats
 from utils.file_utils import default_download_folder, RESOLUTIONS
+from utils.ui_helpers import reveal_in_folder
 from workers.convert_worker import ConvertFileWorker
 from ui.style import make_heading
 
@@ -13,6 +14,7 @@ class ConvertTab(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.conv_worker = None
+        self._last_output = ""
         self.settings = QtCore.QSettings()
         self.init_ui()
 
@@ -68,12 +70,27 @@ class ConvertTab(QtWidgets.QWidget):
         self.convert_file_btn = QtWidgets.QPushButton("Convert Selected File")
         self.convert_file_btn.clicked.connect(self.on_convert_file)
         conv_btn_row.addWidget(self.convert_file_btn)
+        self.open_folder_btn = QtWidgets.QPushButton("Open folder")
+        self.open_folder_btn.setVisible(False)
+        self.open_folder_btn.clicked.connect(self._on_open_folder)
+        conv_btn_row.addWidget(self.open_folder_btn)
         layout.addLayout(conv_btn_row)
+
+        # Inline hint for recoverable mistakes, instead of a modal popup.
+        self.hint_label = QtWidgets.QLabel("")
+        self.hint_label.setVisible(False)
+        self.hint_label.setWordWrap(True)
+        layout.addWidget(self.hint_label)
 
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
-        self.console_log.setFixedHeight(150)
-        layout.addWidget(self.console_log)
+        self.console_log.setMinimumHeight(120)
+        self.console_log.setAccessibleName("Conversion log")
+        layout.addWidget(self.console_log, 1)
+
+    def show_hint(self, text: str):
+        self.hint_label.setText(text)
+        self.hint_label.setVisible(bool(text))
 
     def log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -118,11 +135,12 @@ class ConvertTab(QtWidgets.QWidget):
             return
         path = self.file_path_input.text().strip()
         if not path:
-            QtWidgets.QMessageBox.warning(self, "No file", "Please select a file to convert.")
+            self.show_hint("Select a file to convert first.")
             return
         if not os.path.exists(path):
-            QtWidgets.QMessageBox.warning(self, "Missing", "Selected file path does not exist.")
+            self.show_hint("That file path does not exist.")
             return
+        self.show_hint("")
 
         out_key = self.conv_output_combo.currentData()
         copy_streams = self.copy_combo.currentData()
@@ -138,8 +156,16 @@ class ConvertTab(QtWidgets.QWidget):
             target_resolution=target_res,
         )
         self.conv_worker.status_signal.connect(self.log)
+        self.conv_worker.output_signal.connect(self._on_conv_output)
         self.conv_worker.finished_signal.connect(self.on_conv_finished)
         self.conv_worker.start()
+
+    def _on_conv_output(self, path: str):
+        self._last_output = path
+        self.open_folder_btn.setVisible(bool(path))
+
+    def _on_open_folder(self):
+        reveal_in_folder(self._last_output)
 
     def on_conv_finished(self, msg: str):
         self.log(msg)

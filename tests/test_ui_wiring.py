@@ -43,3 +43,10 @@ def test_the_qt_classes_are_where_we_claim():
 
 def test_theme_modes_are_the_three_expected():
     assert THEMES == ("system", "light", "dark")
+
+
+def test_convert_worker_announces_output_path():
+    from workers.convert_worker import ConvertFileWorker
+
+    assert hasattr(ConvertFileWorker, "output_signal")
+    assert hasattr(ConvertFileWorker, "finished_signal")
