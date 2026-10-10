@@ -95,6 +95,9 @@ helpers testable. CI lints and runs pytest.
   contract stays `"1.0"`. They are independent numbers, bump them separately.
 - Conventional Commits (feat/fix/chore/docs). Never commit to `main` on shared
   work without the user asking.
+- **Never push without asking.** Commit locally, state what is staged and what
+  the push would change, then wait for an explicit yes. This covers every push:
+  `main`, tags, and releases.
 
 ## Gotchas
 
