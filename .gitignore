@@ -63,3 +63,6 @@ docs/superpowers/
 
 # Database files
 *.db
+
+# Runtime state (holds queued URLs - private, never commit)
+queue.json
