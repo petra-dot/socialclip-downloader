@@ -225,3 +225,34 @@ def test_save_tmp_path_is_unique_per_process(tmp_path, monkeypatch):
     store.save()
     assert seen and seen[0] != "q.json.tmp"
     assert str(os.getpid()) in seen[0]
+
+def test_remove_job_deletes_a_pending_job():
+    from core.queue import Queue
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    assert q.remove_job(job.id) is True
+    assert q.jobs == []
+
+
+def test_remove_job_refuses_a_running_job():
+    from core.queue import Queue
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    assert q.remove_job(job.id) is False
+    assert len(q.jobs) == 1
+
+
+def test_remove_job_unknown_id_returns_false():
+    from core.queue import Queue
+    q = Queue()
+    q.add("https://a.com/1", {})
+    assert q.remove_job("nope") is False
+    assert len(q.jobs) == 1
+
+
+def test_can_remove_only_blocks_running():
+    from core.queue import can_remove
+    for state in ("pending", "done", "failed", "cancelled", "paused"):
+        assert can_remove(state) is True, state
+    assert can_remove("running") is False

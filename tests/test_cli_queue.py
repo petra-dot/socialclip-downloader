@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import cli
 
@@ -34,17 +33,21 @@ def test_queue_clear_empties(tmp_path):
 
 
 def test_queue_override_used_in_process(tmp_path, monkeypatch, capsys):
-    from sites.cookies import default_cookie_dir
+    # Isolate the default location too, so the test does not depend on whether
+    # the developer's machine happens to have a real queue.json.
+    default_dir = tmp_path / "default"
+    default_dir.mkdir()
+    monkeypatch.setattr(
+        "sites.cookies.default_cookie_dir", lambda: str(default_dir)
+    )
     monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
-    default_path = Path(default_cookie_dir()) / "queue.json"
-    assert not default_path.exists(), f"precondition: {default_path} already exists"
 
     rc = cli.main(["queue", "add", "https://a.com/1", "--json"])
     capsys.readouterr()
 
     assert rc == cli.EXIT_OK
     assert (tmp_path / "q.json").exists()
-    assert not default_path.exists()
+    assert not (default_dir / "queue.json").exists()
 
 
 def test_queue_executor_resolves_outtmpl_precedence(monkeypatch):

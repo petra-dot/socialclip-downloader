@@ -12,6 +12,14 @@ STATES = ("pending", "running", "done", "failed", "cancelled", "paused")
 
 TERMINAL_STATES = ("done", "failed", "cancelled")
 
+
+def can_remove(state: str) -> bool:
+    """A job may be removed unless it is currently running.
+
+    The running job is owned by the worker thread; cancel it first.
+    """
+    return state != "running"
+
 STORE_VERSION = 1
 
 
@@ -187,5 +195,13 @@ class Queue:
         for job in self.jobs:
             if job.id == job_id and job.state not in TERMINAL_STATES:
                 job.state = "cancelled"
+                return True
+        return False
+
+    def remove_job(self, job_id: str) -> bool:
+        """Delete a job outright. Refuses the one currently running."""
+        for index, job in enumerate(self.jobs):
+            if job.id == job_id and can_remove(job.state):
+                del self.jobs[index]
                 return True
         return False

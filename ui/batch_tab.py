@@ -3,7 +3,7 @@ import os
 
 from PyQt5 import QtWidgets, QtCore
 
-from core.queue import Queue, QueueStore, TERMINAL_STATES
+from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.cookies import default_cookie_dir
 from ui.platform_icons import icon_for_url
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
@@ -109,6 +109,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.batch_table.cellClicked.connect(self.on_cell_clicked)
+        # Right-click a row to remove a mistakenly added link.
+        self.batch_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.batch_table.customContextMenuRequested.connect(self.on_table_context_menu)
         queue_layout.addWidget(self.batch_table)
 
         self.progress_bar = QtWidgets.QProgressBar()
@@ -256,7 +259,7 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.setItem(row, 0, url_item)
         status_item = QtWidgets.QTableWidgetItem(job.state)
         if job.state == "pending":
-            status_item.setToolTip("Click to cancel this queued item")
+            status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
         self.batch_table.setItem(row, 1, status_item)
         self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(job.message or ""))
         self._row_for_id[job.id] = row
@@ -278,6 +281,37 @@ class QueueTab(QtWidgets.QWidget):
         self.queue.store.save()
         self._set_row_status(row, "cancelled", "Cancelled.")
         self.batch_log("Cancelled a pending item.")
+
+    def on_table_context_menu(self, pos):
+        """Right-click menu: remove a mistakenly added link, or cancel it."""
+        index = self.batch_table.indexAt(pos)
+        if not index.isValid():
+            return
+        job = self._job_at_row(index.row())
+        if job is None:
+            return
+
+        menu = QtWidgets.QMenu(self)
+        remove_action = menu.addAction("Remove from queue")
+        remove_action.setEnabled(can_remove(job.state))
+        cancel_action = menu.addAction("Cancel")
+        cancel_action.setEnabled(job.state == "pending")
+
+        chosen = menu.exec_(self.batch_table.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is remove_action:
+            self.on_remove_job(job)
+        elif chosen is cancel_action:
+            self.on_cell_clicked(index.row(), 1)
+
+    def on_remove_job(self, job):
+        if not self.queue.remove_job(job.id):
+            self.batch_log("That item is running; cancel it first.")
+            return
+        self.queue.store.save()
+        self.refresh_table()
+        self.batch_log("Removed an item from the queue.")
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
