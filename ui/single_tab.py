@@ -2,7 +2,7 @@ import datetime
 import os
 import urllib.request
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from yt_dlp import YoutubeDL
 
 from utils.file_utils import (
@@ -52,32 +52,68 @@ class FetchWorker(QtCore.QThread):
 
 
 class ThumbnailWorker(QtCore.QThread):
-    done_signal = QtCore.pyqtSignal(object, int)
+    done_signal = QtCore.pyqtSignal(object, int, str)
 
-    def __init__(self, thumbnail_url, seq=0):
+    # Many thumbnail CDNs (Facebook, Instagram, Douyin) return 403 to a request
+    # with no User-Agent, which is why the preview showed "Failed to load".
+    _HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+    def __init__(self, thumbnail_url, seq=0, cookies_path=None):
         super().__init__()
         self.thumbnail_url = thumbnail_url
         self.seq = seq
+        self.cookies_path = cookies_path
+
+    def _headers(self):
+        headers = dict(self._HEADERS)
+        # Some platforms only serve the thumbnail to a signed-in request.
+        try:
+            if self.cookies_path and os.path.isfile(self.cookies_path):
+                with open(self.cookies_path, "r", encoding="utf-8", errors="ignore") as fh:
+                    pairs = []
+                    for line in fh:
+                        if line.startswith("#") or not line.strip():
+                            continue
+                        parts = line.rstrip("\n").split("\t")
+                        if len(parts) >= 7:
+                            pairs.append("%s=%s" % (parts[5], parts[6]))
+                    if pairs:
+                        headers["Cookie"] = "; ".join(pairs)
+        except Exception:
+            pass
+        return headers
 
     def run(self):
         try:
-            with urllib.request.urlopen(self.thumbnail_url, timeout=10) as response:
+            request = urllib.request.Request(self.thumbnail_url, headers=self._headers())
+            with urllib.request.urlopen(request, timeout=10) as response:
                 data = response.read()
-            pixmap = QtWidgets.QPixmap()
-            pixmap.loadFromData(data)
-            # Scale in device pixels so the thumbnail is 120x68 layout pixels
-            # regardless of display scaling (otherwise it shrinks under HiDPI).
-            dpr = QtWidgets.QApplication.desktop().devicePixelRatio()
-            scaled = pixmap.scaled(
-                int(120 * dpr),
-                int(68 * dpr),
-                QtCore.Qt.KeepAspectRatio,
-                QtCore.Qt.SmoothTransformation,
-            )
-            scaled.setDevicePixelRatio(dpr)
-            self.done_signal.emit(scaled, self.seq)
+        except Exception as e:
+            self.done_signal.emit(None, self.seq, "download failed: %s" % e)
+            return
+
+        pixmap = QtGui.QPixmap()
+        if not pixmap.loadFromData(data):
+            self.done_signal.emit(None, self.seq, "not a decodable image")
+            return
+
+        # Scale in device pixels so the thumbnail is 120x68 layout pixels
+        # regardless of display scaling (otherwise it shrinks under HiDPI).
+        dpr = 1.0
+        try:
+            screen = QtGui.QGuiApplication.primaryScreen()
+            if screen is not None:
+                dpr = screen.devicePixelRatio()
         except Exception:
-            self.done_signal.emit(None, self.seq)
+            pass
+        scaled = pixmap.scaled(
+            int(120 * dpr),
+            int(68 * dpr),
+            QtCore.Qt.KeepAspectRatio,
+            QtCore.Qt.SmoothTransformation,
+        )
+        scaled.setDevicePixelRatio(dpr)
+        self.done_signal.emit(scaled, self.seq, "")
 
 
 class SingleTab(QtWidgets.QWidget):
@@ -347,7 +383,9 @@ class SingleTab(QtWidgets.QWidget):
         if thumbnail_url:
             self._thumb_seq += 1
             self.thumbnail_label.setText("Loading...")
-            self.thumb_worker = ThumbnailWorker(thumbnail_url, self._thumb_seq)
+            self.thumb_worker = ThumbnailWorker(
+                thumbnail_url, self._thumb_seq, cookies_path=self._get_cookies_path()
+            )
             self.thumb_worker.done_signal.connect(self._on_thumbnail_loaded)
             self.thumb_worker.start()
         else:
@@ -374,13 +412,17 @@ class SingleTab(QtWidgets.QWidget):
         self.info_section.setVisible(True)
         self.log("Metadata fetched.")
 
-    def _on_thumbnail_loaded(self, pixmap, seq):
+    def _on_thumbnail_loaded(self, pixmap, seq, reason=""):
         if seq != self._thumb_seq:
             return
         if pixmap:
             self.thumbnail_label.setPixmap(pixmap)
         else:
-            self.thumbnail_label.setText("Failed to load")
+            # Show the cause instead of a generic message, and log it so the
+            # reason survives in the console.
+            self.thumbnail_label.setText("No preview")
+            if reason:
+                self.log(f"Thumbnail unavailable: {reason}")
 
     def _cancel_fetch(self):
         if self.fetch_worker and self.fetch_worker.isRunning():
