@@ -44,19 +44,39 @@ def _dark_palette():
     p.setColor(QtGui.QPalette.Text, text)
     p.setColor(QtGui.QPalette.Button, window)
     p.setColor(QtGui.QPalette.ButtonText, text)
+    p.setColor(QtGui.QPalette.BrightText, QtGui.QColor(255, 255, 255))
     p.setColor(QtGui.QPalette.ToolTipBase, base)
     p.setColor(QtGui.QPalette.ToolTipText, text)
     p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(45, 137, 239))
     p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(255, 255, 255))
+    p.setColor(QtGui.QPalette.PlaceholderText, QtGui.QColor(150, 155, 163))
     for role in (QtGui.QPalette.Text, QtGui.QPalette.ButtonText,
                  QtGui.QPalette.WindowText):
         p.setColor(QtGui.QPalette.Disabled, role, disabled)
+    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, window)
+    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, window)
     return p
 
 
+# The platform's default style, captured before we ever switch away from it, so
+# "Default"/"Light" can restore the native look after a spell in dark.
+_native_style = None
+
+
 def apply_theme(app, mode: str):
-    """Apply a palette. `system` and `light` use the platform palette."""
+    """Apply a theme.
+
+    The palette is only honored under a non-native style, so dark runs on
+    Fusion. Without this, Windows' native style keeps drawing light widget
+    backgrounds while the palette paints the text light: unreadable.
+    """
+    global _native_style
+    if _native_style is None:
+        _native_style = app.style().objectName() or None
     if mode == THEME_DARK:
+        app.setStyle("Fusion")
         app.setPalette(_dark_palette())
     else:
+        if _native_style:
+            app.setStyle(_native_style)
         app.setPalette(app.style().standardPalette())

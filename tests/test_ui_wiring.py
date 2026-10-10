@@ -50,6 +50,13 @@ def test_every_theme_mode_has_a_label():
     assert THEME_LABELS["system"] == "Default"
 
 
+def test_dark_theme_applies_the_palette_under_fusion():
+    # Windows' native style ignores most of a custom QPalette, which made the
+    # dark theme light-on-light. The dark branch must switch to Fusion first.
+    src = (UI_DIR / "style.py").read_text(encoding="utf-8")
+    assert 'setStyle("Fusion")' in src
+
+
 def test_convert_worker_announces_output_path():
     from workers.convert_worker import ConvertFileWorker
 
