@@ -77,8 +77,8 @@ working component before its replacement is verified.
    GitHub-hosted, so one host allow-list covers them. The yt-dlp release
    publishes **no wheel** (wheels live on PyPI), so the tarball is the source.
 9. **The Health view is the existing Doctor dialog, extended** - one row per
-   component with its version and state, plus **Repair**, **Repair all**, and
-   **Open data folder**.
+   component with its version and state, plus **Repair** and **Open data
+   folder**.
 10. **Startup repair never blocks the UI and never removes a working component**
     before its replacement is verified.
 11. **`SOCIALCLIP_QUEUE` is kept, folded into `SOCIALCLIP_DATA`.** When set, it
@@ -166,9 +166,8 @@ Mirrors `workers/expand_worker.py`:
 ### `ui/dialogs.py`
 
 `DoctorDialog` gains a components table: label, version, state, detail, and a
-**Repair** button per repairable row, plus **Repair all** and **Open data
-folder**. The existing ffmpeg / cookies / network / runtime / yt-dlp lines
-become the rows.
+**Repair** button, plus **Open data folder**. The existing ffmpeg / cookies /
+network / runtime / yt-dlp lines become the rows.
 
 ### `ui/main_window.py`
 

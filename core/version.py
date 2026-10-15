@@ -1,3 +1,3 @@
 """The app version, importable without pulling in Qt."""
 
-__version__ = "0.9.3"
+__version__ = "0.10.0"

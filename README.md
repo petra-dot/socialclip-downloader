@@ -89,6 +89,19 @@ without uploading anything to a third-party service.
 - **Health check** — a built-in **Doctor** report covers ffmpeg, cookie files,
   network reachability, the JavaScript runtime YouTube needs, and how old the
   installed yt-dlp is, so you can fix problems before a download fails.
+- **Self-repair and Health** — the app checks its components (yt-dlp, ffmpeg,
+  and the JavaScript runtime YouTube needs) at most once a day and repairs a
+  missing, stale, or broken one from a verified download, so a build keeps
+  working without a new release. **Help → Health** shows the **Health** view:
+  every component with its version and state, plus **Repair** and **Open data
+  folder**; **Help → Check components** forces a fresh check. `socialclip
+  repair` does the same from the CLI.
+- **Your data lives in one writable folder** — cookies, the queue, presets, the
+  archive, and the downloaded components live in a per-user data directory
+  (`%LOCALAPPDATA%\SocialClip Downloader`,
+  `~/Library/Application Support/SocialClip Downloader`, or
+  `~/.local/share/socialclip`). **File → Open data folder** reveals it. Any
+  files left next to the app are copied there once on first run.
 - **Cross-platform** — Windows, macOS, and Linux, with prebuilt binaries that
   bundle ffmpeg.
 
@@ -114,14 +127,16 @@ Download the build for your operating system from the
 | macOS    | `socialclip-downloader-macos` | `socialclip-macos` |
 | Linux    | `socialclip-downloader-linux` | `socialclip-linux` |
 
-ffmpeg is bundled, so there is nothing else to install.
+ffmpeg and a JavaScript runtime are bundled, so there is nothing else to
+install.
 
 **YouTube needs a JavaScript runtime.** yt-dlp solves YouTube's challenge with
-one, and the app looks for `deno`, `node`, `bun`, then `quickjs` on your `PATH`
-and uses the first it finds. Most machines already have Node.js; if none is
-installed, YouTube downloads fail with HTTP 403, and the **Doctor** report says
-so. Install Deno (`winget install DenoLand.Deno`, `brew install deno`) or
-Node.js.
+one, and the app looks for `deno`, `node`, `bun`, then `quickjs` — first on your
+`PATH`, then in its own data directory, then in the bundle. The prebuilt
+binaries ship deno, so YouTube works out of the box; running from source without
+any runtime, YouTube downloads fail with HTTP 403, and the **Doctor** report
+says so. Install Deno (`winget install DenoLand.Deno`, `brew install deno`) or
+Node.js to fix it.
 
 <details>
 <summary><strong>First-launch notes (macOS and Linux)</strong></summary>
@@ -177,6 +192,7 @@ socialclip queue retry
 socialclip queue clear
 socialclip queue archive --clear
 socialclip doctor
+socialclip repair [--dry-run]
 socialclip manifest-schema
 ```
 
@@ -186,6 +202,7 @@ socialclip manifest-schema
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|retry\|clear\|archive` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. `run --jobs N` downloads up to `N` (1-8, default 3) at once. `run --archive` skips videos already recorded in the archive, and `queue archive --clear` resets it. `retry` re-queues every failed job. |
 | `doctor` | Report ffmpeg version, cookie files found, network reachability, the JavaScript runtime YouTube needs, and how old the installed yt-dlp is. Exits `0` if ffmpeg is present, `3` otherwise. |
+| `repair` | Check the components (yt-dlp, ffmpeg, the JavaScript runtime) and download a verified replacement for any that is missing, stale, or broken. `--dry-run` lists what it would repair and stops. |
 | `manifest-schema` | Print the JSON Schema for structured results. |
 
 ### Machine-readable output
@@ -226,9 +243,33 @@ Already saved a video? Tick **Skip already downloaded** on the Queue tab (or run
 sits beside `queue.json`; **Clear archive** (or `socialclip queue archive
 --clear`) wipes it and starts fresh. It is off by default.
 
-The GUI and the CLI share one queue file, stored as JSON in your app config
-directory (next to the auto-detected cookie files). Set `SOCIALCLIP_QUEUE` to
-override the location.
+The GUI and the CLI share one queue file, stored as JSON in the app's data
+directory (next to the auto-detected cookie files; see
+[Maintenance](#maintenance)). Set `SOCIALCLIP_QUEUE` to override the location.
+
+## Maintenance
+
+SocialClip checks the components it depends on — yt-dlp, ffmpeg, and the
+JavaScript runtime YouTube needs — **at most once a day**, in the background.
+When one is missing, stale (yt-dlp older than 90 days), or broken, it downloads
+a replacement into the data directory, verifies its SHA-256 against the
+publisher's checksum file, and only then swaps it in. A bad download never
+replaces a working copy.
+
+- **Health view** — open **Help → Health** to see every component with its
+  version and state, plus a **Repair** button and **Open data folder**. **Help →
+  Check components** forces a check now instead of waiting for the daily one.
+- **Open data folder** — **File → Open data folder** (or the button in the
+  Health view) reveals the per-user data directory where cookies, the queue,
+  presets, the archive, and the downloaded components live.
+- **Command line** — `socialclip repair` runs the same check and repair;
+  `socialclip repair --dry-run` lists what it would change and stops.
+
+yt-dlp, ffmpeg, and deno are downloaded and SHA-256 verified on first need, so a
+frozen build keeps working without a new release. Platform coverage is honest
+about its gaps: **macOS has no verified automatic ffmpeg source**, so `repair`
+refuses to install ffmpeg there and points at `brew install ffmpeg` or
+`SOCIALCLIP_FFMPEG`; yt-dlp and deno still repair automatically on macOS.
 
 ## Cookie authentication
 
@@ -247,7 +288,8 @@ over the browser choice.
 
 1. Install the **"Get cookies.txt LOCALLY"** browser extension.
 2. Sign in to the site, export the cookies, and save the file as
-   `<platform>_cookies.txt` in the app directory.
+   `<platform>_cookies.txt` in the app's data directory (see
+   [Maintenance](#maintenance)).
 3. The app auto-detects the file when you fetch. You can also point to it
    manually with the **Browse** button or `--cookies`.
 
