@@ -46,3 +46,81 @@ def subtitle_tracks(info) -> List[SubtitleTrack]:
             url, ext = picked
             tracks.append(SubtitleTrack(lang=lang, kind=kind, url=url, ext=ext))
     return tracks
+
+
+def _dest_for(track: SubtitleTrack, base_path: str) -> str:
+    suffix = ".auto" if track.kind == "auto" else ""
+    return "%s.%s%s.srt" % (base_path, track.lang, suffix)
+
+
+def write_subtitle(track, base_path, opener=None) -> Optional[str]:
+    """Fetch a track and write its sidecar. Returns the path, or None."""
+    dest = _dest_for(track, base_path)
+    open_url = opener or urllib.request.urlopen
+    try:
+        request = urllib.request.Request(
+            track.url, headers={"User-Agent": "Mozilla/5.0"}
+        )
+    except ValueError:
+        # A URL without a scheme (e.g. a bare test fixture) still goes to the opener.
+        request = track.url
+    try:
+        with open_url(request, timeout=30) as response:
+            data = response.read()
+    except Exception:  # noqa: BLE001 - a missing subtitle must not fail the download
+        return None
+
+    if track.ext == "srt":
+        with open(dest, "wb") as fh:
+            fh.write(data)
+        return dest
+
+    tmp = dest + ".vtt"
+    with open(tmp, "wb") as fh:
+        fh.write(data)
+    try:
+        result = subprocess.run(
+            [ffmpeg_path(), "-y", "-i", tmp, dest],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+    return dest if result.returncode == 0 else None
+
+
+def embed_command(video_path, subtitles, out_path, ffmpeg="ffmpeg") -> list:
+    """ffmpeg args to mux (lang, path) sidecars into the video as mov_text."""
+    cmd = [ffmpeg, "-y", "-i", video_path]
+    for _lang, path in subtitles:
+        cmd += ["-i", path]
+    cmd += ["-map", "0"]
+    for index in range(len(subtitles)):
+        cmd += ["-map", str(index + 1)]
+    cmd += ["-c", "copy", "-c:s", "mov_text"]
+    for index, (lang, _path) in enumerate(subtitles):
+        cmd += ["-metadata:s:s:%d" % index, "language=%s" % lang]
+    cmd += [out_path]
+    return cmd
+
+
+def embed_subtitles(video_path, subtitles) -> bool:
+    """Mux the sidecars into the video, replacing it only on success."""
+    if not subtitles:
+        return True
+    base, ext = os.path.splitext(video_path)
+    out = base + ".subs" + ext
+    result = subprocess.run(
+        embed_command(video_path, subtitles, out, ffmpeg=ffmpeg_path()),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        try:
+            os.remove(out)
+        except OSError:
+            pass
+        return False
+    os.replace(out, video_path)
+    return True

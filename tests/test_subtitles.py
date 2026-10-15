@@ -39,3 +39,42 @@ def test_subtitle_tracks_empty_info():
 def test_subtitle_track_is_a_dataclass():
     track = SubtitleTrack(lang="en", kind="manual", url="u", ext="srt")
     assert track.lang == "en" and track.kind == "manual"
+
+
+from core.subtitles import embed_command, write_subtitle
+
+
+def test_embed_command_maps_and_tags_languages():
+    cmd = embed_command("v.mp4", [("en", "en.srt"), ("fr", "fr.srt")], "out.mp4")
+    assert cmd[cmd.index("-c:s") + 1] == "mov_text"
+    assert "language=en" in cmd and "language=fr" in cmd
+    assert cmd.count("-map") == 3          # 0 plus the two sidecar streams
+    assert cmd[-1] == "out.mp4"
+
+
+def test_embed_command_single_track():
+    cmd = embed_command("v.mp4", [("en", "en.srt")], "out.mp4")
+    assert cmd.count("-map") == 2
+    assert "language=en" in cmd
+
+
+def test_write_subtitle_writes_manual_and_auto_names(tmp_path):
+    class Response:
+        def __init__(self, body):
+            self._body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return self._body
+
+    base = str(tmp_path / "Video")
+    manual = SubtitleTrack("en", "manual", "u1", "srt")
+    auto = SubtitleTrack("en", "auto", "u2", "srt")
+    opener = lambda req, timeout=None: Response(b"1\n00:00:00,000 --> 00:00:01,000\nhi\n")
+    assert write_subtitle(manual, base, opener=opener).endswith("Video.en.srt")
+    assert write_subtitle(auto, base, opener=opener).endswith("Video.en.auto.srt")
