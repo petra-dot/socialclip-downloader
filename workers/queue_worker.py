@@ -35,6 +35,7 @@ class QueueWorker(QtCore.QThread):
             convert=opts.get("convert", False),
             target_resolution=opts.get("target_resolution", 1080),
             cookies_file=opts.get("cookies_file"),
+            cookies_from_browser=opts.get("cookies_from_browser"),
             cancel=event.is_set,
             progress=lambda pct: self.progress_signal.emit(job.id, pct),
             subtitles=opts.get("subtitles", "off"),

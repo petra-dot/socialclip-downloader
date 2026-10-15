@@ -771,6 +771,7 @@ class SingleTab(QtWidgets.QWidget):
             url, final_outtmpl, convert, target_resolution, output_type,
             cookies_file=self._get_cookies_path(), clip=clip,
             subtitles=self.subtitle_combo.currentData(),
+            cookies_from_browser=self.settings.value("cookies/browser", "") or "",
         )
         self.worker.status_signal.connect(self.log)
         self.worker.progress_signal.connect(self.progress_bar.setValue)

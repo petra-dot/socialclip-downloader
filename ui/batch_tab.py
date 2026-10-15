@@ -32,7 +32,8 @@ def _queue_path() -> str:
 
 
 def build_job_options(save_dir: str, output_text: str, resolution: str,
-                      cookies_path: str, subtitles: str = "off") -> dict:
+                      cookies_path: str, subtitles: str = "off",
+                      cookies_from_browser: str = "") -> dict:
     """Build the exact option set download_one accepts (no unknown keys)."""
     output_type = "MP3" if "MP3" in output_text else "MP4"
     return {
@@ -42,6 +43,7 @@ def build_job_options(save_dir: str, output_text: str, resolution: str,
         "target_resolution": int(resolution),
         "cookies_file": cookies_path,
         "subtitles": subtitles,
+        "cookies_from_browser": cookies_from_browser,
     }
 
 
@@ -371,6 +373,7 @@ class QueueTab(QtWidgets.QWidget):
             self.batch_resolution_combo.currentText(),
             self._batch_get_cookies_path(),
             self.batch_subtitle_combo.currentData(),
+            self.settings.value("cookies/browser", "") or "",
         )
 
     def _queued_urls(self):
