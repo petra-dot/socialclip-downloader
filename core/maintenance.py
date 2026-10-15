@@ -26,7 +26,7 @@ from typing import List, Optional
 from core.doctor import ffmpeg_version
 from core.paths import data_dir, managed_dir
 from core.version import __version__
-from utils.ffmpeg import find_ffmpeg
+from utils.ffmpeg import find_ffmpeg, reset_cache
 from utils.ytdlp import find_js_runtime, is_stale, version_age_days
 
 STATES = ("ok", "missing", "stale", "broken", "unknown")
@@ -36,7 +36,8 @@ STATES = ("ok", "missing", "stale", "broken", "unknown")
 REPAIRABLE = ("yt-dlp", "ffmpeg", "js-runtime")
 
 ALLOWED_HOSTS = ("github.com", "api.github.com",
-                 "objects.githubusercontent.com")
+                 "objects.githubusercontent.com",
+                 "release-assets.githubusercontent.com")
 
 YTDLP_LATEST = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
 
@@ -192,21 +193,27 @@ def plan_repairs(components) -> List[str]:
 
 
 def latest_ytdlp(opener=None):
-    """(version, wheel_url, sums_url) for the newest yt-dlp release."""
+    """(version, sdist_url, sums_url) for the newest yt-dlp release.
+
+    The release publishes no wheel - wheels live on PyPI - so the managed copy
+    comes from the source tarball, which carries the same ``yt_dlp`` package.
+    """
     data = _get_json(YTDLP_LATEST, opener=opener)
     tag = data.get("tag_name") or ""
     version = tag[1:] if tag.startswith("v") else tag
-    wheel = sums = ""
+    sdist = sums = ""
     for asset in data.get("assets", []):
         name = asset.get("name") or ""
         url = asset.get("browser_download_url") or ""
         if name == "SHA2-256SUMS":
             sums = url
-        elif name.endswith(".whl"):
-            wheel = url
-    if not (version and wheel and sums):
-        raise ValueError("the yt-dlp release is missing a wheel or its checksums")
-    return version, wheel, sums
+        elif name == "yt-dlp.tar.gz":
+            sdist = url
+    if not (version and sdist and sums):
+        raise ValueError(
+            "the yt-dlp release is missing its source tarball or checksums"
+        )
+    return version, sdist, sums
 
 
 def _parse_sums(text: str) -> dict:
@@ -223,14 +230,37 @@ def _verify_bytes(data: bytes, expected_hex: str) -> bool:
     return hashlib.sha256(data).hexdigest().lower() == (expected_hex or "").lower()
 
 
-def _unpack_wheel(data: bytes, target: str) -> None:
-    """Extract a wheel's ``yt_dlp`` package into `target`."""
+def _unpack_sdist(data: bytes, target: str) -> None:
+    """Extract the ``yt_dlp`` package from the source tarball into `target`.
+
+    The release tarball nests the package under a top-level ``yt-dlp/``
+    directory (``yt-dlp/yt_dlp/...``); a tarball with the package at its root
+    (``yt_dlp/...``) is accepted too. Either way the package lands at
+    ``target/yt_dlp/``.
+    """
     os.makedirs(target, exist_ok=True)
-    with zipfile.ZipFile(io.BytesIO(data)) as zf:
-        names = [n for n in zf.namelist() if n.startswith("yt_dlp/")]
-        if not names:
-            raise ValueError("the wheel does not contain a yt_dlp package")
-        zf.extractall(target, members=names)
+    written = 0
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf:
+        for member in tf.getmembers():
+            if not member.isfile():
+                continue
+            parts = member.name.split("/")
+            if "yt_dlp" not in parts:
+                continue
+            relative = parts[parts.index("yt_dlp"):]
+            if os.path.isabs(member.name) or ".." in relative:
+                raise ValueError(
+                    "unsafe path in the source tarball: %s" % member.name
+                )
+            out = os.path.join(target, *relative)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with tf.extractfile(member) as src, open(out, "wb") as fh:
+                shutil.copyfileobj(src, fh)
+            written += 1
+    if not written:
+        raise ValueError(
+            "the source tarball does not contain a yt_dlp package"
+        )
 
 
 def _swap(new_dir: str, dest: str, keep_previous: bool) -> None:
@@ -248,20 +278,20 @@ def _swap(new_dir: str, dest: str, keep_previous: bool) -> None:
 def install_ytdlp(dest=None, opener=None) -> str:
     """Download, verify, and install the newest yt-dlp. Returns its version.
 
-    The wheel is unpacked into a temporary directory and only swapped in after
-    its SHA-256 matches the release's checksum file, so a bad download never
-    replaces a working copy.
+    The source tarball is unpacked into a temporary directory and only swapped
+    in after its SHA-256 matches the release's checksum file, so a bad download
+    never replaces a working copy.
     """
     dest = dest or managed_dir("yt-dlp")
-    version, wheel_url, sums_url = latest_ytdlp(opener=opener)
+    version, sdist_url, sums_url = latest_ytdlp(opener=opener)
 
     sums = _parse_sums(_get(sums_url, opener=opener).decode("utf-8"))
-    name = wheel_url.rsplit("/", 1)[-1]
+    name = sdist_url.rsplit("/", 1)[-1]
     expected = sums.get(name)
     if not expected:
         raise ValueError("no checksum published for %s" % name)
 
-    data = _get(wheel_url, opener=opener)
+    data = _get(sdist_url, opener=opener)
     if not _verify_bytes(data, expected):
         raise ValueError("checksum mismatch for %s" % name)
 
@@ -269,7 +299,7 @@ def install_ytdlp(dest=None, opener=None) -> str:
     os.makedirs(parent, exist_ok=True)
     temp = tempfile.mkdtemp(prefix="ytdlp-", dir=parent)
     try:
-        _unpack_wheel(data, temp)
+        _unpack_sdist(data, temp)
         _swap(temp, dest, keep_previous=True)
     except Exception:
         shutil.rmtree(temp, ignore_errors=True)
@@ -381,7 +411,8 @@ def install_ffmpeg(dest=None, opener=None) -> str:
     asset = _ffmpeg_asset()
     if not asset:
         raise ValueError(
-            "no verified ffmpeg build is available for this platform"
+            "no verified ffmpeg build is available for macOS. Install ffmpeg "
+            "with 'brew install ffmpeg', or point SOCIALCLIP_FFMPEG at one."
         )
     url = "%s/download/%s" % (FFMPEG_BUILDS, asset)
     sums_url = "%s/download/checksums.sha256" % FFMPEG_BUILDS
@@ -405,6 +436,7 @@ def install_ffmpeg(dest=None, opener=None) -> str:
             os.replace(os.path.join(temp, name), os.path.join(dest, name))
     finally:
         shutil.rmtree(temp, ignore_errors=True)
+    reset_cache()
     return "installed"
 
 
@@ -431,7 +463,14 @@ def install_deno(dest=None, opener=None) -> str:
         if not name:
             raise ValueError("the deno archive has no binary")
         out = os.path.join(dest, os.path.basename(name))
-        with zf.open(name) as src, open(out, "wb") as fh:
-            shutil.copyfileobj(src, fh)
-    _make_executable(out)
+        temp = out + ".tmp"
+        try:
+            with zf.open(name) as src, open(temp, "wb") as fh:
+                shutil.copyfileobj(src, fh)
+            _make_executable(temp)
+            os.replace(temp, out)
+        except Exception:
+            if os.path.exists(temp):
+                os.remove(temp)
+            raise
     return "installed"

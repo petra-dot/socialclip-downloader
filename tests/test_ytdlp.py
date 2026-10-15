@@ -104,7 +104,7 @@ def test_load_is_idempotent(tmp_path, monkeypatch):
     assert sys.path.count(ytdlp.managed_ytdlp_dir()) == 1
 
 
-def test_find_js_runtime_prefers_managed_deno(tmp_path, monkeypatch):
+def test_find_js_runtime_falls_back_to_managed_deno(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -114,6 +114,21 @@ def test_find_js_runtime_prefers_managed_deno(tmp_path, monkeypatch):
     found_name, found_path = ytdlp.find_js_runtime(which=lambda _n: None)
     assert found_name == "deno"
     assert found_path == os.path.join(str(bin_dir), name)
+
+
+def test_find_js_runtime_prefers_path_over_managed(tmp_path, monkeypatch):
+    """An existing system runtime must not be overridden by a managed one."""
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    name = "deno.exe" if sys.platform == "win32" else "deno"
+    (bin_dir / name).write_text("", encoding="utf-8")
+    from utils import ytdlp
+    found_name, found_path = ytdlp.find_js_runtime(
+        which=lambda n: "/usr/bin/node" if n == "node" else None
+    )
+    assert found_name == "node"
+    assert found_path == "/usr/bin/node"
 
 
 def test_entry_point_does_not_import_ytdlp_at_module_scope():

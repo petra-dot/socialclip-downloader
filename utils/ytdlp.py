@@ -70,19 +70,22 @@ def _managed_runtime(name: str) -> str:
 def find_js_runtime(which=None):
     """(name, path) of the first available JS runtime, or ("", "").
 
-    A runtime the app installed itself is checked before PATH.
+    A runtime already on PATH wins, so the app never overrides a working
+    system install; a runtime the app installed itself is the fallback for a
+    machine that has none.
     """
     which = shutil.which if which is None else which
     for name in RUNTIMES:
-        managed = _managed_runtime(name)
-        if managed:
-            return name, managed
         try:
             found = which(name)
         except Exception:
             found = None
         if found:
             return name, found
+    for name in RUNTIMES:
+        managed = _managed_runtime(name)
+        if managed:
+            return name, managed
     return "", ""
 
 

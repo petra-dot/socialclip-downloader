@@ -71,15 +71,20 @@ def test_latest_ytdlp_parses_the_release(monkeypatch):
         "assets": [
             {"name": "SHA2-256SUMS",
              "browser_download_url": "https://github.com/x/sums"},
-            {"name": "yt_dlp-2026.08.19-py3-none-any.whl",
-             "browser_download_url": "https://github.com/x/w.whl"},
+            {"name": "yt-dlp.tar.gz",
+             "browser_download_url": "https://github.com/x/yt-dlp.tar.gz"},
         ],
     }
     monkeypatch.setattr(maintenance, "_get_json", lambda url, opener=None: payload)
-    version, wheel, sums = maintenance.latest_ytdlp()
+    version, sdist, sums = maintenance.latest_ytdlp()
     assert version == "2026.08.19"
-    assert wheel.endswith(".whl")
+    assert sdist.endswith(".tar.gz")
     assert sums.endswith("sums")
+
+
+def test_allowed_hosts_covers_the_github_release_cdn():
+    from core.maintenance import ALLOWED_HOSTS
+    assert "release-assets.githubusercontent.com" in ALLOWED_HOSTS
 
 
 def test_get_refuses_http_and_unlisted_hosts():
@@ -118,20 +123,42 @@ import hashlib
 import io
 import json
 import sys as _sys
+import tarfile
 import zipfile
 
 
-def _wheel_bytes(version="2099.01.01"):
-    """A minimal wheel: a zip whose root holds the yt_dlp package."""
+def _sdist_bytes(version="2099.01.01"):
+    """A minimal source tarball: a gzip tar whose root holds yt_dlp/."""
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zf:
-        zf.writestr("yt_dlp/__init__.py", "")
-        zf.writestr("yt_dlp/version.py", '__version__ = "%s"\n' % version)
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tf:
+        for name, body in (
+            ("yt_dlp/__init__.py", b""),
+            ("yt_dlp/version.py", ('__version__ = "%s"\n' % version).encode()),
+        ):
+            info = tarfile.TarInfo(name)
+            info.size = len(body)
+            tf.addfile(info, io.BytesIO(body))
     return buffer.getvalue()
 
 
-def _release_opener(wheel, wheel_name, good_digest=True):
-    sums = hashlib.sha256(wheel).hexdigest()
+def _nested_sdist_bytes(version="2099.01.01"):
+    """The real release layout: the package nested at yt-dlp/yt_dlp/."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tf:
+        for name, body in (
+            ("yt-dlp/README.md", b"readme"),
+            ("yt-dlp/yt_dlp/__init__.py", b""),
+            ("yt-dlp/yt_dlp/version.py",
+             ('__version__ = "%s"\n' % version).encode()),
+        ):
+            info = tarfile.TarInfo(name)
+            info.size = len(body)
+            tf.addfile(info, io.BytesIO(body))
+    return buffer.getvalue()
+
+
+def _release_opener(sdist, sdist_name, good_digest=True):
+    sums = hashlib.sha256(sdist).hexdigest()
     if not good_digest:
         sums = "0" * 64
 
@@ -159,14 +186,14 @@ def _release_opener(wheel, wheel_name, good_digest=True):
                 "assets": [
                     {"name": "SHA2-256SUMS",
                      "browser_download_url": "https://github.com/x/sums"},
-                    {"name": wheel_name,
-                     "browser_download_url": "https://github.com/x/" + wheel_name},
+                    {"name": sdist_name,
+                     "browser_download_url": "https://github.com/x/" + sdist_name},
                 ],
             }).encode("utf-8")
             return _Response(body)
         if url.endswith("sums"):
-            return _Response(("%s  %s\n" % (sums, wheel_name)).encode("utf-8"))
-        return _Response(wheel)
+            return _Response(("%s  %s\n" % (sums, sdist_name)).encode("utf-8"))
+        return _Response(sdist)
 
     return opener
 
@@ -179,28 +206,38 @@ def test_parse_sums_reads_the_checksum_file():
     }
 
 
-def test_install_ytdlp_unpacks_a_verified_wheel(tmp_path, monkeypatch):
+def test_install_ytdlp_unpacks_a_verified_sdist(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
-    wheel = _wheel_bytes()
+    sdist = _sdist_bytes()
     dest = tmp_path / "yt-dlp"
     version = maintenance.install_ytdlp(
         dest=str(dest),
-        opener=_release_opener(wheel, "yt_dlp-2099.01.01-py3-none-any.whl"),
+        opener=_release_opener(sdist, "yt-dlp.tar.gz"),
     )
     assert version == "2099.01.01"
     assert (dest / "yt_dlp" / "version.py").is_file()
 
 
+def test_install_ytdlp_unpacks_a_nested_sdist(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    dest = tmp_path / "yt-dlp"
+    version = maintenance.install_ytdlp(
+        dest=str(dest),
+        opener=_release_opener(_nested_sdist_bytes(), "yt-dlp.tar.gz"),
+    )
+    assert version == "2099.01.01"
+    assert (dest / "yt_dlp" / "version.py").is_file()
+    assert not (dest / "README.md").exists()
+
+
 def test_install_ytdlp_refuses_a_bad_digest(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
     dest = tmp_path / "yt-dlp"
-    wheel = _wheel_bytes()
+    sdist = _sdist_bytes()
     try:
         maintenance.install_ytdlp(
             dest=str(dest),
-            opener=_release_opener(
-                wheel, "yt_dlp-2099.01.01-py3-none-any.whl", good_digest=False
-            ),
+            opener=_release_opener(sdist, "yt-dlp.tar.gz", good_digest=False),
         )
         raised = False
     except ValueError:
@@ -218,7 +255,7 @@ def test_install_ytdlp_keeps_a_previous_copy(tmp_path, monkeypatch):
     )
     maintenance.install_ytdlp(
         dest=str(dest),
-        opener=_release_opener(_wheel_bytes(), "yt_dlp-2099.01.01-py3-none-any.whl"),
+        opener=_release_opener(_sdist_bytes(), "yt-dlp.tar.gz"),
     )
     assert (tmp_path / "yt-dlp.prev" / "yt_dlp" / "version.py").is_file()
 
