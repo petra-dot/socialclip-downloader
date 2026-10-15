@@ -152,11 +152,8 @@ def _cmd_doctor(args) -> int:
 
 
 def _queue_path() -> str:
-    from core.paths import data_dir
-    override = os.environ.get("SOCIALCLIP_QUEUE")
-    if override:
-        return override
-    return os.path.join(data_dir(), "queue.json")
+    from core.paths import queue_path
+    return queue_path()
 
 
 def _browsers():
@@ -170,11 +167,15 @@ def _archive_path() -> str:
     Derived from `_queue_path` so a SOCIALCLIP_QUEUE override moves the archive
     with the queue instead of leaving it in the app directory.
     """
-    return os.path.join(os.path.dirname(_queue_path()), "archive.txt")
+    from core.archive import default_archive_path
+    return default_archive_path()
 
 
 def _presets_path() -> str:
     from core.paths import data_dir
+    override = os.environ.get("SOCIALCLIP_PRESETS")
+    if override:
+        return override
     return os.path.join(data_dir(), "presets.json")
 
 

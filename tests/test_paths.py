@@ -103,3 +103,41 @@ def test_presets_and_archive_follow_data_dir(tmp_path, monkeypatch):
     import cli
     assert cli._presets_path() == str(tmp_path / "data" / "presets.json")
     assert cli._archive_path() == str(tmp_path / "data" / "archive.txt")
+
+
+def test_queue_path_honours_override(tmp_path, monkeypatch):
+    override = tmp_path / "elsewhere" / "q.json"
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(override))
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    from core.paths import queue_path
+    assert queue_path() == str(override)
+
+
+def test_core_queue_path_defaults_into_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOCIALCLIP_QUEUE", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    from core.paths import queue_path
+    assert queue_path() == str(tmp_path / "data" / "queue.json")
+
+
+def test_archive_path_follows_the_queue(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOCIALCLIP_QUEUE", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    from core.archive import default_archive_path
+    assert default_archive_path() == str(tmp_path / "data" / "archive.txt")
+
+
+def test_archive_path_follows_a_queue_override(tmp_path, monkeypatch):
+    override = tmp_path / "elsewhere" / "q.json"
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(override))
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    from core.archive import default_archive_path
+    assert default_archive_path() == str(tmp_path / "elsewhere" / "archive.txt")
+
+
+def test_presets_path_honours_override(tmp_path, monkeypatch):
+    override = tmp_path / "custom" / "p.json"
+    monkeypatch.setenv("SOCIALCLIP_PRESETS", str(override))
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    import cli
+    assert cli._presets_path() == str(override)

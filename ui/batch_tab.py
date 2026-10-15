@@ -7,7 +7,6 @@ from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
-from sites.cookies import default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
@@ -25,10 +24,8 @@ from workers.queue_worker import QueueWorker
 
 def _queue_path() -> str:
     """Queue file shared with the CLI (see cli.py:_queue_path)."""
-    override = os.environ.get("SOCIALCLIP_QUEUE")
-    if override:
-        return override
-    return os.path.join(default_cookie_dir(), "queue.json")
+    from core.paths import queue_path
+    return queue_path()
 
 
 def build_job_options(save_dir: str, output_text: str, resolution: str,

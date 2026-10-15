@@ -255,7 +255,8 @@ class CookiesDialog(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from sites.cookies import BROWSERS, app_dir, cookie_status
+        from core.paths import data_dir
+        from sites.cookies import BROWSERS, cookie_status
         from utils.ui_helpers import reveal_in_folder
 
         self.setWindowTitle("Cookies")
@@ -291,7 +292,7 @@ class CookiesDialog(QtWidgets.QDialog):
         open_btn = buttons.addButton(
             "Open cookie folder", QtWidgets.QDialogButtonBox.ActionRole
         )
-        open_btn.clicked.connect(lambda: reveal_in_folder(app_dir()))
+        open_btn.clicked.connect(lambda: reveal_in_folder(data_dir()))
         layout.addWidget(buttons)
 
     def chosen_browser(self) -> str:

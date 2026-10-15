@@ -66,6 +66,14 @@ def data_dir_writable() -> bool:
         return False
 
 
+def queue_path() -> str:
+    """The queue file: the SOCIALCLIP_QUEUE override, else the data dir."""
+    override = os.environ.get("SOCIALCLIP_QUEUE")
+    if override:
+        return override
+    return os.path.join(data_dir(), "queue.json")
+
+
 def managed_dir(kind: str) -> str:
     """A subdirectory for a managed component: "yt-dlp" or "bin"."""
     return os.path.join(data_dir(), kind)

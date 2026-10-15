@@ -213,10 +213,7 @@ def test_queue_run_archive_flag_reaches_download_one(tmp_path, monkeypatch, caps
 
 
 def test_queue_archive_clear_removes_the_file(tmp_path, monkeypatch, capsys):
-    from core.archive import default_archive_path
-
     monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
-    monkeypatch.setattr("core.archive.app_dir", lambda: str(tmp_path))
     target = tmp_path / "archive.txt"
     target.write_text("youtube abc\n")
 
