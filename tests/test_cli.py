@@ -346,3 +346,11 @@ def test_download_rejects_unknown_subtitle_delivery(monkeypatch, capsys):
     rc = cli.main(["download", "https://youtu.be/x", "--subtitles", "burn"])
     assert rc == 2
     assert "invalid choice" in capsys.readouterr().err.lower()
+
+
+def test_cli_repair_dry_run(capsys):
+    from cli import main
+    code = main(["repair", "--dry-run"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "would repair" in out or "nothing to repair" in out

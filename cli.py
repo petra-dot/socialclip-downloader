@@ -138,6 +138,12 @@ def _cmd_doctor(args) -> int:
     if args.json:
         print(json.dumps(report))
     else:
+        from core.maintenance import check_all
+        for component in check_all():
+            print("%-20s %-8s %s" % (
+                component.label, component.state,
+                component.version or component.detail,
+            ))
         ff = report["ffmpeg"]
         print(f"ffmpeg: {ff['path'] or 'NOT FOUND'}")
         if ff.get("version"):
@@ -363,6 +369,35 @@ def _cmd_queue(args) -> int:
         return EXIT_OK
 
 
+def _cmd_repair(args) -> int:
+    from core.maintenance import check_all, plan_repairs
+    from workers.maintenance_worker import run_repairs
+
+    components = check_all()
+    keys = plan_repairs(components)
+    if args.dry_run:
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION,
+                              "would_repair": keys}))
+        elif keys:
+            print("would repair: %s" % ", ".join(keys))
+        else:
+            print("nothing to repair")
+        return EXIT_OK
+
+    if not keys:
+        print("nothing to repair")
+        return EXIT_OK
+    components = run_repairs(
+        keys, progress=lambda k, d: print("%s: %s" % (k, d)),
+    )
+    remaining = plan_repairs(components)
+    if args.json:
+        print(json.dumps({"schema_version": SCHEMA_VERSION,
+                          "repaired": keys, "remaining": remaining}))
+    return EXIT_OK if not remaining else EXIT_FAIL
+
+
 def _cmd_manifest_schema(args) -> int:
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -430,6 +465,12 @@ def build_parser() -> argparse.ArgumentParser:
     doc = sub.add_parser("doctor")
     doc.add_argument("--json", action="store_true")
     doc.set_defaults(func=_cmd_doctor)
+
+    r = sub.add_parser("repair")
+    r.add_argument("--dry-run", action="store_true",
+                   help="show what would be repaired, then stop")
+    r.add_argument("--json", action="store_true")
+    r.set_defaults(func=_cmd_repair)
 
     ms = sub.add_parser("manifest-schema")
     ms.set_defaults(func=_cmd_manifest_schema)
