@@ -110,6 +110,11 @@ helpers testable. CI lints and runs pytest.
 - **Never push without asking.** Commit locally, state what is staged and what
   the push would change, then wait for an explicit yes. This covers every push:
   `main`, tags, and releases.
+- **Never commit a real social-media URL.** Tests, specs, plans, docs, and
+  commit messages use synthetic placeholders only (`https://youtu.be/x`,
+  `https://www.youtube.com/@somechannel`, `/reel/123456789`). A real channel
+  handle, video ID, or post URL must never enter the repo or its history, for
+  copyright and legal reasons.
 
 ## Gotchas
 

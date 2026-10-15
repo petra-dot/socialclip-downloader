@@ -24,7 +24,7 @@ from sites.cookies import (
         ("https://x.com/u/status/1", "twitter"),
         ("https://www.tiktok.com/@u/video/1", "tiktok"),
         ("https://www.bilibili.com/video/1", "bilibili"),
-        ("https://www.facebook.com/reel/931231782795079", "facebook"),
+        ("https://www.facebook.com/reel/123456789", "facebook"),
         ("https://fb.watch/abc", "facebook"),
         ("https://example.com/video", ""),
         ("https://app.box.com/s/xyz", ""),
