@@ -168,21 +168,18 @@ def _browsers():
 
 
 def _archive_path() -> str:
-    """The archive file, beside the queue file.
+    """The archive file, via core.archive.default_archive_path().
 
-    Derived from `_queue_path` so a SOCIALCLIP_QUEUE override moves the archive
-    with the queue instead of leaving it in the app directory.
+    That helper derives it from the queue path, so a SOCIALCLIP_QUEUE override
+    moves the archive with the queue instead of leaving it in the app directory.
     """
     from core.archive import default_archive_path
     return default_archive_path()
 
 
 def _presets_path() -> str:
-    from core.paths import data_dir
-    override = os.environ.get("SOCIALCLIP_PRESETS")
-    if override:
-        return override
-    return os.path.join(data_dir(), "presets.json")
+    from core.presets import default_presets_path
+    return default_presets_path()
 
 
 def _preset_resolution(preset):

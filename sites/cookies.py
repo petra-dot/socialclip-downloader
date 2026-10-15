@@ -40,8 +40,8 @@ def app_dir() -> str:
     """The directory the app runs from.
 
     Next to the script in a source run, next to the executable in a frozen
-    build. Stable no matter which directory the app was launched from, which
-    is what makes it a reliable place for cookies and the queue file.
+    build. Used to locate bundled resources and as a legacy cookie fallback;
+    writable state lives in the per-user data directory instead.
     """
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))

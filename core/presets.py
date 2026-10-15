@@ -42,6 +42,9 @@ _BUILTIN_NAMES = {p.name for p in BUILTIN_PRESETS}
 
 def default_presets_path() -> str:
     from sites.cookies import default_cookie_dir
+    override = os.environ.get("SOCIALCLIP_PRESETS")
+    if override:
+        return override
     return os.path.join(default_cookie_dir(), "presets.json")
 
 

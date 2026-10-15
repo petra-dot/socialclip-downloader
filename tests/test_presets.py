@@ -2,9 +2,22 @@ from core.presets import (
     BUILTIN_PRESETS,
     Preset,
     PresetStore,
+    default_presets_path,
     preset_from_dict,
     preset_to_dict,
 )
+
+
+def test_default_presets_path_honours_override(tmp_path, monkeypatch):
+    override = tmp_path / "custom" / "presets.json"
+    monkeypatch.setenv("SOCIALCLIP_PRESETS", str(override))
+    assert default_presets_path() == str(override)
+
+
+def test_default_presets_path_follows_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOCIALCLIP_PRESETS", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    assert default_presets_path() == str(tmp_path / "data" / "presets.json")
 
 
 def test_builtin_presets_present():
