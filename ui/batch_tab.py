@@ -76,6 +76,7 @@ class QueueTab(QtWidgets.QWidget):
         self.cookies_file_ref = cookies_file_ref
         self.queue_worker = None
         self._expand_worker = None
+        self._expand_queue = []
         self._row_for_id = {}
         self._running_id = ""
         self.settings = QtCore.QSettings()
@@ -271,6 +272,9 @@ class QueueTab(QtWidgets.QWidget):
         if self.queue_worker and self.queue_worker.isRunning():
             self.batch_log("Queue is running; finish or pause it first.")
             return
+        if self._expand_worker and self._expand_worker.isRunning():
+            self._expand_queue.append(url)
+            return
         self.add_urls_btn.setEnabled(False)
         self.paste_urls_btn.setEnabled(False)
         self.batch_log("Expanding %s ..." % (url,))
@@ -289,6 +293,15 @@ class QueueTab(QtWidgets.QWidget):
     def _expand_re_enable(self):
         self.add_urls_btn.setEnabled(True)
         self.paste_urls_btn.setEnabled(True)
+        if self._expand_queue:
+            self._expand_next()
+
+    def _expand_next(self):
+        if self._expand_worker and self._expand_worker.isRunning():
+            return
+        if not self._expand_queue:
+            return
+        self.expand_collection_url(self._expand_queue.pop(0))
 
     def _on_expanded(self, url, result):
         if result.error:
@@ -320,6 +333,10 @@ class QueueTab(QtWidgets.QWidget):
         self._add_expanded(result, chosen)
 
     def _add_expanded(self, result, chosen):
+        if result.error:
+            self.batch_log(result.error)
+            self._expand_re_enable()
+            return
         options = self._job_options()
         kept, _ = new_entries(result.entries[:chosen], self._queued_urls())
         for entry in kept:
@@ -346,8 +363,8 @@ class QueueTab(QtWidgets.QWidget):
             self.refresh_table()
         if skipped:
             self.batch_log("Skipped %d line(s) that did not look like a URL." % skipped)
-        for url in collections:
-            self.expand_collection_url(url)
+        self._expand_queue.extend(collections)
+        self._expand_next()
 
     def on_add_urls(self):
         dialog = BulkPasteDialog(self)
