@@ -172,7 +172,8 @@ class MainWindow(QtWidgets.QWidget):
             self.check_for_updates(force=True)
 
     def _start_update_download(self):
-        if not getattr(sys, "frozen", False) or self._update_asset is None:
+        if (not getattr(sys, "frozen", False) or sys.platform != "win32"
+                or self._update_asset is None):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(self._update_release.page_url))
             return
         self._update_path = update_temp_path(self._update_release.version)
