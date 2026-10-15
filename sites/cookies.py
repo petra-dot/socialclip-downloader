@@ -72,10 +72,23 @@ def _cookie_search_dirs() -> list:
 
 
 def _find_cookie(platform: str, directory: str) -> str:
+    """This platform's cookie file in `directory`, exact name first.
+
+    Falls back to any ``*_cookies.txt`` whose name mentions the platform, so a
+    browser export named ``www.youtube.com_cookies.txt`` is found too. The
+    download path and the Cookies dialog must resolve cookies identically, or
+    the dialog claims "none" while downloads are using a file.
+    """
     for name in (f"{platform}_cookies.txt", f"{platform}.txt"):
         path = os.path.join(directory, name)
         if os.path.isfile(path):
             return path
+    try:
+        for fname in os.listdir(directory):
+            if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
+                return os.path.join(directory, fname)
+    except OSError:
+        pass
     return ""
 
 
@@ -95,22 +108,11 @@ def cookie_file_for(platform: str, cookie_dir: str = None) -> str:
 
 
 def get_cookie_path(url: str, cookie_dir: str = None) -> str:
+    """Path to the cookie file that applies to `url`, or "" when absent."""
     platform = detect_platform(url)
     if not platform:
         return ""
-    dirs = [cookie_dir] if cookie_dir is not None else _cookie_search_dirs()
-    for directory in dirs:
-        found = _find_cookie(platform, directory)
-        if found:
-            return found
-        # Fuzzy fallback: any *_cookies.txt whose name mentions the platform.
-        try:
-            for fname in os.listdir(directory):
-                if fname.lower().endswith("_cookies.txt") and platform in fname.lower():
-                    return os.path.join(directory, fname)
-        except OSError:
-            pass
-    return ""
+    return cookie_file_for(platform, cookie_dir)
 
 
 PLATFORM_NAMES = {

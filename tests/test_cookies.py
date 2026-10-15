@@ -125,3 +125,29 @@ def test_cookie_status_reports_a_present_file(monkeypatch):
     rows = dict((r[0], r[2]) for r in c.cookie_status())
     assert rows["youtube"].endswith("youtube_cookies.txt")
     assert rows["douyin"] == ""
+
+
+def test_find_cookie_matches_a_browser_style_name(tmp_path):
+    from sites.cookies import _find_cookie
+    (tmp_path / "www.youtube.com_cookies.txt").write_text("x")
+    assert _find_cookie("youtube", str(tmp_path)).endswith(
+        "www.youtube.com_cookies.txt"
+    )
+    assert _find_cookie("douyin", str(tmp_path)) == ""
+
+
+def test_find_cookie_prefers_the_exact_name(tmp_path):
+    from sites.cookies import _find_cookie
+    (tmp_path / "youtube_cookies.txt").write_text("x")
+    (tmp_path / "www.youtube.com_cookies.txt").write_text("x")
+    assert _find_cookie("youtube", str(tmp_path)).endswith("youtube_cookies.txt")
+
+
+def test_dialog_and_download_path_resolve_the_same_file(tmp_path, monkeypatch):
+    from sites import cookies as c
+    (tmp_path / "www.youtube.com_cookies.txt").write_text("x")
+    monkeypatch.setattr(c, "_cookie_search_dirs", lambda: [str(tmp_path)])
+    assert c.cookie_file_for("youtube") == c.get_cookie_path("https://youtu.be/x")
+    assert c.get_cookie_path("https://youtu.be/x").endswith(
+        "www.youtube.com_cookies.txt"
+    )
