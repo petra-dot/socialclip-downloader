@@ -221,7 +221,8 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 final_path = out_file
                 reencoded = True
 
-        if subtitles and subtitles != "off" and os.path.isfile(final_path):
+        if (subtitles and subtitles != "off" and action != "audio"
+                and os.path.isfile(final_path)):
             from core.subtitles import (
                 embed_subtitles, subtitle_tracks, write_subtitle,
             )
