@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -11,9 +12,12 @@ from ui.batch_tab import build_job_options  # noqa: E402
 from workers.queue_worker import QueueWorker  # noqa: E402
 
 
-def test_worker_drains_queue_and_emits_states(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+def _app():
+    return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
+
+def test_worker_drains_queue_and_emits_states(monkeypatch):
+    _app()
     q = Queue()
     q.add("https://a.com/1", {})
     q.add("https://b.com/2", {})
@@ -26,52 +30,41 @@ def test_worker_drains_queue_and_emits_states(monkeypatch):
     seen = []
     worker = QueueWorker(q)
     worker.job_signal.connect(lambda jid, state, job: seen.append(state))
-    worker.run()  # synchronous drain
+    worker.run()
 
     assert seen.count("running") == 2
     assert seen.count("done") == 2
     assert all(j.state == "done" for j in q.jobs)
 
 
-def test_cancel_current_stops_only_active_job(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+def test_cancel_job_stops_only_that_job(monkeypatch):
+    _app()
     q = Queue()
-    q.add("https://a.com/1", {})
+    a = q.add("https://a.com/1", {})
     q.add("https://b.com/2", {})
-    q.add("https://c.com/3", {})
 
-    worker = QueueWorker(q)
-    calls = []
+    worker = QueueWorker(q, jobs=1)
 
     def fake_download_one(url, **kw):
-        calls.append(url)
-        if len(calls) == 1:
-            worker.cancel_current()
+        if url.endswith("/1"):
+            worker.cancel_job(a.id)
             assert kw["cancel"]() is True
-            return DownloadResult(
-                status="error",
-                error_category="cancelled",
-                url=url,
-                message="Cancelled.",
-            )
+            return DownloadResult(status="error", error_category="cancelled",
+                                  url=url, message="Cancelled.")
         assert kw["cancel"]() is False
         return DownloadResult(status="ok", url=url, path="C:/o.mp4", message="ok")
 
     monkeypatch.setattr("workers.queue_worker.download_one", fake_download_one)
     worker.run()
 
-    assert [j.state for j in q.jobs] == ["cancelled", "done", "done"]
+    assert [j.state for j in q.jobs] == ["cancelled", "done"]
 
 
 def test_executor_ignores_reserved_option_keys(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+    _app()
     q = Queue()
-    q.add(
-        "https://a.com/1",
-        {"cancel": "bogus", "progress": "bogus", "outtmpl": "tmpl"},
-    )
+    q.add("https://a.com/1",
+          {"cancel": "bogus", "progress": "bogus", "outtmpl": "tmpl"})
 
     captured = {}
 
@@ -80,8 +73,7 @@ def test_executor_ignores_reserved_option_keys(monkeypatch):
         return DownloadResult(status="ok", url=url, path="C:/o.mp4", message="ok")
 
     monkeypatch.setattr("workers.queue_worker.download_one", fake_download_one)
-    worker = QueueWorker(q)
-    worker.run()
+    QueueWorker(q).run()
 
     assert q.jobs[0].state == "done"
     assert callable(captured["cancel"])
@@ -90,8 +82,7 @@ def test_executor_ignores_reserved_option_keys(monkeypatch):
 
 
 def test_gui_options_match_real_download_one_signature(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+    _app()
     options = build_job_options("C:/out", "Video (MP4)", "1080", "")
     assert "output_dir" not in options
 
@@ -105,20 +96,18 @@ def test_gui_options_match_real_download_one_signature(monkeypatch):
                               message="ok")
 
     monkeypatch.setattr("workers.queue_worker.download_one", real_download_one)
-    worker = QueueWorker(q)
-    worker.run()
+    QueueWorker(q).run()
 
     assert q.jobs[0].state == "done"
 
 
 def test_pause_holds_thread_then_resume_finishes(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+    _app()
     q = Queue()
     q.add("https://a.com/1", {})
     q.add("https://b.com/2", {})
 
-    worker = QueueWorker(q)
+    worker = QueueWorker(q, jobs=1)
 
     def fake_download_one(url, **kw):
         if url.endswith("/1"):
@@ -142,13 +131,12 @@ def test_pause_holds_thread_then_resume_finishes(monkeypatch):
 
 
 def test_cancel_all_while_paused_terminates(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+    _app()
     q = Queue()
     q.add("https://a.com/1", {})
     q.add("https://b.com/2", {})
 
-    worker = QueueWorker(q)
+    worker = QueueWorker(q, jobs=1)
     worker.pause()
     worker.cancel_all()
     worker.start()
@@ -158,8 +146,7 @@ def test_cancel_all_while_paused_terminates(monkeypatch):
 
 
 def test_running_emit_is_not_retroactively_mutated(monkeypatch):
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
+    _app()
     captured = []
 
     def fake_download_one(url, **kw):
@@ -170,10 +157,28 @@ def test_running_emit_is_not_retroactively_mutated(monkeypatch):
     q = Queue()
     q.add("https://a.com/1", {})
     worker = QueueWorker(q)
-    worker.job_signal.connect(
-        lambda jid, state, job: captured.append((state, job))
-    )
+    worker.job_signal.connect(lambda jid, state, job: captured.append((state, job)))
     worker.run()
 
     running_states = [job.state for (s, job) in captured if s == "running"]
     assert running_states and all(s == "running" for s in running_states), captured
+
+
+def test_runs_up_to_jobs_at_once(monkeypatch):
+    _app()
+    q = Queue()
+    for i in range(3):
+        q.add("https://a.com/%d" % i, {})
+
+    # A 3-party barrier releases only if all three run concurrently. Run
+    # sequentially and the first wait() times out -> the job fails.
+    barrier = threading.Barrier(3, timeout=5)
+
+    def fake_download_one(url, **kw):
+        barrier.wait()
+        return DownloadResult(status="ok", url=url, path="C:/o.mp4", message="ok")
+
+    monkeypatch.setattr("workers.queue_worker.download_one", fake_download_one)
+    QueueWorker(q, jobs=3).run()
+
+    assert all(j.state == "done" for j in q.jobs)

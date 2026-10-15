@@ -1,4 +1,5 @@
 import threading
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import replace
 
 from PyQt5 import QtCore
@@ -6,19 +7,24 @@ from PyQt5 import QtCore
 from core.download import download_one
 from core.queue import resolve_outtmpl
 
+DEFAULT_JOBS = 3
+MAX_JOBS = 8
+
 
 class QueueWorker(QtCore.QThread):
-    progress_signal = QtCore.pyqtSignal(int)
+    progress_signal = QtCore.pyqtSignal(str, int)  # (job_id, percent)
     job_signal = QtCore.pyqtSignal(str, str, object)  # (job_id, state, QueueJob)
     finished_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, queue, parent=None):
+    def __init__(self, queue, jobs=DEFAULT_JOBS, parent=None):
         super().__init__(parent)
         self.queue = queue
-        self._cancel_event = threading.Event()
+        self.jobs = max(1, min(int(jobs), MAX_JOBS))
+        self._cancel_events = {}
+        self._lock = threading.Lock()
 
-    def _executor(self, job):
-        self.job_signal.emit(job.id, job.state, replace(job))
+    def _download(self, job):
+        event = self._cancel_events[job.id]
         opts = job.options or {}
         outtmpl = resolve_outtmpl(opts)
         return download_one(
@@ -28,26 +34,50 @@ class QueueWorker(QtCore.QThread):
             convert=opts.get("convert", False),
             target_resolution=opts.get("target_resolution", 1080),
             cookies_file=opts.get("cookies_file"),
-            cancel=self._cancel_event.is_set,
-            progress=self.progress_signal.emit,
+            cancel=event.is_set,
+            progress=lambda pct: self.progress_signal.emit(job.id, pct),
             subtitles=opts.get("subtitles", "off"),
         )
 
-    def run(self):
-        while True:
-            if self.queue.paused:
-                if self.queue.next_pending() is None:
-                    break
-                self.msleep(100)
-                continue
-            self._cancel_event.clear()
-            job = self.queue.run_once(self._executor)
-            if job is None:
-                if self.queue.paused:
-                    continue
-                break
+    def _emit_running(self, job):
+        with self._lock:
+            self.job_signal.emit(job.id, job.state, replace(job))
+
+    def _finish(self, job, future):
+        try:
+            result = future.result()
+        except Exception as exc:  # noqa: BLE001 - one job must not kill the pool
+            with self._lock:
+                job.state = "failed"
+                job.message = str(exc)
+                self.job_signal.emit(job.id, job.state, replace(job))
+                self.queue.store.save()
+            return
+        with self._lock:
+            self.queue.apply_result(job, result)
             self.job_signal.emit(job.id, job.state, replace(job))
             self.queue.store.save()
+
+    def run(self):
+        with ThreadPoolExecutor(max_workers=self.jobs) as pool:
+            pending = {}
+            while True:
+                if not self.queue.paused:
+                    while len(pending) < self.jobs:
+                        job = self.queue.claim_next()
+                        if job is None:
+                            break
+                        self._cancel_events[job.id] = threading.Event()
+                        self._emit_running(job)
+                        pending[pool.submit(self._download, job)] = job
+                if not pending:
+                    if self.queue.paused and self.queue.next_pending() is not None:
+                        self.msleep(100)
+                        continue
+                    break
+                done, _pending = wait(pending, return_when=FIRST_COMPLETED)
+                for future in done:
+                    self._finish(pending.pop(future), future)
         self.finished_signal.emit(self._summary())
 
     def _summary(self):
@@ -63,9 +93,12 @@ class QueueWorker(QtCore.QThread):
     def resume(self):
         self.queue.resume()
 
-    def cancel_current(self):
-        self._cancel_event.set()
+    def cancel_job(self, job_id):
+        event = self._cancel_events.get(job_id)
+        if event is not None:
+            event.set()
 
     def cancel_all(self):
-        self._cancel_event.set()
+        for event in list(self._cancel_events.values()):
+            event.set()
         self.queue.cancel_all()

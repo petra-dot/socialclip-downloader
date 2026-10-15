@@ -576,7 +576,7 @@ class QueueTab(QtWidgets.QWidget):
                 self.progress_bar.setValue(0)
                 self.cancel_current_btn.setEnabled(False)
 
-    def _on_progress(self, percent):
+    def _on_progress(self, job_id, percent):
         self.progress_bar.setValue(int(percent))
 
     def on_start_queue(self):
@@ -616,7 +616,7 @@ class QueueTab(QtWidgets.QWidget):
 
     def on_cancel_current(self):
         if self.queue_worker and self.queue_worker.isRunning():
-            self.queue_worker.cancel_current()
+            self.queue_worker.cancel_all()
             self.cancel_current_btn.setEnabled(False)
             self.batch_log("Cancelling the current item...")
 
