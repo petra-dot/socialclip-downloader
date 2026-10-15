@@ -232,6 +232,22 @@ class QueueTab(QtWidgets.QWidget):
         sub_row.addStretch(1)
         queue_layout.addLayout(sub_row)
 
+        archive_row = QtWidgets.QHBoxLayout()
+        self.archive_check = QtWidgets.QCheckBox("Skip already downloaded")
+        self.archive_check.setAccessibleName("Queue skip already downloaded")
+        self.archive_check.setChecked(
+            self.settings.value("queue/archive", False, type=bool)
+        )
+        self.archive_check.toggled.connect(
+            lambda v: self.settings.setValue("queue/archive", bool(v))
+        )
+        archive_row.addWidget(self.archive_check)
+        self.clear_archive_btn = QtWidgets.QPushButton("Clear archive")
+        self.clear_archive_btn.clicked.connect(self.on_clear_archive)
+        archive_row.addWidget(self.clear_archive_btn)
+        archive_row.addStretch(1)
+        queue_layout.addLayout(archive_row)
+
         jobs_row = QtWidgets.QHBoxLayout()
         jobs_row.addWidget(QtWidgets.QLabel("Downloads at once:"))
         self.jobs_spin = QtWidgets.QSpinBox()
@@ -619,7 +635,9 @@ class QueueTab(QtWidgets.QWidget):
         self.pause_btn.setText("Pause")
         self.cancel_all_btn.setEnabled(True)
         self.batch_log("Starting queue...")
-        self.queue_worker = QueueWorker(self.queue, jobs=self.jobs_spin.value())
+        self.queue_worker = QueueWorker(
+            self.queue, jobs=self.jobs_spin.value(), archive=self._archive_path()
+        )
         self.queue_worker.job_signal.connect(self._on_job)
         self.queue_worker.progress_signal.connect(self._on_progress)
         self.queue_worker.finished_signal.connect(self.on_queue_finished)
@@ -642,6 +660,15 @@ class QueueTab(QtWidgets.QWidget):
             self.queue_worker.cancel_all()
             self.cancel_all_btn.setEnabled(False)
             self.batch_log("Cancelling all running downloads...")
+
+    def on_clear_archive(self):
+        from core.archive import clear_archive, default_archive_path
+        removed = clear_archive(default_archive_path())
+        self.batch_log("Archive cleared." if removed else "Archive is already empty.")
+
+    def _archive_path(self):
+        from core.archive import default_archive_path
+        return default_archive_path() if self.archive_check.isChecked() else None
 
     def on_clear_finished(self):
         if self.queue_worker and self.queue_worker.isRunning():
