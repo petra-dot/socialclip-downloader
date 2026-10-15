@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+### Added
+- **In-app updater**: the app checks GitHub Releases at most once a day
+  (`Help → Check for updates` forces it) and shows a top-right indicator when a
+  newer release exists. On Windows it downloads the new build, verifies its
+  SHA-256 digest, and self-installs with a restart via `--apply-update`;
+  macOS/Linux and source runs open the release page
+
 ## v0.9.2 - 2026-10-11
 ### Added
 - Menu bar: **File** (Paste URL, Open download folder, Quit), **View** (Theme),

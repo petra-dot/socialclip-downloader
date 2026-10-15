@@ -23,6 +23,7 @@ core/doctor.py             health report builder (ffmpeg, cookies, network); sch
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
 core/queue.py              persistent download queue + QueueStore (thread-free)
+core/updater.py            GitHub Releases check, asset download/verify, self-apply
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
 ui/main_window.py          QTabWidget shell holding the three tabs
@@ -30,9 +31,11 @@ ui/dialogs.py              first-run welcome + Doctor report dialogs
 ui/single_tab.py           Fetch -> metadata cache -> Download (also FetchWorker)
 ui/batch_tab.py            QueueTab: persistent Queue tab (add/paste, pause/resume/cancel)
 ui/convert_tab.py          local file format/resolution conversion
+ui/update_indicator.py     top-right update button (state + click signal)
 workers/download_worker.py single download + MP3/resolution post-process
 workers/queue_worker.py    drives a Queue: one job at a time, saves after each
 workers/convert_worker.py  local file conversion
+workers/update_worker.py   update check + digest-verified asset download
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos
@@ -46,6 +49,10 @@ tests/                     pytest suite for pure logic
 without a display. Enforced by `tests/test_core_isolation.py`. `core/queue.py`
 is additionally **thread-free**: it only holds data and pure logic; the worker
 (`workers/queue_worker.py`) owns the thread.
+
+The in-app updater (`core/updater.py`, `workers/update_worker.py`,
+`ui/update_indicator.py`) checks GitHub Releases, verifies the asset SHA-256,
+and self-applies on Windows via `--apply-update`.
 
 ## Commands
 

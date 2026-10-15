@@ -116,6 +116,14 @@ pip install -r requirements.txt
 Launch the GUI with `python socialclip_downloader.py`, or use the launcher for
 your platform: `run.bat` (Windows) or `./run.sh` (macOS/Linux).
 
+## Updates
+
+SocialClip checks GitHub Releases for a newer version at most once a day and
+shows a small indicator in the top right when one is out. **Help → Check for
+updates** forces a check. On Windows the app downloads the new build, verifies
+its SHA-256 digest, and installs it with a restart. On macOS and Linux, and when
+running from source, the indicator opens the release page instead.
+
 ## Command-line usage
 
 The `socialclip` tool exposes the same engine without a display — useful for
