@@ -133,9 +133,6 @@ def show_doctor(parent=None, on_repair=None):
 
     buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
     repair = buttons.addButton("Repair", QtWidgets.QDialogButtonBox.ActionRole)
-    repair_all = buttons.addButton(
-        "Repair all", QtWidgets.QDialogButtonBox.ActionRole
-    )
     open_dir = buttons.addButton(
         "Open data folder", QtWidgets.QDialogButtonBox.ActionRole
     )
@@ -147,7 +144,6 @@ def show_doctor(parent=None, on_repair=None):
         on_repair(keys)
 
     repair.clicked.connect(lambda: _repair(plan_repairs(components)))
-    repair_all.clicked.connect(lambda: _repair(list(plan_repairs(components))))
     open_dir.clicked.connect(lambda: reveal_in_folder(data_dir()))
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)

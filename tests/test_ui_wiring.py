@@ -98,3 +98,127 @@ def test_doctor_lines_include_every_component():
     assert "JavaScript runtime" in text
     assert "missing" in text
     assert "ffmpeg version 6.1" in text
+
+
+class _RunningWorker:
+    """Stand-in for a QThread that is still running."""
+
+    def __init__(self):
+        self.started = False
+
+    def isRunning(self):
+        return True
+
+    def start(self):
+        self.started = True
+
+
+class _Signal:
+    def __init__(self):
+        self.slots = []
+
+    def connect(self, slot):
+        self.slots.append(slot)
+
+
+class _CapturingWorker:
+    def __init__(self, *_args):
+        self.done_signal = _Signal()
+        self.error_signal = _Signal()
+        self.progress_signal = _Signal()
+        self.started = False
+
+    def isRunning(self):
+        return False
+
+    def start(self):
+        self.started = True
+
+
+class _RecordingSettings:
+    def __init__(self):
+        self.values = {}
+
+    def value(self, key, default=None):
+        return self.values.get(key, default)
+
+    def setValue(self, key, value):
+        self.values[key] = value
+
+
+def _bare_window():
+    # Bypass __init__ so no widget, dialog, or worker is created.
+    from ui.main_window import MainWindow
+
+    window = MainWindow.__new__(MainWindow)
+    window.settings = _RecordingSettings()
+    window._maintenance_worker = None
+    window._repair_worker = None
+    logs = []
+    window.log = logs.append
+    return window, logs
+
+
+def test_check_components_leaves_a_running_worker_alone():
+    window, logs = _bare_window()
+    existing = _RunningWorker()
+    window._maintenance_worker = existing
+    window._check_components(force=True)
+    assert window._maintenance_worker is existing
+    assert existing.started is False
+    assert logs
+
+
+def test_repair_components_leaves_a_running_worker_alone():
+    window, logs = _bare_window()
+    existing = _RunningWorker()
+    window._repair_worker = existing
+    window._repair_components(["yt-dlp"])
+    assert window._repair_worker is existing
+    assert existing.started is False
+    assert logs
+
+
+def test_on_components_checked_leaves_a_running_repair_alone():
+    from core.maintenance import Component
+
+    window, logs = _bare_window()
+    existing = _RunningWorker()
+    window._repair_worker = existing
+    window._on_components_checked(
+        [Component("yt-dlp", "yt-dlp", "missing", action="install")]
+    )
+    assert window._repair_worker is existing
+    assert existing.started is False
+    assert logs
+
+
+def test_check_components_wires_the_error_signal(monkeypatch):
+    from ui import main_window
+
+    worker = _CapturingWorker()
+    monkeypatch.setattr(main_window, "MaintenanceCheckWorker", lambda: worker)
+    window, _logs = _bare_window()
+    window._check_components(force=True)
+    assert window._maintenance_worker is worker
+    assert worker.error_signal.slots == [window._on_check_error]
+
+
+def test_check_error_logs_without_stamping_the_cache():
+    window, logs = _bare_window()
+    window._on_check_error("boom")
+    assert any("boom" in line for line in logs)
+    assert "maintenance/last_check" not in window.settings.values
+
+
+def test_within_a_day_treats_bad_stamps_as_stale():
+    import datetime
+
+    from ui.main_window import _within_a_day
+
+    assert _within_a_day("") is False
+    assert _within_a_day("not a date") is False
+    # A tz-aware stamp makes `now() - when` raise TypeError; treat it as stale
+    # so a fresh check runs instead of raising out of the daily-cache guard.
+    aware = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    assert _within_a_day(aware) is False

@@ -27,9 +27,10 @@ def _within_a_day(stamp: str) -> bool:
     """True when `stamp` (ISO 8601) is less than a day old. Pure."""
     try:
         when = datetime.datetime.fromisoformat(stamp)
+        age = datetime.datetime.now() - when
     except (ValueError, TypeError):
         return False
-    return datetime.datetime.now() - when < datetime.timedelta(hours=24)
+    return age < datetime.timedelta(hours=24)
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -281,29 +282,31 @@ class MainWindow(QtWidgets.QWidget):
 
     def _check_components(self, force=False):
         """Check components at most once a day; repair what is broken."""
+        if self._maintenance_worker and self._maintenance_worker.isRunning():
+            self.log("Component check already running")
+            return
         if not force:
             last = self.settings.value("maintenance/last_check", "") or ""
             if last and _within_a_day(last):
                 return
-        self.settings.setValue(
-            "maintenance/last_check", datetime.datetime.now().isoformat()
-        )
         self._maintenance_worker = MaintenanceCheckWorker()
         self._maintenance_worker.done_signal.connect(self._on_components_checked)
+        self._maintenance_worker.error_signal.connect(self._on_check_error)
         self._maintenance_worker.start()
 
     def _on_components_checked(self, components):
         from core.maintenance import plan_repairs
+        self.settings.setValue(
+            "maintenance/last_check", datetime.datetime.now().isoformat()
+        )
         keys = plan_repairs(components)
         if not keys:
             return
+        if self._repair_worker and self._repair_worker.isRunning():
+            self.log("A repair is already running")
+            return
         self.log("Repairing: %s" % ", ".join(keys))
-        self._repair_worker = MaintenanceRepairWorker(keys)
-        self._repair_worker.done_signal.connect(self._on_repair_done)
-        self._repair_worker.progress_signal.connect(
-            lambda key, detail: self.log("%s: %s" % (key, detail))
-        )
-        self._repair_worker.start()
+        self._start_repair(keys)
 
     def _on_repair_done(self, components):
         from core.maintenance import plan_repairs
@@ -313,13 +316,27 @@ class MainWindow(QtWidgets.QWidget):
             else "Still needs attention: %s" % ", ".join(remaining)
         )
 
-    def _repair_components(self, keys):
+    def _on_check_error(self, message):
+        self.log("Component check failed: %s" % message)
+
+    def _on_repair_error(self, message):
+        self.log("Repair failed: %s" % message)
+
+    def _start_repair(self, keys):
         self._repair_worker = MaintenanceRepairWorker(keys)
         self._repair_worker.done_signal.connect(self._on_repair_done)
+        self._repair_worker.error_signal.connect(self._on_repair_error)
         self._repair_worker.progress_signal.connect(
             lambda key, detail: self.log("%s: %s" % (key, detail))
         )
         self._repair_worker.start()
+
+    def _repair_components(self, keys):
+        if self._repair_worker and self._repair_worker.isRunning():
+            self.log("A repair is already running")
+            return
+        self.log("Repairing: %s" % ", ".join(keys))
+        self._start_repair(keys)
 
     def set_theme(self, mode: str):
         self.settings.setValue("ui/theme", mode)
