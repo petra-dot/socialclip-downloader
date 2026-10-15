@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+from core.clip import ClipSpec, clip_ffmpeg_args
 from core.formats import EDITOR_SAFE_A
 from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
@@ -58,9 +59,35 @@ def _cleanup_partial(created_paths):
                 pass
 
 
+def _clip_name(path, clip):
+    """<base>_clip_<start>-<end><ext> with whole seconds."""
+    base, ext = os.path.splitext(path)
+    start = int(round(clip.start))
+    end = "end" if clip.end is None else str(int(round(clip.end)))
+    return "%s_clip_%s-%s%s" % (base, start, end, ext)
+
+
+def _cut_file(path, clip):
+    """Cut `path` to `clip`. Returns the new path, or None on failure."""
+    out = _clip_name(path, clip)
+    cmd = [ffmpeg_path(), "-i", path] + clip_ffmpeg_args(clip) + ["-y", out]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return out
+
+
+def _section_range(clip):
+    rng = {"start_time": clip.start}
+    if clip.end is not None:
+        rng["end_time"] = clip.end
+    return lambda info, ydl: [rng]
+
+
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
-                 subtitles=False, embed_thumbnail=False, format_id=None):
+                 subtitles=False, embed_thumbnail=False, format_id=None,
+                 clip=None):
     in_flight = {"created": set()}
     try:
         from yt_dlp import YoutubeDL
@@ -87,16 +114,50 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         ydl_opts = _nle_ydl_opts(
             outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file
         )
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if not info:
-                return error_result(
-                    "not_found",
-                    "Could not extract video info. The video may be private, "
-                    "deleted, or region-locked.",
-                    url,
-                )
-            downloaded_file = ydl.prepare_filename(info)
+        section_ok = False
+        if clip is not None:
+            ydl_opts["download_ranges"] = _section_range(clip)
+            if clip.exact:
+                ydl_opts["force_keyframes_at_cuts"] = True
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                downloaded_file = ydl.prepare_filename(info) if info else None
+            section_ok = clip is not None
+        except DownloadCancelled:
+            raise
+        except Exception:
+            if clip is None:
+                raise
+            full_opts = _nle_ydl_opts(
+                outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file
+            )
+            with YoutubeDL(full_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                downloaded_file = ydl.prepare_filename(info) if info else None
+
+        if not info:
+            return error_result(
+                "not_found",
+                "Could not extract video info. The video may be private, "
+                "deleted, or region-locked.",
+                url,
+            )
+
+        if clip is not None and os.path.isfile(downloaded_file):
+            if section_ok:
+                # yt-dlp already cut the section; just give it our name.
+                renamed = _clip_name(downloaded_file, clip)
+                try:
+                    os.replace(downloaded_file, renamed)
+                    downloaded_file = renamed
+                except OSError:
+                    pass
+            else:
+                cut = _cut_file(downloaded_file, clip)
+                if cut:
+                    os.remove(downloaded_file)
+                    downloaded_file = cut
 
         if not os.path.exists(downloaded_file):
             base = os.path.splitext(downloaded_file)[0]
