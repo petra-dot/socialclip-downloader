@@ -125,3 +125,24 @@ def test_queue_run_ok_summary(tmp_path, monkeypatch, capsys):
         assert key in data
     assert data["run"] == 1
     assert data["done"] == 1
+
+
+def test_queue_add_expand_lists_and_enqueues(monkeypatch, tmp_path):
+    import cli
+    from core.collections import CollectionEntry, ExpandResult
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "queue.json"))
+    monkeypatch.setattr(
+        cli, "_expand_for_cli",
+        lambda url, cookies: ExpandResult(
+            platform="youtube",
+            entries=[CollectionEntry("https://www.youtube.com/watch?v=a", "A")],
+        ),
+    )
+    rc = cli.main(["queue", "add", "--expand", "https://www.youtube.com/@x"])
+    assert rc == 0
+
+    from core.queue import QueueStore
+    store = QueueStore(str(tmp_path / "queue.json"))
+    store.load()
+    assert [j.title for j in store.jobs] == ["A"]
