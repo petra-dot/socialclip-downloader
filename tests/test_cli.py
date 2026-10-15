@@ -323,3 +323,13 @@ def test_download_bad_clip_range_exits_usage(monkeypatch, tmp_path, capsys):
     ])
     assert rc == 2
     assert "after start" in capsys.readouterr().err.lower()
+
+
+def test_download_unknown_preset_exits_usage(monkeypatch, tmp_path, capsys):
+    import cli
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setenv("SOCIALCLIP_PRESETS", str(tmp_path / "presets.json"))
+    rc = cli.main(["download", "https://youtu.be/x", "--preset", "nope"])
+    assert rc == 2
+    assert "preset" in capsys.readouterr().err.lower()

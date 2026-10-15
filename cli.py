@@ -53,6 +53,17 @@ def _cmd_download(args) -> int:
             "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
             args.url,
         )
+
+    preset = None
+    if args.preset:
+        from core.presets import PresetStore
+        store = PresetStore(_presets_path())
+        store.load()
+        preset = store.get(args.preset)
+        if preset is None:
+            print("error: unknown preset '%s'" % args.preset, file=sys.stderr)
+            return EXIT_USAGE
+
     from core.clip import resolve_range
 
     mode = "duration" if args.duration else "end"
@@ -65,13 +76,18 @@ def _cmd_download(args) -> int:
 
     from core.download import download_one
     from utils.file_utils import default_download_folder
-    out_dir = args.output or default_download_folder()
+    fmt = args.format or (preset.output.lower() if preset else None) or "mp4"
+    resolution = args.resolution or (int(preset.resolution) if preset else None) or 1080
+    cookies = args.cookies or (preset.cookies if preset else None)
+    convert = args.convert or (preset.convert if preset else False)
+    out_dir = args.output or (preset.save_dir if preset and preset.save_dir else None) \
+        or default_download_folder()
     outtmpl = f"{out_dir}/%(title)s.%(ext)s"
-    output_type = "MP3" if args.format == "mp3" else "MP4"
+    output_type = "MP3" if fmt == "mp3" else "MP4"
     result = download_one(
         args.url, outtmpl=outtmpl, output_type=output_type,
-        convert=args.convert, target_resolution=args.resolution,
-        cookies_file=args.cookies, clip=clip,
+        convert=convert, target_resolution=resolution,
+        cookies_file=cookies, clip=clip,
     )
     return _emit(result, args.json)
 
@@ -135,6 +151,11 @@ def _queue_path() -> str:
     if override:
         return override
     return os.path.join(default_cookie_dir(), "queue.json")
+
+
+def _presets_path() -> str:
+    from core.presets import default_presets_path
+    return os.environ.get("SOCIALCLIP_PRESETS") or default_presets_path()
 
 
 def _load_queue():
@@ -292,11 +313,11 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("url")
     d.add_argument("--json", action="store_true")
     d.add_argument("--output")
-    d.add_argument("--format", choices=["mp4", "mp3"], default="mp4")
+    d.add_argument("--preset")
+    d.add_argument("--format", choices=["mp4", "mp3"])
     d.add_argument("--convert", action="store_true",
                    help="re-encode down to --resolution (default: keep original)")
-    d.add_argument("--resolution", type=int, default=1080,
-                   help="target height, only used with --convert")
+    d.add_argument("--resolution", type=int)
     d.add_argument("--cookies")
     d.add_argument("--start", default="")
     d.add_argument("--end", default="")
