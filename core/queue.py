@@ -229,3 +229,28 @@ class Queue:
                 del self.jobs[index]
                 return True
         return False
+
+    def retry_failed(self, job_id: Optional[str] = None) -> int:
+        """Re-queue failed jobs (one, or all). Returns how many changed.
+
+        ``attempts`` is kept: it is a retry counter. The stale failure message
+        is cleared so the row reads clean until the next run.
+        """
+        count = 0
+        for job in self.jobs:
+            if job.state != "failed":
+                continue
+            if job_id is not None and job.id != job_id:
+                continue
+            job.state = "pending"
+            job.message = ""
+            count += 1
+        return count
+
+    def set_options(self, job_id: str, options: dict) -> bool:
+        """Replace a pending job's options. False for any other state."""
+        for job in self.jobs:
+            if job.id == job_id and job.state == "pending":
+                job.options = dict(options)
+                return True
+        return False

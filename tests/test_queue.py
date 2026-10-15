@@ -380,3 +380,59 @@ def test_cancel_all_leaves_skipped_jobs_alone():
     q.cancel_all()
     assert a.state == "skipped"
     assert b.state == "cancelled"
+
+
+def test_retry_failed_requeues_all_failed():
+    q = Queue()
+    a = q.add("https://a.com/1", {})
+    b = q.add("https://b.com/2", {})
+    c = q.add("https://c.com/3", {})
+    a.state = "failed"
+    a.message = "boom"
+    a.attempts = 2
+    b.state = "failed"
+    c.state = "done"
+    assert q.retry_failed() == 2
+    assert a.state == "pending" and a.message == "" and a.attempts == 2
+    assert b.state == "pending"
+    assert c.state == "done"
+
+
+def test_retry_failed_single_job():
+    q = Queue()
+    a = q.add("https://a.com/1", {})
+    b = q.add("https://b.com/2", {})
+    a.state = "failed"
+    b.state = "failed"
+    assert q.retry_failed(a.id) == 1
+    assert a.state == "pending"
+    assert b.state == "failed"
+
+
+def test_retry_failed_leaves_other_states():
+    q = Queue()
+    for state in ("done", "cancelled", "skipped", "pending", "running"):
+        job = q.add("https://a.com/1", {})
+        job.state = state
+    assert q.retry_failed() == 0
+
+
+def test_set_options_replaces_a_pending_job():
+    q = Queue()
+    job = q.add("https://a.com/1", {"output_type": "MP4"})
+    assert q.set_options(job.id, {"output_type": "MP3"}) is True
+    assert job.options == {"output_type": "MP3"}
+
+
+def test_set_options_refuses_non_pending():
+    q = Queue()
+    for state in ("running", "done", "failed", "cancelled", "skipped"):
+        job = q.add("https://a.com/1", {})
+        job.state = state
+        assert q.set_options(job.id, {"x": 1}) is False
+
+
+def test_set_options_unknown_id_returns_false():
+    q = Queue()
+    q.add("https://a.com/1", {})
+    assert q.set_options("nope", {"x": 1}) is False
