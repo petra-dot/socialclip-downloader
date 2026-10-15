@@ -32,7 +32,7 @@ def _queue_path() -> str:
 
 
 def build_job_options(save_dir: str, output_text: str, resolution: str,
-                      cookies_path: str) -> dict:
+                      cookies_path: str, subtitles: str = "off") -> dict:
     """Build the exact option set download_one accepts (no unknown keys)."""
     output_type = "MP3" if "MP3" in output_text else "MP4"
     return {
@@ -41,6 +41,7 @@ def build_job_options(save_dir: str, output_text: str, resolution: str,
         "convert": output_type == "MP4",
         "target_resolution": int(resolution),
         "cookies_file": cookies_path,
+        "subtitles": subtitles,
     }
 
 
@@ -219,6 +220,19 @@ class QueueTab(QtWidgets.QWidget):
         cookies_row.addWidget(browse_cookies_btn)
         queue_layout.addLayout(cookies_row)
 
+        sub_row = QtWidgets.QHBoxLayout()
+        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        self.batch_subtitle_combo = QtWidgets.QComboBox()
+        self.batch_subtitle_combo.setAccessibleName("Queue subtitle delivery")
+        for value, label in (
+            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
+            ("embed", "Embed"), ("both", "Both"),
+        ):
+            self.batch_subtitle_combo.addItem(label, value)
+        sub_row.addWidget(self.batch_subtitle_combo)
+        sub_row.addStretch(1)
+        queue_layout.addLayout(sub_row)
+
         start_row = QtWidgets.QHBoxLayout()
         self.batch_start_btn = QtWidgets.QPushButton("Start")
         self.batch_start_btn.clicked.connect(self.on_start_queue)
@@ -328,6 +342,7 @@ class QueueTab(QtWidgets.QWidget):
             self.batch_output_combo.currentText(),
             self.batch_resolution_combo.currentText(),
             self._batch_get_cookies_path(),
+            self.batch_subtitle_combo.currentData(),
         )
 
     def _queued_urls(self):

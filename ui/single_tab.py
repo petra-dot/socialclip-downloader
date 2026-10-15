@@ -240,6 +240,19 @@ class SingleTab(QtWidgets.QWidget):
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
         main.addWidget(self.checkbox_timestamp)
 
+        sub_row = QtWidgets.QHBoxLayout()
+        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        self.subtitle_combo = QtWidgets.QComboBox()
+        self.subtitle_combo.setAccessibleName("Subtitle delivery")
+        for value, label in (
+            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
+            ("embed", "Embed"), ("both", "Both"),
+        ):
+            self.subtitle_combo.addItem(label, value)
+        sub_row.addWidget(self.subtitle_combo)
+        sub_row.addStretch(1)
+        main.addLayout(sub_row)
+
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(
             restore_or(default_download_folder(), self.settings.value("single/save_dir"))
@@ -757,6 +770,7 @@ class SingleTab(QtWidgets.QWidget):
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
             cookies_file=self._get_cookies_path(), clip=clip,
+            subtitles=self.subtitle_combo.currentData(),
         )
         self.worker.status_signal.connect(self.log)
         self.worker.progress_signal.connect(self.progress_bar.setValue)

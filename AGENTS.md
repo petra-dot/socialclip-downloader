@@ -18,7 +18,7 @@ local. No telemetry, no server.
 ```
 socialclip_downloader.py   entry point + __version__
 cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema/queue)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, collections, clip, presets, pipeline)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, collections, clip, presets, subtitles, pipeline)
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
@@ -26,6 +26,7 @@ core/queue.py              persistent download queue + QueueStore (thread-free)
 core/collections.py        collection listing + dedupe helpers (pure)
 core/clip.py               time-range parsing + ffmpeg cut args (pure)
 core/presets.py            named download presets: editor built-ins + user presets.json (pure)
+core/subtitles.py          subtitle track selection from info + sidecar/embed helpers
 core/updater.py            GitHub Releases check, asset download/verify, self-apply
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
@@ -65,6 +66,10 @@ they fall back to a full download cut with ffmpeg (`core.download._cut_file`).
 
 Presets are `presets.json` in the app directory (next to `queue.json`); the
 editor built-ins live in code (`core/presets.py:BUILTIN_PRESETS`).
+
+Subtitles are fetched from the video `info` and written as sidecars (manual
+`<base>.<lang>.srt`, auto `<base>.<lang>.auto.srt`), never delegated to yt-dlp
+naming; `core/subtitles.py` selects the tracks and writes or embeds them.
 
 ## Commands
 

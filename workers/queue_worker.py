@@ -30,6 +30,7 @@ class QueueWorker(QtCore.QThread):
             cookies_file=opts.get("cookies_file"),
             cancel=self._cancel_event.is_set,
             progress=self.progress_signal.emit,
+            subtitles=opts.get("subtitles", "off"),
         )
 
     def run(self):
