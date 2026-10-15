@@ -263,15 +263,13 @@ def _unpack_sdist(data: bytes, target: str) -> None:
         )
 
 
-def _swap(new_dir: str, dest: str, keep_previous: bool) -> None:
-    """Replace `dest` with `new_dir`, keeping the old copy when asked."""
+def _swap(new_dir: str, dest: str) -> None:
+    """Replace `dest` with `new_dir`, keeping the old copy as `dest + ".prev"`."""
     previous = dest + ".prev"
-    if keep_previous and os.path.isdir(dest):
+    if os.path.isdir(dest):
         if os.path.isdir(previous):
             shutil.rmtree(previous, ignore_errors=True)
         os.replace(dest, previous)
-    elif os.path.isdir(dest):
-        shutil.rmtree(dest, ignore_errors=True)
     os.replace(new_dir, dest)
 
 
@@ -280,7 +278,7 @@ def install_ytdlp(dest=None, opener=None) -> str:
 
     The source tarball is unpacked into a temporary directory and only swapped
     in after its SHA-256 matches the release's checksum file, so a bad download
-    never replaces a working copy.
+    never replaces a working copy. A copy that fails to import is rolled back.
     """
     dest = dest or managed_dir("yt-dlp")
     version, sdist_url, sums_url = latest_ytdlp(opener=opener)
@@ -300,11 +298,37 @@ def install_ytdlp(dest=None, opener=None) -> str:
     temp = tempfile.mkdtemp(prefix="ytdlp-", dir=parent)
     try:
         _unpack_sdist(data, temp)
-        _swap(temp, dest, keep_previous=True)
+        _swap(temp, dest)
     except Exception:
         shutil.rmtree(temp, ignore_errors=True)
         raise
-    return version
+
+    # Make the freshly installed copy visible to this process: drop the cached
+    # package and re-insert the managed directory, so a re-check (and any later
+    # import) sees the new version instead of the one imported at startup.
+    import importlib
+    for name in [m for m in list(sys.modules)
+                 if m == "yt_dlp" or m.startswith("yt_dlp.")]:
+        del sys.modules[name]
+    from utils.ytdlp import load
+    load()
+    importlib.invalidate_caches()
+
+    try:
+        import yt_dlp  # noqa: F401 - prove the new copy imports
+        from yt_dlp.version import __version__ as installed
+    except Exception as exc:
+        previous = dest + ".prev"
+        if os.path.isdir(previous):
+            shutil.rmtree(dest, ignore_errors=True)
+            os.replace(previous, dest)
+            for name in [m for m in list(sys.modules)
+                         if m == "yt_dlp" or m.startswith("yt_dlp.")]:
+                del sys.modules[name]
+        raise ValueError(
+            "the installed yt-dlp failed to import (%s); rolled back" % exc
+        )
+    return installed
 
 
 FFMPEG_BUILDS = "https://github.com/BtbN/FFmpeg-Builds/releases/latest"

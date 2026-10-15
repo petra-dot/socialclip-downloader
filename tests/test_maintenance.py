@@ -1,8 +1,32 @@
 import os
 import sys
 
+import pytest
+
 from core import maintenance
 from core.maintenance import Component
+
+
+@pytest.fixture(autouse=True)
+def _restore_yt_dlp():
+    """Keep the yt_dlp the installers import from leaking into other tests.
+
+    `install_ytdlp` evicts `yt_dlp` from `sys.modules` and inserts its own
+    package on `sys.path`, so a test that installs a fake copy would otherwise
+    shadow the real one for the rest of the session.
+    """
+    saved_path = list(sys.path)
+    saved_modules = {
+        name: sys.modules[name] for name in list(sys.modules)
+        if name == "yt_dlp" or name.startswith("yt_dlp.")
+    }
+    yield
+    for name in [m for m in list(sys.modules)
+                 if m == "yt_dlp" or m.startswith("yt_dlp.")]:
+        del sys.modules[name]
+    sys.modules.update(saved_modules)
+    sys.path[:] = saved_path
+
 
 
 def _by_key(components):
@@ -258,6 +282,56 @@ def test_install_ytdlp_keeps_a_previous_copy(tmp_path, monkeypatch):
         opener=_release_opener(_sdist_bytes(), "yt-dlp.tar.gz"),
     )
     assert (tmp_path / "yt-dlp.prev" / "yt_dlp" / "version.py").is_file()
+
+
+def test_install_ytdlp_closes_the_repair_loop(tmp_path, monkeypatch):
+    # A repaired yt-dlp must be visible to a fresh check in the same process:
+    # without the sys.modules eviction, check_all reads the version imported at
+    # startup and the repair never looks like it worked.
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    maintenance.install_ytdlp(
+        dest=str(tmp_path / "yt-dlp"),
+        opener=_release_opener(_sdist_bytes(), "yt-dlp.tar.gz"),
+    )
+    assert "yt-dlp" not in maintenance.plan_repairs(maintenance.check_all())
+
+
+def _broken_sdist_bytes():
+    """A source tarball whose package raises on import."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tf:
+        for name, body in (
+            ("yt_dlp/__init__.py", b'raise ImportError("boom")\n'),
+            ("yt_dlp/version.py", b'__version__ = "2099.01.01"\n'),
+        ):
+            info = tarfile.TarInfo(name)
+            info.size = len(body)
+            tf.addfile(info, io.BytesIO(body))
+    return buffer.getvalue()
+
+
+def test_install_ytdlp_rolls_back_a_copy_that_fails_to_import(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    dest = tmp_path / "yt-dlp"
+    (dest / "yt_dlp").mkdir(parents=True)
+    (dest / "yt_dlp" / "version.py").write_text(
+        '__version__ = "1.0.0"\n', encoding="utf-8"
+    )
+    try:
+        maintenance.install_ytdlp(
+            dest=str(dest),
+            opener=_release_opener(_broken_sdist_bytes(), "yt-dlp.tar.gz"),
+        )
+        raised = False
+    except ValueError as exc:
+        raised = "rolled back" in str(exc)
+    assert raised
+    # The previous copy is restored, not left as the broken one.
+    assert (dest / "yt_dlp" / "version.py").read_text(
+        encoding="utf-8"
+    ) == '__version__ = "1.0.0"\n'
 
 
 def test_platform_tag_is_known():

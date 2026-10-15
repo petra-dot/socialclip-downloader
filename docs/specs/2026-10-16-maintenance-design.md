@@ -69,7 +69,7 @@ working component before its replacement is verified.
    the file is unpacked or used.
 7. **Atomic swap with rollback.** Unpack to a temp directory, verify, then
    swap. yt-dlp keeps a `.prev` copy; a copy that fails to import is rolled
-   back and marked broken.
+   back and reported as a failed repair.
 8. **Sources:** yt-dlp's own GitHub release **source tarball** (`yt-dlp.tar.gz`,
    which carries the `yt_dlp` package) plus its `SHA2-256SUMS`; BtbN
    `ffmpeg-builds` latest (win64 / linux64) plus its `checksums.sha256`;
@@ -262,7 +262,8 @@ verified by hand, matching the repo's treatment of network and Qt code.
    the trust anchor, exactly as the app updater trusts GitHub's digest. The
    allow-list stops a redirect to another host.
 2. **A new yt-dlp can regress.** The `.prev` copy plus Repair is the escape
-   hatch; a copy that fails to import is rolled back automatically.
+   hatch; a copy that fails to import is rolled back and reported as a failed
+   repair.
 3. **BtbN builds are GPLv3**, unlike the LGPL ffmpeg the release bundles today.
    The app downloads them at the user's request and does not redistribute them,
    so this is a note, not a licence change - but it is worth stating.
