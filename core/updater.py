@@ -98,3 +98,50 @@ def verify_digest(path, expected_hex) -> bool:
     except OSError:
         pass
     return False
+
+
+import json
+import urllib.parse
+import urllib.request
+
+
+class DownloadCancelled(Exception):
+    """Raised from the download loop when the caller requests cancellation."""
+
+
+def fetch_latest_release(opener=None, timeout=10) -> ReleaseInfo:
+    open_url = opener or urllib.request.urlopen
+    request = urllib.request.Request(
+        LATEST_API,
+        headers={
+            "User-Agent": "SocialClip-Downloader",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    with open_url(request, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    return release_from_json(data)
+
+
+def download_asset(asset, dest, progress=None, cancel=None, opener=None) -> str:
+    open_url = opener or urllib.request.urlopen
+    host = urllib.parse.urlparse(asset.download_url).hostname or ""
+    if host not in ALLOWED_HOSTS:
+        raise ValueError("refusing to download from %s" % (host or "an unknown host"))
+    request = urllib.request.Request(
+        asset.download_url, headers={"User-Agent": "SocialClip-Downloader"}
+    )
+    with open_url(request) as response, open(dest, "wb") as out:
+        total = int(response.headers.get("Content-Length") or 0)
+        done = 0
+        while True:
+            if cancel and cancel():
+                raise DownloadCancelled()
+            chunk = response.read(65536)
+            if not chunk:
+                break
+            out.write(chunk)
+            done += len(chunk)
+            if progress:
+                progress(done, total)
+    return dest

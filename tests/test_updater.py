@@ -94,3 +94,63 @@ def test_verify_digest_no_expected_returns_false(tmp_path):
     path = tmp_path / "f.bin"
     path.write_bytes(b"hello")
     assert verify_digest(str(path), None) is False
+
+
+from core.updater import DownloadCancelled, download_asset, fetch_latest_release
+
+
+class _FakeResponse:
+    def __init__(self, body, headers=None):
+        self._body = body
+        self.headers = headers or {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, size=-1):
+        if size is None or size < 0:
+            data, self._body = self._body, b""
+            return data
+        data, self._body = self._body[:size], self._body[size:]
+        return data
+
+
+def test_fetch_latest_release_parses(monkeypatch):
+    payload = b'{"tag_name": "v0.10.0", "assets": []}'
+    monkeypatch.setattr(
+        "core.updater.urllib.request.urlopen",
+        lambda req, timeout=None: _FakeResponse(payload),
+    )
+    release = fetch_latest_release()
+    assert release.tag == "v0.10.0"
+
+
+def test_download_asset_writes_and_reports_progress(tmp_path):
+    asset = AssetInfo("x", "https://github.com/petra-dot/socialclip-downloader/releases/x", None)
+    seen = []
+    dest = str(tmp_path / "out.bin")
+    body = b"abcdef" * 20000
+    download_asset(
+        asset, dest, progress=lambda done, total: seen.append(done),
+        opener=lambda req, timeout=None: _FakeResponse(body, {"Content-Length": str(len(body))}),
+    )
+    assert open(dest, "rb").read() == body
+    assert seen and seen[-1] == len(body)
+
+
+def test_download_asset_refuses_foreign_host(tmp_path):
+    asset = AssetInfo("x", "https://evil.example.com/x", None)
+    with pytest.raises(ValueError):
+        download_asset(asset, str(tmp_path / "o"), opener=lambda *a, **k: _FakeResponse(b""))
+
+
+def test_download_asset_honors_cancel(tmp_path):
+    asset = AssetInfo("x", "https://github.com/petra-dot/socialclip-downloader/releases/x", None)
+    with pytest.raises(DownloadCancelled):
+        download_asset(
+            asset, str(tmp_path / "o"), cancel=lambda: True,
+            opener=lambda req, timeout=None: _FakeResponse(b"x" * 10, {}),
+        )
