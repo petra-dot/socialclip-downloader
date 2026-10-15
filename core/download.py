@@ -6,6 +6,7 @@ from core.formats import EDITOR_SAFE_A
 from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
+from core.progress import Progress
 from sites.errors import classify_error
 from utils.ffmpeg import ffmpeg_path
 from utils.ydl_opts import (
@@ -107,10 +108,18 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             if progress:
                 if d.get("status") == "downloading":
                     total = d.get("total_bytes") or d.get("total_bytes_estimate")
-                    if total:
-                        progress(int(d.get("downloaded_bytes", 0) / total * 100))
+                    downloaded = int(d.get("downloaded_bytes", 0) or 0)
+                    pct = int(downloaded / total * 100) if total else 0
+                    progress(Progress(
+                        percent=pct,
+                        speed=d.get("speed"),
+                        eta=d.get("eta"),
+                        downloaded=downloaded,
+                        total=total,
+                    ))
                 elif d.get("status") == "finished":
-                    progress(100)
+                    progress(Progress(percent=100, speed=None, eta=None,
+                                      downloaded=0, total=None))
 
         hooks = [hook]
 
