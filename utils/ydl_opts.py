@@ -58,7 +58,8 @@ def ffprobe_get_height(path: str) -> int:
     return 0
 
 
-def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str = None) -> dict:
+def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None,
+                  cookies_file: str = None, archive_file: str = None) -> dict:
     opts = {
         "format": _nle_safe_format_selector(),
         "outtmpl": outtmpl,
@@ -94,6 +95,8 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None, cookies_file: str =
         opts["progress_hooks"] = progress_hooks
     if cookies_file and os.path.isfile(cookies_file):
         opts["cookiefile"] = cookies_file
+    if archive_file:
+        opts["download_archive"] = archive_file
     return opts
 
 

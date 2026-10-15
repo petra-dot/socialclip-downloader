@@ -396,3 +396,70 @@ def test_failure_cleans_up_without_progress_or_cancel(monkeypatch, tmp_path):
     assert result.status == "error"
     assert not part.exists()
     assert not artifact.exists()
+
+
+class ArchivedYDL:
+    """Fake yt-dlp for an archived video: returns info, downloads nothing."""
+
+    def __init__(self, opts):
+        self.opts = opts
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def extract_info(self, url, download=True):
+        return {"id": "x", "title": "T", "ext": "mp4", "height": 1080}
+
+    def prepare_filename(self, info):
+        return "D:/a.mp4"
+
+
+def test_archive_skip_returns_skipped(monkeypatch, tmp_path):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", ArchivedYDL)
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        archive=str(tmp_path / "archive.txt"),
+    )
+    assert result.status == "error"
+    assert result.error_category == "skipped"
+    assert "skipped" in result.message.lower()
+
+
+def test_archive_sets_download_archive(monkeypatch, tmp_path):
+    seen = {}
+
+    class YDL(ArchivedYDL):
+        def __init__(self, opts):
+            seen.update(opts)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        archive=str(tmp_path / "archive.txt"),
+    )
+    assert seen.get("download_archive") == str(tmp_path / "archive.txt")
+
+
+def test_no_archive_never_skips(monkeypatch, tmp_path):
+    real = tmp_path / "clip.mp4"
+    real.write_text("done")
+
+    class YDL(ArchivedYDL):
+        def prepare_filename(self, info):
+            return str(real)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 1080, "container": "mp4"},
+    )
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "ok"
