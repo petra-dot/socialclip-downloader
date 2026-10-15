@@ -10,11 +10,6 @@ except Exception:
     QtCore = None
     QtGui = None
 
-try:
-    from yt_dlp import YoutubeDL
-except Exception:
-    YoutubeDL = None
-
 
 def _asset_path(name: str) -> str:
     """Resolve a bundled asset for both a source run and a PyInstaller build."""
@@ -49,8 +44,12 @@ def main():
         return apply_update(target)
 
     missing = []
-    if YoutubeDL is None:
-        missing.append("yt-dlp (Python package 'yt-dlp') - install with: pip install yt-dlp")
+    try:
+        import yt_dlp  # noqa: F401 - presence check; load() already ran
+    except Exception:
+        missing.append(
+            "yt-dlp (Python package 'yt-dlp') - install with: pip install yt-dlp"
+        )
     if QtWidgets is None or QtCore is None:
         missing.append("PyQt5 - install with: pip install PyQt5")
     if missing:

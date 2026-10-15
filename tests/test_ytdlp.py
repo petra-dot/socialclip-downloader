@@ -114,3 +114,13 @@ def test_find_js_runtime_prefers_managed_deno(tmp_path, monkeypatch):
     found_name, found_path = ytdlp.find_js_runtime(which=lambda _n: None)
     assert found_name == "deno"
     assert found_path == os.path.join(str(bin_dir), name)
+
+
+def test_entry_point_does_not_import_ytdlp_at_module_scope():
+    """A module-scope yt_dlp import would beat load() in the GUI."""
+    import pathlib
+    import re
+
+    source = pathlib.Path("socialclip_downloader.py").read_text(encoding="utf-8")
+    module_scope = source.split("def main(", 1)[0]
+    assert not re.search(r"^\s*(from|import)\s+yt_dlp", module_scope, re.M)
