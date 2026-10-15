@@ -184,3 +184,45 @@ def test_queue_run_rejects_bad_jobs(tmp_path, monkeypatch, capsys):
     rc = cli.main(["queue", "run", "--jobs", "99"])
     assert rc == cli.EXIT_USAGE == 2
     assert "invalid choice" in capsys.readouterr().err
+
+
+def test_queue_run_archive_flag_reaches_download_one(tmp_path, monkeypatch, capsys):
+    import core.download
+    from core.manifest import DownloadResult
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    assert cli.main(["queue", "add", "https://a.com/1", "--json"]) == cli.EXIT_OK
+    capsys.readouterr()
+
+    seen = {}
+
+    def fake_download_one(url, **kw):
+        seen.update(kw)
+        return DownloadResult(status="ok", path=str(tmp_path / "o.mp4"))
+
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    monkeypatch.setattr(core.download, "download_one", fake_download_one)
+
+    rc = cli.main(["queue", "run", "--archive", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert rc == cli.EXIT_OK
+    assert seen.get("archive", "").endswith("archive.txt")
+    assert "skipped" in data
+
+
+def test_queue_archive_clear_removes_the_file(tmp_path, monkeypatch, capsys):
+    from core.archive import default_archive_path
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    monkeypatch.setattr("core.archive.app_dir", lambda: str(tmp_path))
+    target = tmp_path / "archive.txt"
+    target.write_text("youtube abc\n")
+
+    rc = cli.main(["queue", "archive", "--clear", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert rc == cli.EXIT_OK
+    assert data["cleared"] is True
+    assert not target.exists()
