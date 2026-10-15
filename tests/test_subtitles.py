@@ -1,3 +1,5 @@
+import subprocess
+
 from core.subtitles import DELIVERIES, SubtitleTrack, subtitle_tracks
 
 
@@ -41,7 +43,7 @@ def test_subtitle_track_is_a_dataclass():
     assert track.lang == "en" and track.kind == "manual"
 
 
-from core.subtitles import embed_command, write_subtitle
+from core.subtitles import embed_command, embed_subtitles, write_subtitle
 
 
 def test_embed_command_maps_and_tags_languages():
@@ -103,3 +105,36 @@ def test_write_subtitle_missing_ffmpeg_returns_none(tmp_path, monkeypatch):
     track = SubtitleTrack("en", "manual", "https://example.com/en.vtt", "vtt")
     opener = lambda req, timeout=None: Response()
     assert write_subtitle(track, str(tmp_path / "V"), opener=opener) is None
+
+
+def test_embed_subtitles_success_replaces_video(tmp_path, monkeypatch):
+    video = tmp_path / "Video.mp4"
+    video.write_bytes(b"original")
+    sidecar = tmp_path / "Video.en.srt"
+    sidecar.write_text("1\n00:00:00,000 --> 00:00:01,000\nhi\n", encoding="utf-8")
+    out = tmp_path / "Video.subs.mp4"
+
+    def fake_run(cmd, **kwargs):
+        out.write_bytes(b"muxed")
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr("core.subtitles.subprocess.run", fake_run)
+    assert embed_subtitles(str(video), [("en", str(sidecar))]) is True
+    assert video.read_bytes() == b"muxed"
+
+
+def test_embed_subtitles_failure_keeps_video_and_removes_temp(tmp_path, monkeypatch):
+    video = tmp_path / "Video.mp4"
+    video.write_bytes(b"original")
+    sidecar = tmp_path / "Video.en.srt"
+    sidecar.write_text("1\n00:00:00,000 --> 00:00:01,000\nhi\n", encoding="utf-8")
+    out = tmp_path / "Video.subs.mp4"
+
+    def fake_run(cmd, **kwargs):
+        out.write_bytes(b"partial")
+        return subprocess.CompletedProcess([], 1)
+
+    monkeypatch.setattr("core.subtitles.subprocess.run", fake_run)
+    assert embed_subtitles(str(video), [("en", str(sidecar))]) is False
+    assert video.read_bytes() == b"original"
+    assert not out.exists()

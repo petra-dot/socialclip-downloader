@@ -82,8 +82,9 @@ taking a value from `DELIVERIES`. After the existing editor-safe step, when
 3. Delivery `embed` removes the sidecars after muxing; `sidecar` and `both`
    keep them.
 
-The sidecar base is the final video's base name, so a clip's subtitles carry
-the clip's name.
+Clip downloads do not fetch subtitles: `subtitle_tracks` returns the full
+video's caption URLs, so any sidecar or embed would be full-length and mistimed
+against the clip. The subtitle step is skipped whenever a clip is requested.
 
 ### Delivery
 

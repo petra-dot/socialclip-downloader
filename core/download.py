@@ -222,7 +222,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 reencoded = True
 
         if (subtitles and subtitles != "off" and action != "audio"
-                and os.path.isfile(final_path)):
+                and clip is None and os.path.isfile(final_path)):
             from core.subtitles import (
                 embed_subtitles, subtitle_tracks, write_subtitle,
             )
@@ -230,8 +230,11 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             base = os.path.splitext(final_path)[0]
             sidecars = []
             for track in subtitle_tracks(info):
+                if cancel and cancel():
+                    raise DownloadCancelled()
                 written = write_subtitle(track, base)
                 if written:
+                    in_flight["created"].add(written)
                     sidecars.append((track.lang, written))
             embedded = False
             if subtitles in ("embed", "both") and sidecars:
