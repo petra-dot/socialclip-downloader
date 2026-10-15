@@ -77,7 +77,7 @@ def _cmd_download(args) -> int:
     from core.download import download_one
     from utils.file_utils import default_download_folder
     fmt = args.format or (preset.output.lower() if preset else None) or "mp4"
-    resolution = args.resolution or (int(preset.resolution) if preset else None) or 1080
+    resolution = args.resolution or (preset and _preset_resolution(preset)) or 1080
     cookies = args.cookies or (preset.cookies if preset else None)
     convert = args.convert or (preset.convert if preset else False)
     out_dir = args.output or (preset.save_dir if preset and preset.save_dir else None) \
@@ -156,6 +156,13 @@ def _queue_path() -> str:
 def _presets_path() -> str:
     from core.presets import default_presets_path
     return os.environ.get("SOCIALCLIP_PRESETS") or default_presets_path()
+
+
+def _preset_resolution(preset):
+    try:
+        return int(preset.resolution)
+    except (TypeError, ValueError):
+        return None
 
 
 def _load_queue():

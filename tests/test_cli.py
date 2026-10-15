@@ -332,4 +332,4 @@ def test_download_unknown_preset_exits_usage(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("SOCIALCLIP_PRESETS", str(tmp_path / "presets.json"))
     rc = cli.main(["download", "https://youtu.be/x", "--preset", "nope"])
     assert rc == 2
-    assert "preset" in capsys.readouterr().err.lower()
+    assert "unknown preset" in capsys.readouterr().err.lower()
