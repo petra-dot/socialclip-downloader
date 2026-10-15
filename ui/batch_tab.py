@@ -166,7 +166,7 @@ class QueueTab(QtWidgets.QWidget):
 
         self.batch_table = QtWidgets.QTableWidget(0, 3)
         self.batch_table.setAccessibleName("Download queue")
-        self.batch_table.setHorizontalHeaderLabels(["URL", "Status", "Detail"])
+        self.batch_table.setHorizontalHeaderLabels(["Video", "Status", "Detail"])
         self.batch_table.horizontalHeader().setStretchLastSection(True)
         self.batch_table.setColumnWidth(0, 340)
         self.batch_table.setColumnWidth(1, 90)
@@ -269,7 +269,7 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_cookies_input.editingFinished.connect(self._on_batch_cookies_changed)
         cookies_row.addWidget(self.batch_cookies_input)
         cookies_label.setBuddy(self.batch_cookies_input)
-        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        browse_cookies_btn = QtWidgets.QPushButton("Browse")
         browse_cookies_btn.clicked.connect(self.on_batch_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         queue_layout.addLayout(cookies_row)
@@ -300,6 +300,10 @@ class QueueTab(QtWidgets.QWidget):
         )
         archive_row.addWidget(self.archive_check)
         self.clear_archive_btn = QtWidgets.QPushButton("Clear archive")
+        self.clear_archive_btn.setToolTip(
+            "Forget which videos have been downloaded, so they can be "
+            "downloaded again. Only affects 'Skip already downloaded'."
+        )
         self.clear_archive_btn.clicked.connect(self.on_clear_archive)
         archive_row.addWidget(self.clear_archive_btn)
         archive_row.addStretch(1)
@@ -620,9 +624,9 @@ class QueueTab(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         remove_action = menu.addAction("Remove from queue")
         remove_action.setEnabled(can_remove(job.state))
-        cancel_this = menu.addAction("Cancel this download")
+        cancel_this = menu.addAction("Stop this download")
         cancel_this.setEnabled(job.state == "running")
-        cancel_action = menu.addAction("Cancel")
+        cancel_action = menu.addAction("Cancel this item")
         cancel_action.setEnabled(job.state == "pending")
         retry_action = menu.addAction("Retry")
         retry_action.setEnabled(job.state == "failed")
@@ -751,6 +755,12 @@ class QueueTab(QtWidgets.QWidget):
 
     def on_clear_archive(self):
         from core.archive import clear_archive, default_archive_path
+        if QtWidgets.QMessageBox.question(
+            self, "Clear archive",
+            "Forget every video recorded as downloaded?\n\n"
+            "They can then be downloaded again.",
+        ) != QtWidgets.QMessageBox.Yes:
+            return
         removed = clear_archive(default_archive_path())
         self.batch_log("Archive cleared." if removed else "Archive is already empty.")
 

@@ -375,7 +375,7 @@ class SingleTab(QtWidgets.QWidget):
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)
         cookies_label.setBuddy(self.cookies_input)
-        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        browse_cookies_btn = QtWidgets.QPushButton("Browse")
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         clear_cookies_btn = QtWidgets.QPushButton("Clear")
