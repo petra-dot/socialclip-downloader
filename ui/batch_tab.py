@@ -4,6 +4,7 @@ import os
 from PyQt5 import QtWidgets, QtCore
 
 from core.collections import new_entries
+from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
 from sites.cookies import default_cookie_dir
@@ -80,6 +81,9 @@ class QueueTab(QtWidgets.QWidget):
         self._row_for_id = {}
         self._running_id = ""
         self.settings = QtCore.QSettings()
+        self.preset_store = PresetStore(default_presets_path())
+        self.preset_store.load()
+        self._applying_preset = False
         store = QueueStore(_queue_path())
         store.load()
         self.queue = Queue(store)
@@ -152,6 +156,19 @@ class QueueTab(QtWidgets.QWidget):
         make_heading(opts_heading)
         queue_layout.addWidget(opts_heading)
 
+        preset_row = QtWidgets.QHBoxLayout()
+        preset_row.addWidget(QtWidgets.QLabel("Preset:"))
+        self.batch_preset_combo = QtWidgets.QComboBox()
+        self.batch_preset_combo.setAccessibleName("Queue preset")
+        self.batch_preset_combo.setToolTip(
+            "Applies format, resolution, folder, and cookies. "
+            "Filename options are Download-tab only."
+        )
+        self.batch_preset_combo.currentIndexChanged.connect(self.on_preset_selected)
+        preset_row.addWidget(self.batch_preset_combo)
+        preset_row.addStretch(1)
+        queue_layout.addLayout(preset_row)
+
         queue_save_layout = QtWidgets.QHBoxLayout()
         self.batch_save_dir_input = QtWidgets.QLineEdit(
             restore_or(default_download_folder(), self.settings.value("batch/save_dir"))
@@ -214,6 +231,38 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_console_log.setMinimumHeight(120)
         self.batch_console_log.setAccessibleName("Queue activity log")
         queue_layout.addWidget(self.batch_console_log, 1)
+
+        self._refresh_presets()
+
+    def _refresh_presets(self):
+        self._applying_preset = True
+        self.batch_preset_combo.clear()
+        for preset in self.preset_store.all():
+            self.batch_preset_combo.addItem(preset.name, preset.name)
+        self.batch_preset_combo.addItem("Custom", None)
+        last = self.settings.value("preset/last", "")
+        index = self.batch_preset_combo.findData(last) if last else -1
+        self.batch_preset_combo.setCurrentIndex(
+            index if index >= 0 else self.batch_preset_combo.count() - 1
+        )
+        self._applying_preset = False
+
+    def on_preset_selected(self, _index):
+        if self._applying_preset:
+            return
+        name = self.batch_preset_combo.currentData()
+        if not name:
+            return
+        preset = self.preset_store.get(name)
+        if not preset:
+            return
+        self._applying_preset = True
+        self.batch_output_combo.setCurrentText(preset.output)
+        self.batch_resolution_combo.setCurrentText(preset.resolution)
+        self.batch_save_dir_input.setText(preset.save_dir or default_download_folder())
+        self.batch_cookies_input.setText(preset.cookies or "")
+        self.cookies_file_ref["path"] = preset.cookies or ""
+        self._applying_preset = False
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
