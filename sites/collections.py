@@ -1,0 +1,86 @@
+"""Classify a URL as a single video or a collection (playlist, channel,
+profile), and describe how reliable listing is per platform.
+
+Pure: no network, no Qt. The listing itself lives in core/collections.py.
+"""
+
+import re
+from urllib.parse import urlparse
+
+# A URL that points at one video. Checked first, so a video URL that also
+# carries a playlist parameter (watch?v=X&list=Y) stays a single video.
+VIDEO_PATTERNS = (
+    r"youtube\.com/watch",
+    r"instagram\.com/(?:p|reel|tv)/",
+    r"(?:twitter|x)\.com/[^/]+/status/",
+    r"tiktok\.com/@[^/]+/video/",
+    r"facebook\.com/(?:watch|reel|.*?/videos/)",
+    r"bilibili\.com/video/",
+    r"douyin\.com/video/",
+)
+
+# A URL that points at many videos, and the platform key it belongs to.
+COLLECTION_PATTERNS = (
+    (r"youtube\.com/playlist", "youtube"),
+    (r"youtube\.com/(?:@[^/]+|channel/|c/|user/)", "youtube"),
+    (r"instagram\.com/[^/]+/?$", "instagram"),
+    (r"tiktok\.com/@[^/]+/?$", "tiktok"),
+    (r"(?:twitter|x)\.com/[^/]+/?$", "twitter"),
+    (r"facebook\.com/[^/]+/?$", "facebook"),
+    (r"space\.bilibili\.com/\d+", "bilibili"),
+    (r"bilibili\.com/space/", "bilibili"),
+    (r"douyin\.com/user/", "douyin"),
+)
+
+_NOTES = {
+    "instagram": "Instagram profile listing is best-effort and often returns "
+                 "nothing. Paste individual post links instead.",
+    "tiktok": "TikTok profile listing is best-effort and rate-limited. Try "
+              "again later or paste individual video links.",
+    "twitter": "Twitter/X timeline listing is best-effort and needs cookies. "
+               "Try again or paste individual post links.",
+    "facebook": "Facebook page listing rarely works. Paste individual video "
+                "links instead.",
+    "douyin": "Douyin profile listing is best-effort and often returns "
+              "nothing. Paste individual video links instead.",
+    "bilibili": "Bilibili channel listing may need cookies.",
+}
+
+
+def _target(url: str) -> str:
+    """Host + path + query, lowercased, without the scheme."""
+    if not url:
+        return ""
+    if "//" not in url:
+        url = "//" + url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return ""
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return ""
+    path = (parsed.path or "").rstrip("/")
+    target = host + path
+    if parsed.query:
+        target += "?" + parsed.query
+    return target
+
+
+def classify_url(url: str) -> str:
+    """Return "video", "collection", or "unknown"."""
+    target = _target(url)
+    if not target:
+        return "unknown"
+    for pattern in VIDEO_PATTERNS:
+        if re.search(pattern, target):
+            return "video"
+    for pattern, _platform in COLLECTION_PATTERNS:
+        if re.search(pattern, target):
+            return "collection"
+    return "unknown"
+
+
+def collection_note(platform: str) -> str:
+    """Honest expectation text for listing this platform. Empty when reliable."""
+    return _NOTES.get((platform or "").lower(), "")
