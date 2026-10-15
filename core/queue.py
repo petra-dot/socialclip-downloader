@@ -8,9 +8,10 @@ from typing import Callable, List, Optional
 from core.manifest import DownloadResult
 from utils.file_utils import default_download_folder
 
-STATES = ("pending", "running", "done", "failed", "cancelled", "paused")
+STATES = ("pending", "running", "done", "failed", "cancelled", "paused",
+          "skipped")
 
-TERMINAL_STATES = ("done", "failed", "cancelled")
+TERMINAL_STATES = ("done", "failed", "cancelled", "skipped")
 
 
 def can_remove(state: str) -> bool:
@@ -178,6 +179,10 @@ class Queue:
                 job.message = result.message
         elif result.error_category == "cancelled":
             job.state = "cancelled"
+            if result.message:
+                job.message = result.message
+        elif result.error_category == "skipped":
+            job.state = "skipped"
             if result.message:
                 job.message = result.message
         else:

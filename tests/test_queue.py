@@ -353,3 +353,30 @@ def test_apply_result_non_result_is_failed():
     q.apply_result(job, None)
     assert job.state == "failed"
     assert job.message == "executor returned no result"
+
+
+def test_skipped_is_a_terminal_state():
+    from core.queue import STATES, TERMINAL_STATES
+    assert "skipped" in STATES
+    assert "skipped" in TERMINAL_STATES
+
+
+def test_apply_result_maps_skipped():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    result = DownloadResult(status="error", error_category="skipped",
+                            message="Already downloaded; skipped.")
+    q.apply_result(job, result)
+    assert job.state == "skipped"
+    assert job.message == "Already downloaded; skipped."
+
+
+def test_cancel_all_leaves_skipped_jobs_alone():
+    q = Queue()
+    a = q.add("https://a.com/1", {})
+    b = q.add("https://b.com/2", {})
+    a.state = "skipped"
+    q.cancel_all()
+    assert a.state == "skipped"
+    assert b.state == "cancelled"

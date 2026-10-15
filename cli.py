@@ -178,7 +178,7 @@ def _job_dict(job) -> dict:
             "message": job.message, "path": job.path}
 
 
-def _queue_executor(job):
+def _queue_executor(job, archive=None):
     from core.download import download_one
     from core.queue import resolve_outtmpl
     opts = job.options or {}
@@ -191,12 +191,13 @@ def _queue_executor(job):
         target_resolution=opts.get("target_resolution", 1080),
         cookies_file=opts.get("cookies_file"),
         subtitles=opts.get("subtitles", "off"),
+        archive=archive,
     )
 
 
-def _run_cli_job(job):
+def _run_cli_job(job, archive=None):
     try:
-        return job, _queue_executor(job)
+        return job, _queue_executor(job, archive=archive)
     except Exception as exc:  # noqa: BLE001 - one job must not kill the pool
         return job, error_result("other", str(exc), job.url)
 
@@ -272,6 +273,16 @@ def _cmd_queue(args) -> int:
             print(f"cleared {n}")
         return EXIT_OK
 
+    if command == "archive":
+        from core.archive import clear_archive, default_archive_path
+        removed = clear_archive(default_archive_path())
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION,
+                              "cleared": removed}))
+        else:
+            print("cleared" if removed else "empty")
+        return EXIT_OK
+
     if command == "run":
         if _ytdlp_missing():
             return _dep_error(
@@ -283,7 +294,9 @@ def _cmd_queue(args) -> int:
                 "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
             )
         from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-        run = done = failed = cancelled = 0
+        from core.archive import default_archive_path
+        archive = default_archive_path() if args.archive else None
+        run = done = failed = cancelled = skipped = 0
         with ThreadPoolExecutor(max_workers=args.jobs) as pool:
             pending = set()
             while True:
@@ -291,7 +304,7 @@ def _cmd_queue(args) -> int:
                     job = queue.claim_next()
                     if job is None:
                         break
-                    pending.add(pool.submit(_run_cli_job, job))
+                    pending.add(pool.submit(_run_cli_job, job, archive))
                 if not pending:
                     break
                 finished, pending = wait(pending, return_when=FIRST_COMPLETED)
@@ -305,12 +318,15 @@ def _cmd_queue(args) -> int:
                         failed += 1
                     elif job.state == "cancelled":
                         cancelled += 1
+                    elif job.state == "skipped":
+                        skipped += 1
         result = {"schema_version": SCHEMA_VERSION, "run": run, "done": done,
-                  "failed": failed, "cancelled": cancelled}
+                  "failed": failed, "cancelled": cancelled, "skipped": skipped}
         if args.json:
             print(json.dumps(result))
         else:
-            print(f"run {run}: {done} done, {failed} failed, {cancelled} cancelled")
+            print(f"run {run}: {done} done, {failed} failed, "
+                  f"{cancelled} cancelled, {skipped} skipped")
         return EXIT_OK
 
 
@@ -324,7 +340,7 @@ def _cmd_manifest_schema(args) -> int:
             "status": {"enum": ["ok", "error"]},
             "error_category": {
                 "enum": [None, "blocked", "cancelled", "format", "ffmpeg",
-                         "network", "not_found", "other"]
+                         "network", "not_found", "other", "skipped"]
             },
         },
         "required": ["schema_version", "status"],
@@ -399,11 +415,17 @@ def build_parser() -> argparse.ArgumentParser:
     qr.add_argument("--json", action="store_true")
     qr.add_argument("--jobs", type=int, default=3, choices=range(1, 9),
                     metavar="N")
+    qr.add_argument("--archive", action="store_true")
     qr.set_defaults(func=_cmd_queue)
 
     qc = qsub.add_parser("clear")
     qc.add_argument("--json", action="store_true")
     qc.set_defaults(func=_cmd_queue)
+
+    qarc = qsub.add_parser("archive")
+    qarc.add_argument("--clear", action="store_true", required=True)
+    qarc.add_argument("--json", action="store_true")
+    qarc.set_defaults(func=_cmd_queue)
 
     return parser
 

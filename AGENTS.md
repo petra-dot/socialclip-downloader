@@ -18,11 +18,12 @@ local. No telemetry, no server.
 ```
 socialclip_downloader.py   entry point + __version__
 cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema/queue)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, collections, clip, presets, subtitles, pipeline)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, archive, collections, clip, presets, subtitles, pipeline)
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
 core/queue.py              persistent download queue + QueueStore (thread-free)
+core/archive.py            Queue download archive path + clear helpers (pure)
 core/collections.py        collection listing + dedupe helpers (pure)
 core/clip.py               time-range parsing + ffmpeg cut args (pure)
 core/presets.py            named download presets: editor built-ins + user presets.json (pure)
@@ -58,6 +59,11 @@ is additionally **thread-free**: it only holds data and pure logic; the worker
 once (`QueueWorker(queue, jobs=)` and `queue run --jobs`); the pool lives in
 `workers/queue_worker.py` and `cli.py`, and `core/queue.py` stays thread-free
 with `claim_next()`/`apply_result()` as the pure primitives.
+
+The Queue archive (`core/archive.py`) reuses yt-dlp's `download_archive`
+(`archive.txt` beside `queue.json`); a skipped job ends in the `skipped` state
+(`status="error"` + `error_category="skipped"`, mirroring `cancelled`). It is
+off by default and applies to the Queue only, not the single Download tab.
 
 The in-app updater (`core/updater.py`, `workers/update_worker.py`,
 `ui/update_indicator.py`) checks GitHub Releases, verifies the asset SHA-256,

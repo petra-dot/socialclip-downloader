@@ -26,6 +26,7 @@ def test_manifest_schema_error_category_includes_cancelled():
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
     assert "cancelled" in data["properties"]["error_category"]["enum"]
+    assert "skipped" in data["properties"]["error_category"]["enum"]
 
 
 def test_convert_json_stdout_is_pure_json(tmp_path):

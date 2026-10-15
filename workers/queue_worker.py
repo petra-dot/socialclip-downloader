@@ -16,10 +16,11 @@ class QueueWorker(QtCore.QThread):
     job_signal = QtCore.pyqtSignal(str, str, object)  # (job_id, state, QueueJob)
     finished_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, queue, jobs=DEFAULT_JOBS, parent=None):
+    def __init__(self, queue, jobs=DEFAULT_JOBS, archive=None, parent=None):
         super().__init__(parent)
         self.queue = queue
         self.jobs = max(1, min(int(jobs), MAX_JOBS))
+        self.archive = archive
         self._cancel_events = {}
         self._cancel_all = threading.Event()
         self._lock = threading.Lock()
@@ -37,6 +38,7 @@ class QueueWorker(QtCore.QThread):
             cancel=event.is_set,
             progress=lambda pct: self.progress_signal.emit(job.id, pct),
             subtitles=opts.get("subtitles", "off"),
+            archive=self.archive,
         )
 
     def _emit_running(self, job):
@@ -88,7 +90,9 @@ class QueueWorker(QtCore.QThread):
         done = sum(1 for j in jobs if j.state == "done")
         failed = sum(1 for j in jobs if j.state == "failed")
         cancelled = sum(1 for j in jobs if j.state == "cancelled")
-        return f"Queue finished: {done} done, {failed} failed, {cancelled} cancelled"
+        skipped = sum(1 for j in jobs if j.state == "skipped")
+        return (f"Queue finished: {done} done, {failed} failed, "
+                f"{cancelled} cancelled, {skipped} skipped")
 
     def pause(self):
         self.queue.pause()

@@ -87,8 +87,9 @@ def _section_range(clip):
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
                  subtitles="off", embed_thumbnail=False, format_id=None,
-                 clip=None):
+                 clip=None, archive=None):
     in_flight = {"created": set()}
+    saw_download = {"value": False}
     try:
         from yt_dlp import YoutubeDL
 
@@ -99,6 +100,8 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 in_flight["created"].add(d["filename"])
             if d.get("tmpfilename"):
                 in_flight["created"].add(d["tmpfilename"])
+            if d.get("status") in ("downloading", "finished"):
+                saw_download["value"] = True
             if cancel and cancel():
                 raise DownloadCancelled()
             if progress:
@@ -112,7 +115,8 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         hooks = [hook]
 
         ydl_opts = _nle_ydl_opts(
-            outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file
+            outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
+            archive_file=archive if clip is None else None,
         )
         section_ok = False
         if clip is not None:
@@ -130,18 +134,28 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             if clip is None:
                 raise
             full_opts = _nle_ydl_opts(
-                outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file
+                outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
+                archive_file=archive if clip is None else None,
             )
             with YoutubeDL(full_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 downloaded_file = ydl.prepare_filename(info) if info else None
 
         if not info:
+            if archive and clip is None:
+                return error_result(
+                    "skipped", "Already downloaded; skipped.", url
+                )
             return error_result(
                 "not_found",
                 "Could not extract video info. The video may be private, "
                 "deleted, or region-locked.",
                 url,
+            )
+
+        if archive and clip is None and not saw_download["value"]:
+            return error_result(
+                "skipped", "Already downloaded; skipped.", url
             )
 
         if clip is not None and os.path.isfile(downloaded_file):

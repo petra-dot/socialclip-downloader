@@ -2,6 +2,13 @@
 
 ## Unreleased
 ### Added
+- **Skip already-downloaded videos:** the Queue can skip a video it has already
+  saved. Tick **Skip already downloaded** on the Queue tab, or pass
+  `queue run --archive`, and each finished video is recorded in `archive.txt`
+  beside `queue.json` (yt-dlp's `download_archive`). A skipped job ends in a new
+  terminal `skipped` state. **Clear archive** (or `queue archive --clear`)
+  resets it. Off by default, and the single Download tab is unaffected. New
+  `core/archive.py` holds the archive path and clear helpers
 - **Parallel queue downloads:** the Queue runs up to 3 downloads at once by
   default, adjustable 1-8 with **Downloads at once** (or `queue run --jobs N`).
   Each running row shows its own percent, a running row can be cancelled on its
