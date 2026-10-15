@@ -18,12 +18,13 @@ local. No telemetry, no server.
 ```
 socialclip_downloader.py   entry point + __version__
 cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema/queue)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, pipeline)
+core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, collections, clip, pipeline)
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
 core/queue.py              persistent download queue + QueueStore (thread-free)
 core/collections.py        collection listing + dedupe helpers (pure)
+core/clip.py               time-range parsing + ffmpeg cut args (pure)
 core/updater.py            GitHub Releases check, asset download/verify, self-apply
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
@@ -56,6 +57,10 @@ is additionally **thread-free**: it only holds data and pure logic; the worker
 The in-app updater (`core/updater.py`, `workers/update_worker.py`,
 `ui/update_indicator.py`) checks GitHub Releases, verifies the asset SHA-256,
 and self-applies on Windows via `--apply-update`.
+
+Clip downloads (`core/clip.py`, `ClipSpec`) ask yt-dlp for the section with
+`download_ranges` first; when that path fails, or an exact re-encode is needed,
+they fall back to a full download cut with ffmpeg (`core.download._cut_file`).
 
 ## Commands
 

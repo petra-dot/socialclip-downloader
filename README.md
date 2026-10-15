@@ -47,6 +47,10 @@ without uploading anything to a third-party service.
 - **Single download** — paste a URL and metadata is fetched automatically;
   preview the thumbnail, download as MP4 or MP3, then **Open folder** to reveal
   the saved file.
+- **Clip downloads** — tick **Clip** to save only a time range: set a **Start**
+  with an **End**, or a **Start** with a **Duration**. The cut is lossless
+  (stream copy) by default; enable **Exact cut** to re-encode at the precise
+  frame.
 - **Persistent queue** — add multiple URLs (type them, or paste from the
   clipboard), then run them one at a time with pause, resume, per-item cancel,
   and cancel-all. The queue is saved to disk, so it survives a restart.
@@ -134,7 +138,7 @@ scripts, servers, and AI agents. From a source checkout, run
 `python cli.py <command>`.
 
 ```bash
-socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE]
+socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE] [--start TIME] [--end TIME] [--duration TIME] [--exact-cut]
 socialclip convert FILE [--to KEY] [--copy|--no-copy] [--resolution 1080]
 socialclip queue add URL [URL ...] [--expand]
 socialclip queue list
@@ -146,7 +150,7 @@ socialclip manifest-schema
 
 | Command | What it does |
 |---------|--------------|
-| `download` | Fetch one URL and save it as MP4 or MP3. |
+| `download` | Fetch one URL and save it as MP4 or MP3. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. |
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |

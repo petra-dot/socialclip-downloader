@@ -16,6 +16,14 @@
 - New modules: `sites/collections.py` (URL classification),
   `core/collections.py` (pure listing and dedupe helpers),
   `workers/expand_worker.py` (Qt expansion thread)
+- **Clip downloads:** save only a time range from a video. In the Download tab,
+  tick **Clip** to reveal a **Start** plus either an **End** or a **Duration**;
+  the default cut is lossless (stream copy) with an **Exact cut** option that
+  re-encodes at the precise frame. The CLI gains `--start`/`--end`/`--duration`/
+  `--exact-cut` on `download`. Times accept `90`, `1:30`, or `00:01:30`. The
+  primary path asks yt-dlp for the section directly and falls back to a full
+  download cut with ffmpeg. New `core/clip.py` holds the pure parsing and
+  ffmpeg-argument helpers
 
 ## v0.9.2 - 2026-10-11
 ### Added
