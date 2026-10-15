@@ -154,3 +154,54 @@ def test_download_asset_honors_cancel(tmp_path):
             asset, str(tmp_path / "o"), cancel=lambda: True,
             opener=lambda req, timeout=None: _FakeResponse(b"x" * 10, {}),
         )
+
+
+from core.updater import ApplyPlan, cleanup_update_temp, update_temp_path, write_batch_fallback
+
+
+def test_update_temp_path_is_prefixed():
+    path = update_temp_path("0.10.0")
+    assert "socialclip-update-0.10.0" in path
+
+
+def test_write_batch_fallback_names_source_and_target(tmp_path):
+    plan = ApplyPlan(target="C:/app/old.exe", source="C:/tmp/new.exe", wait_pid=123)
+    bat = write_batch_fallback(plan, temp_dir=str(tmp_path))
+    assert bat.endswith(".bat")
+    text = open(bat, encoding="ascii").read()
+    assert "C:/app/old.exe" in text
+    assert "C:/tmp/new.exe" in text
+    assert "start" in text
+
+
+def test_cleanup_update_temp_removes_leftovers(tmp_path):
+    (tmp_path / "socialclip-update-0.10.0.exe").write_bytes(b"x")
+    (tmp_path / "unrelated.exe").write_bytes(b"x")
+    removed = cleanup_update_temp(temp_dir=str(tmp_path))
+    assert removed == 1
+    assert not (tmp_path / "socialclip-update-0.10.0.exe").exists()
+    assert (tmp_path / "unrelated.exe").exists()
+
+
+def test_apply_update_retries_then_succeeds(monkeypatch, tmp_path):
+    import core.updater as updater
+    source = tmp_path / "src.exe"
+    source.write_bytes(b"new")
+    target = tmp_path / "tgt.exe"
+    target.write_bytes(b"old")
+    monkeypatch.setattr(updater.sys, "executable", str(source))
+    monkeypatch.setattr(updater, "_spawn_detached", lambda cmd: None)
+    calls = {"n": 0}
+    real_copy = updater.shutil.copy2
+
+    def flaky_copy(a, b):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError("locked")
+        return real_copy(a, b)
+
+    monkeypatch.setattr(updater.shutil, "copy2", flaky_copy)
+    rc = updater.apply_update(str(target), wait_pid=1, timeout=5, sleep=lambda s: None)
+    assert rc == 0
+    assert target.read_bytes() == b"new"
+    assert calls["n"] == 3

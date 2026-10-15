@@ -145,3 +145,79 @@ def download_asset(asset, dest, progress=None, cancel=None, opener=None) -> str:
             if progress:
                 progress(done, total)
     return dest
+
+
+import shutil
+import subprocess
+import tempfile
+import time
+
+
+@dataclass
+class ApplyPlan:
+    target: str
+    source: str
+    wait_pid: int
+
+
+def update_temp_path(version, temp_dir=None) -> str:
+    temp_dir = temp_dir or tempfile.gettempdir()
+    return os.path.join(temp_dir, "socialclip-update-%s.exe" % version)
+
+
+def write_batch_fallback(plan, temp_dir=None) -> str:
+    """Write a .bat that replaces target once it is unlocked, then relaunches."""
+    temp_dir = temp_dir or tempfile.gettempdir()
+    bat = os.path.join(temp_dir, "socialclip-apply-%d.bat" % os.getpid())
+    script = (
+        "@echo off\r\n"
+        ":wait\r\n"
+        'copy /y "%s" "%s" >nul 2>&1\r\n'
+        "if errorlevel 1 (\r\n"
+        "  timeout /t 1 /nobreak >nul\r\n"
+        "  goto wait\r\n"
+        ")\r\n"
+        'start "" "%s"\r\n'
+        'del "%%~f0"\r\n'
+    ) % (plan.source, plan.target, plan.target)
+    with open(bat, "w", encoding="ascii") as fh:
+        fh.write(script)
+    return bat
+
+
+def _spawn_detached(cmd) -> None:
+    flags = getattr(subprocess, "DETACHED_PROCESS", 0) if os.name == "nt" else 0
+    subprocess.Popen(cmd, creationflags=flags, close_fds=True)
+
+
+def apply_update(target, wait_pid, timeout=30, sleep=time.sleep) -> int:
+    """Run inside the newly downloaded exe: copy it over target, relaunch."""
+    source = sys.executable
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            shutil.copy2(source, target)
+            _spawn_detached([target])
+            return 0
+        except OSError:
+            sleep(0.5)
+    plan = ApplyPlan(target=target, source=source, wait_pid=wait_pid)
+    _spawn_detached(["cmd", "/c", write_batch_fallback(plan)])
+    return 0
+
+
+def cleanup_update_temp(temp_dir=None, prefix="socialclip-update-") -> int:
+    temp_dir = temp_dir or tempfile.gettempdir()
+    removed = 0
+    try:
+        names = os.listdir(temp_dir)
+    except OSError:
+        return 0
+    for name in names:
+        if name.startswith(prefix) and name.endswith(".exe"):
+            try:
+                os.remove(os.path.join(temp_dir, name))
+                removed += 1
+            except OSError:
+                pass
+    return removed
