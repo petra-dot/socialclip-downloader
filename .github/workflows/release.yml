@@ -67,8 +67,53 @@ jobs:
           shutil.copy(src, os.path.join("bundled", "ffmpeg" + ext))
           print("bundled:", src, os.path.getsize(src))
           PY
-          # ffprobe ships alongside the imageio-ffmpeg binary on some builds;
-          # fall back to the ffmpeg binary if a separate ffprobe is unavailable.
+          # NOTE: imageio-ffmpeg ships ffmpeg only, so the bundle has no
+          # ffprobe and ffprobe_path() falls back to PATH. The maintenance
+          # installer supplies both ffmpeg and ffprobe in the data dir.
+          ls -la bundled/
+
+      - name: Fetch bundled deno
+        shell: bash
+        env:
+          OS: ${{ matrix.os }}
+        run: |
+          python - <<'PY'
+          import hashlib, io, os, re, stat, sys, urllib.request, zipfile
+
+          os_name = os.environ["OS"]
+          if os_name == "windows-latest":
+              asset, ext = "deno-x86_64-pc-windows-msvc.zip", ".exe"
+          elif os_name == "macos-latest":
+              asset, ext = "deno-x86_64-apple-darwin.zip", ""
+          else:
+              asset, ext = "deno-x86_64-unknown-linux-gnu.zip", ""
+
+          base = "https://github.com/denoland/deno/releases/latest/download"
+          data = urllib.request.urlopen(base + "/" + asset).read()
+          sums = urllib.request.urlopen(
+              base + "/" + asset + ".sha256sum").read().decode("utf-8")
+
+          match = re.search(r"[0-9a-fA-F]{64}", sums)
+          if not match:
+              sys.exit("no SHA-256 digest in %s.sha256sum" % asset)
+          expected = match.group(0).lower()
+          actual = hashlib.sha256(data).hexdigest()
+          if actual != expected:
+              sys.exit("deno checksum mismatch for %s: %s != %s"
+                       % (asset, actual, expected))
+
+          os.makedirs("bundled", exist_ok=True)
+          out = os.path.join("bundled", "deno" + ext)
+          with zipfile.ZipFile(io.BytesIO(data)) as zf:
+              name = next(n for n in zf.namelist()
+                          if os.path.basename(n).startswith("deno"))
+              with zf.open(name) as src, open(out, "wb") as fh:
+                  fh.write(src.read())
+          if not ext:
+              os.chmod(out, os.stat(out).st_mode
+                       | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+          print("bundled deno:", out, os.path.getsize(out))
+          PY
           ls -la bundled/
 
       - name: Build binary
@@ -77,25 +122,28 @@ jobs:
           EXT=""
           if [ "${{ matrix.os }}" = "windows-latest" ]; then EXT=".exe"; fi
           ADD="--add-binary bundled/ffmpeg$EXT:."
+          # deno lands under a bundled/ path inside the archive, which
+          # utils.ytdlp._bundle_dir() reads from sys._MEIPASS.
+          BUNDLED="--add-binary bundled/deno$EXT:bundled"
           # Bundle the icon file too: --icon only sets the executable's icon,
           # it does not make assets/icon.ico resolvable at runtime.
           DATA="--add-data assets/icon.ico:assets"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-windows \
-              $ADD $DATA --icon assets/icon.ico socialclip_downloader.py
+              $ADD $BUNDLED $DATA --icon assets/icon.ico socialclip_downloader.py
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-macos \
-              $ADD $DATA --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
+              $ADD $BUNDLED $DATA --osx-bundle-identifier com.socialclip.downloader socialclip_downloader.py
           else
             # Plain binary, no --windowed: that flag needs libpython shared
             # libs the manylinux runners do not ship.
             pyinstaller --onefile --name socialclip-downloader-linux \
-              $ADD $DATA socialclip_downloader.py
+              $ADD $BUNDLED $DATA socialclip_downloader.py
           fi
           # Console CLI build: the --windowed GUI binary has no stdout on
           # Windows, so the CLI ships as its own --console executable.
           pyinstaller --onefile --console --name socialclip-${{ matrix.os_short }} \
-            $ADD cli.py
+            $ADD $BUNDLED cli.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -67,12 +67,40 @@ def _managed_runtime(name: str) -> str:
     return ""
 
 
+def _bundle_dir() -> str:
+    """Directory of a PyInstaller-bundled JS runtime, or "" when none ships.
+
+    A frozen build unpacks its data under ``sys._MEIPASS``; the release adds
+    deno there under ``bundled/``. From source, a ``bundled/`` directory next
+    to the repo root stands in for it. Mirrors ``utils.ffmpeg._bundle_dir``.
+    """
+    meipass = getattr(sys, "_MEIPASS", "")
+    if meipass:
+        directory = os.path.join(meipass, "bundled")
+        return directory if os.path.isdir(directory) else ""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    directory = os.path.join(root, "bundled")
+    return directory if os.path.isdir(directory) else ""
+
+
+def _bundled_runtime(name: str) -> str:
+    """Path to a runtime shipped beside the app, or "" when absent."""
+    directory = _bundle_dir()
+    if not directory:
+        return ""
+    for fname in (name, name + ".exe"):
+        candidate = os.path.join(directory, fname)
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
+
+
 def find_js_runtime(which=None):
     """(name, path) of the first available JS runtime, or ("", "").
 
     A runtime already on PATH wins, so the app never overrides a working
-    system install; a runtime the app installed itself is the fallback for a
-    machine that has none.
+    system install; a runtime the app installed itself comes next, and one
+    shipped in the bundle is the last resort for a machine that has neither.
     """
     which = shutil.which if which is None else which
     for name in RUNTIMES:
@@ -82,10 +110,11 @@ def find_js_runtime(which=None):
             found = None
         if found:
             return name, found
-    for name in RUNTIMES:
-        managed = _managed_runtime(name)
-        if managed:
-            return name, managed
+    for lookup in (_managed_runtime, _bundled_runtime):
+        for name in RUNTIMES:
+            path = lookup(name)
+            if path:
+                return name, path
     return "", ""
 
 

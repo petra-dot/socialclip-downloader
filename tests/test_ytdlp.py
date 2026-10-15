@@ -131,6 +131,53 @@ def test_find_js_runtime_prefers_path_over_managed(tmp_path, monkeypatch):
     assert found_path == "/usr/bin/node"
 
 
+def test_find_js_runtime_falls_back_to_bundled_deno(tmp_path, monkeypatch):
+    """A deno shipped next to the app is used when PATH and managed have none."""
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    name = "deno.exe" if sys.platform == "win32" else "deno"
+    (bundled / name).write_text("", encoding="utf-8")
+    from utils import ytdlp
+    monkeypatch.setattr(ytdlp, "_bundle_dir", lambda: str(bundled))
+    found_name, found_path = ytdlp.find_js_runtime(which=lambda _n: None)
+    assert found_name == "deno"
+    assert found_path == os.path.join(str(bundled), name)
+
+
+def test_find_js_runtime_prefers_managed_over_bundled(tmp_path, monkeypatch):
+    """The managed copy wins over the bundled one: it is newer by construction."""
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    name = "deno.exe" if sys.platform == "win32" else "deno"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / name).write_text("", encoding="utf-8")
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    (bundled / name).write_text("", encoding="utf-8")
+    from utils import ytdlp
+    monkeypatch.setattr(ytdlp, "_bundle_dir", lambda: str(bundled))
+    found_name, found_path = ytdlp.find_js_runtime(which=lambda _n: None)
+    assert found_name == "deno"
+    assert found_path == os.path.join(str(bin_dir), name)
+
+
+def test_find_js_runtime_prefers_path_over_bundled(tmp_path, monkeypatch):
+    """A system runtime still beats the bundled copy."""
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    name = "deno.exe" if sys.platform == "win32" else "deno"
+    (bundled / name).write_text("", encoding="utf-8")
+    from utils import ytdlp
+    monkeypatch.setattr(ytdlp, "_bundle_dir", lambda: str(bundled))
+    found_name, found_path = ytdlp.find_js_runtime(
+        which=lambda n: "/usr/bin/node" if n == "node" else None
+    )
+    assert found_name == "node"
+    assert found_path == "/usr/bin/node"
+
+
 def test_entry_point_does_not_import_ytdlp_at_module_scope():
     """A module-scope yt_dlp import would beat load() in the GUI."""
     import pathlib
