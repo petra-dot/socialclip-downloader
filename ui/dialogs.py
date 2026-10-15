@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from core.doctor import run_checks
 from utils.file_utils import default_download_folder
@@ -221,3 +221,51 @@ def manage_presets(parent, store) -> bool:
     close_btn.clicked.connect(dialog.accept)
     dialog.exec_()
     return changed
+
+
+class CookiesDialog(QtWidgets.QDialog):
+    """Choose a browser to source cookies from. Never reads a browser."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        from sites.cookies import BROWSERS, app_dir, cookie_status
+        from utils.ui_helpers import reveal_in_folder
+
+        self.setWindowTitle("Cookies")
+        self.resize(520, 360)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Use cookies from:"))
+        self.browser_combo = QtWidgets.QComboBox()
+        self.browser_combo.setAccessibleName("Cookies browser")
+        self.browser_combo.addItem("No cookies", "")
+        for browser in BROWSERS:
+            self.browser_combo.addItem(browser.capitalize(), browser)
+        saved = QtCore.QSettings().value("cookies/browser", "") or ""
+        index = self.browser_combo.findData(saved)
+        self.browser_combo.setCurrentIndex(index if index >= 0 else 0)
+        row.addWidget(self.browser_combo)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        layout.addWidget(QtWidgets.QLabel("Cookie files found:"))
+        self.status_list = QtWidgets.QListWidget()
+        self.status_list.setAccessibleName("Cookie file status")
+        for _platform, name, path in cookie_status():
+            self.status_list.addItem("%s: %s" % (name, path or "none"))
+        layout.addWidget(self.status_list)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        open_btn = buttons.addButton(
+            "Open cookie folder", QtWidgets.QDialogButtonBox.ActionRole
+        )
+        open_btn.clicked.connect(lambda: reveal_in_folder(app_dir()))
+        layout.addWidget(buttons)
+
+    def chosen_browser(self) -> str:
+        return self.browser_combo.currentData()
