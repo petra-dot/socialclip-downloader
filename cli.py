@@ -53,6 +53,16 @@ def _cmd_download(args) -> int:
             "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
             args.url,
         )
+    from core.clip import resolve_range
+
+    mode = "duration" if args.duration else "end"
+    clip, clip_error = resolve_range(
+        args.start, args.end, args.duration, mode, exact=args.exact_cut,
+    )
+    if clip_error:
+        print("error: %s" % clip_error, file=sys.stderr)
+        return EXIT_USAGE
+
     from core.download import download_one
     from utils.file_utils import default_download_folder
     out_dir = args.output or default_download_folder()
@@ -61,7 +71,7 @@ def _cmd_download(args) -> int:
     result = download_one(
         args.url, outtmpl=outtmpl, output_type=output_type,
         convert=args.convert, target_resolution=args.resolution,
-        cookies_file=args.cookies,
+        cookies_file=args.cookies, clip=clip,
     )
     return _emit(result, args.json)
 
@@ -288,6 +298,10 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--resolution", type=int, default=1080,
                    help="target height, only used with --convert")
     d.add_argument("--cookies")
+    d.add_argument("--start", default="")
+    d.add_argument("--end", default="")
+    d.add_argument("--duration", default="")
+    d.add_argument("--exact-cut", action="store_true")
     d.set_defaults(func=_cmd_download)
 
     c = sub.add_parser("convert")
