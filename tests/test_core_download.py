@@ -1,3 +1,4 @@
+from core.clip import ClipSpec
 from core.download import DownloadCancelled, download_one
 
 
@@ -463,3 +464,45 @@ def test_no_archive_never_skips(monkeypatch, tmp_path):
         output_type="MP4", convert=False, target_resolution=1080,
     )
     assert result.status == "ok"
+
+def test_real_download_with_archive_does_not_skip(monkeypatch, tmp_path):
+    class YDL(ArchivedYDL):
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "finished", "filename": "D:/a.mp4"})
+            return {"id": "x", "title": "T", "ext": "mp4", "height": 1080}
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 1080, "container": "mp4"},
+    )
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        archive=str(tmp_path / "archive.txt"),
+    )
+    assert result.status == "ok"
+
+
+def test_clip_does_not_set_download_archive(monkeypatch, tmp_path):
+    seen = {}
+
+    class YDL(ArchivedYDL):
+        def __init__(self, opts):
+            seen.update(opts)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 1080, "container": "mp4"},
+    )
+    download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        archive=str(tmp_path / "archive.txt"),
+        clip=ClipSpec(start=0.0, end=5.0, exact=False),
+    )
+    assert "download_archive" not in seen

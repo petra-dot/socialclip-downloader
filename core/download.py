@@ -116,7 +116,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
 
         ydl_opts = _nle_ydl_opts(
             outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
-            archive_file=archive,
+            archive_file=archive if clip is None else None,
         )
         section_ok = False
         if clip is not None:
@@ -135,7 +135,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 raise
             full_opts = _nle_ydl_opts(
                 outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
-                archive_file=archive,
+                archive_file=archive if clip is None else None,
             )
             with YoutubeDL(full_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
@@ -149,7 +149,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 url,
             )
 
-        if archive and not saw_download["value"]:
+        if archive and clip is None and not saw_download["value"]:
             return error_result(
                 "skipped", "Already downloaded; skipped.", url
             )
