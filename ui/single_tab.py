@@ -221,14 +221,18 @@ class SingleTab(QtWidgets.QWidget):
         self.output_combo = QtWidgets.QComboBox()
         self.output_combo.setAccessibleName("Output format")
         self.output_combo.addItems(OUTPUT_FORMATS)
-        fmt_row.addWidget(QtWidgets.QLabel("Format:"))
+        format_label = QtWidgets.QLabel("Format:")
+        format_label.setBuddy(self.output_combo)
+        fmt_row.addWidget(format_label)
         fmt_row.addWidget(self.output_combo)
         fmt_row.addSpacing(12)
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.setAccessibleName("Target resolution")
         self.resolution_combo.addItems(RESOLUTIONS)
         self.resolution_combo.setCurrentText("1080")
-        fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
+        resolution_label = QtWidgets.QLabel("Resolution:")
+        resolution_label.setBuddy(self.resolution_combo)
+        fmt_row.addWidget(resolution_label)
         fmt_row.addWidget(self.resolution_combo)
         fmt_row.addStretch()
         main.addLayout(fmt_row)
@@ -250,7 +254,8 @@ class SingleTab(QtWidgets.QWidget):
         advanced_layout.addWidget(self.checkbox_timestamp)
 
         sub_row = QtWidgets.QHBoxLayout()
-        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        subtitles_label = QtWidgets.QLabel("Subtitles:")
+        sub_row.addWidget(subtitles_label)
         self.subtitle_combo = QtWidgets.QComboBox()
         self.subtitle_combo.setAccessibleName("Subtitle delivery")
         for value, label in (
@@ -259,6 +264,7 @@ class SingleTab(QtWidgets.QWidget):
         ):
             self.subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.subtitle_combo)
+        subtitles_label.setBuddy(self.subtitle_combo)
         sub_row.addStretch(1)
         advanced_layout.addLayout(sub_row)
 
@@ -368,6 +374,7 @@ class SingleTab(QtWidgets.QWidget):
         self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)
+        cookies_label.setBuddy(self.cookies_input)
         browse_cookies_btn = QtWidgets.QPushButton("Browse...")
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
@@ -776,7 +783,10 @@ class SingleTab(QtWidgets.QWidget):
 
     def on_download(self):
         if self.worker and self.worker.isRunning():
-            self.log("Already downloading. Wait for current download to finish.")
+            self.worker.cancel()
+            self.download_btn.setEnabled(False)
+            self.download_btn.setText("Cancelling...")
+            self.log("Cancelling the download...")
             return
         url = self.url_input.text().strip()
         if not url:
@@ -836,7 +846,8 @@ class SingleTab(QtWidgets.QWidget):
             self.cookies_file_ref["path"] = auto_cookie
             self.log(f"Auto-detected cookies: {auto_cookie}")
 
-        self.download_btn.setEnabled(False)
+        # The button doubles as Cancel while a download runs.
+        self.download_btn.setText("Cancel")
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.result_label.setVisible(False)
@@ -865,6 +876,7 @@ class SingleTab(QtWidgets.QWidget):
     def on_worker_finished(self, msg: str):
         from ui.style import state_style
         self.log(msg)
+        self.download_btn.setText("Download")
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.progress_label.setText("")

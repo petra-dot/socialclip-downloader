@@ -203,7 +203,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addWidget(opts_heading)
 
         preset_row = QtWidgets.QHBoxLayout()
-        preset_row.addWidget(QtWidgets.QLabel("Preset:"))
+        preset_label = QtWidgets.QLabel("Preset:")
+        preset_row.addWidget(preset_label)
         self.batch_preset_combo = QtWidgets.QComboBox()
         self.batch_preset_combo.setAccessibleName("Queue preset")
         self.batch_preset_combo.setToolTip(
@@ -213,6 +214,7 @@ class QueueTab(QtWidgets.QWidget):
         )
         self.batch_preset_combo.currentIndexChanged.connect(self.on_preset_selected)
         preset_row.addWidget(self.batch_preset_combo)
+        preset_label.setBuddy(self.batch_preset_combo)
         preset_row.addStretch(1)
         queue_layout.addLayout(preset_row)
 
@@ -232,14 +234,18 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_output_combo = QtWidgets.QComboBox()
         self.batch_output_combo.setAccessibleName("Queue output format")
         self.batch_output_combo.addItems(OUTPUT_FORMATS)
-        queue_opts_layout.addWidget(QtWidgets.QLabel("Output:"))
+        output_label = QtWidgets.QLabel("Output:")
+        queue_opts_layout.addWidget(output_label)
         queue_opts_layout.addWidget(self.batch_output_combo)
+        output_label.setBuddy(self.batch_output_combo)
         self.batch_resolution_combo = QtWidgets.QComboBox()
         self.batch_resolution_combo.setAccessibleName("Queue target resolution")
         self.batch_resolution_combo.addItems(RESOLUTIONS)
         self.batch_resolution_combo.setCurrentText("1080")
-        queue_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
+        resolution_label = QtWidgets.QLabel("Resolution:")
+        queue_opts_layout.addWidget(resolution_label)
         queue_opts_layout.addWidget(self.batch_resolution_combo)
+        resolution_label.setBuddy(self.batch_resolution_combo)
         self.apply_options_btn = QtWidgets.QPushButton("Apply to pending")
         self.apply_options_btn.setToolTip(
             "Stamp the options above onto every pending item. Options are set "
@@ -262,13 +268,15 @@ class QueueTab(QtWidgets.QWidget):
         )
         self.batch_cookies_input.editingFinished.connect(self._on_batch_cookies_changed)
         cookies_row.addWidget(self.batch_cookies_input)
+        cookies_label.setBuddy(self.batch_cookies_input)
         browse_cookies_btn = QtWidgets.QPushButton("Browse...")
         browse_cookies_btn.clicked.connect(self.on_batch_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         queue_layout.addLayout(cookies_row)
 
         sub_row = QtWidgets.QHBoxLayout()
-        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        subtitles_label = QtWidgets.QLabel("Subtitles:")
+        sub_row.addWidget(subtitles_label)
         self.batch_subtitle_combo = QtWidgets.QComboBox()
         self.batch_subtitle_combo.setAccessibleName("Queue subtitle delivery")
         for value, label in (
@@ -277,6 +285,7 @@ class QueueTab(QtWidgets.QWidget):
         ):
             self.batch_subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.batch_subtitle_combo)
+        subtitles_label.setBuddy(self.batch_subtitle_combo)
         sub_row.addStretch(1)
         queue_layout.addLayout(sub_row)
 
