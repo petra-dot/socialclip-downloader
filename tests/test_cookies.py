@@ -57,8 +57,8 @@ def test_default_cookie_dir_is_the_data_dir_not_cwd(tmp_path, monkeypatch):
     workdir.mkdir()
     (workdir / "youtube_cookies.txt").write_text("c")
     monkeypatch.chdir(workdir)
-    from core.paths import data_dir
-    assert default_cookie_dir() == data_dir()
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    assert default_cookie_dir() == str(tmp_path / "data")
     assert default_cookie_dir() != str(workdir)
     expected = os.path.dirname(os.path.dirname(os.path.abspath(cookies.__file__)))
     assert cookies.app_dir() == expected

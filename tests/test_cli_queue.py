@@ -33,21 +33,29 @@ def test_queue_clear_empties(tmp_path):
 
 
 def test_queue_override_used_in_process(tmp_path, monkeypatch, capsys):
-    # Isolate the default location too, so the test does not depend on whether
-    # the developer's machine happens to have a real queue.json.
+    # Pin the data dir too, so the in-process migration does not touch the
+    # developer's real per-user directory.
     default_dir = tmp_path / "default"
     default_dir.mkdir()
-    monkeypatch.setattr(
-        "sites.cookies.default_cookie_dir", lambda: str(default_dir)
+    # A file at the default location proves the add did not write there; the
+    # migration copies only when the target is absent, so this sentinel stays.
+    (default_dir / "queue.json").write_text(
+        '{"version": 1, "jobs": []}', encoding="utf-8"
     )
-    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(default_dir))
+    override = tmp_path / "q.json"
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(override))
 
     rc = cli.main(["queue", "add", "https://a.com/1", "--json"])
     capsys.readouterr()
 
     assert rc == cli.EXIT_OK
-    assert (tmp_path / "q.json").exists()
-    assert not (default_dir / "queue.json").exists()
+    from core.queue import QueueStore
+    store = QueueStore(str(override))
+    store.load()
+    assert [j.url for j in store.jobs] == ["https://a.com/1"]
+    assert (default_dir / "queue.json").read_text(encoding="utf-8") == \
+        '{"version": 1, "jobs": []}'
 
 
 def test_queue_executor_resolves_outtmpl_precedence(monkeypatch):
