@@ -58,8 +58,9 @@ embed_subtitles(video_path, subtitles) -> bool    # subtitles: list of (lang, pa
 
 - `subtitle_tracks` reads `info["subtitles"]` (manual) and
   `info["automatic_captions"]` (auto). Each maps a language to a list of format
-  dicts (`ext`, `url`). It prefers `srt`, then `vtt`, and skips a language whose
-  formats carry no URL. Pure, so it carries the tests.
+  dicts (`ext`, `url`). It prefers `srt`, then `vtt`; a language offering
+  neither is skipped (a `json3` or `srv` source would need its own parser). Pure,
+  so it carries the tests.
 - `write_subtitle` fetches the track URL and writes
   `<base>.<lang>.srt` for a manual track and `<base>.<lang>.auto.srt` for an
   auto one. A WebVTT source is converted to SRT with ffmpeg; an SRT source is
