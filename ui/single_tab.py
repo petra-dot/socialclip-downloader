@@ -136,6 +136,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_seq = 0
         self._thumb_seq = 0
         self._last_path = ""
+        self._result_kind = "ok"
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
         self.preset_store.load()
@@ -221,27 +222,41 @@ class SingleTab(QtWidgets.QWidget):
         self.output_combo = QtWidgets.QComboBox()
         self.output_combo.setAccessibleName("Output format")
         self.output_combo.addItems(OUTPUT_FORMATS)
-        fmt_row.addWidget(QtWidgets.QLabel("Format:"))
+        format_label = QtWidgets.QLabel("Format:")
+        format_label.setBuddy(self.output_combo)
+        fmt_row.addWidget(format_label)
         fmt_row.addWidget(self.output_combo)
         fmt_row.addSpacing(12)
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.setAccessibleName("Target resolution")
         self.resolution_combo.addItems(RESOLUTIONS)
         self.resolution_combo.setCurrentText("1080")
-        fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
+        resolution_label = QtWidgets.QLabel("Resolution:")
+        resolution_label.setBuddy(self.resolution_combo)
+        fmt_row.addWidget(resolution_label)
         fmt_row.addWidget(self.resolution_combo)
         fmt_row.addStretch()
         main.addLayout(fmt_row)
 
         self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
+        self.convert_checkbox.toggled.connect(self._sync_resolution_state)
         main.addWidget(self.convert_checkbox)
+        self._sync_resolution_state()
+
+        # Everything past the format choice is optional, so it lives behind one
+        # disclosure instead of competing with Download for attention.
+        self.advanced_widget = QtWidgets.QWidget()
+        advanced_layout = QtWidgets.QVBoxLayout(self.advanced_widget)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
-        main.addWidget(self.checkbox_channel)
+        advanced_layout.addWidget(self.checkbox_channel)
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
-        main.addWidget(self.checkbox_timestamp)
+        advanced_layout.addWidget(self.checkbox_timestamp)
 
         sub_row = QtWidgets.QHBoxLayout()
-        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        subtitles_label = QtWidgets.QLabel("Subtitles:")
+        sub_row.addWidget(subtitles_label)
         self.subtitle_combo = QtWidgets.QComboBox()
         self.subtitle_combo.setAccessibleName("Subtitle delivery")
         for value, label in (
@@ -250,8 +265,9 @@ class SingleTab(QtWidgets.QWidget):
         ):
             self.subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.subtitle_combo)
+        subtitles_label.setBuddy(self.subtitle_combo)
         sub_row.addStretch(1)
-        main.addLayout(sub_row)
+        advanced_layout.addLayout(sub_row)
 
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(
@@ -265,9 +281,24 @@ class SingleTab(QtWidgets.QWidget):
         save_layout.addWidget(browse_btn)
         main.addLayout(save_layout)
 
+        self.advanced_toggle = QtWidgets.QToolButton()
+        self.advanced_toggle.setText("Advanced")
+        self.advanced_toggle.setCheckable(True)
+        self.advanced_toggle.setArrowType(QtCore.Qt.RightArrow)
+        self.advanced_toggle.setToolTip(
+            "Subtitles, clip range, filename options, and cookies."
+        )
+        self.advanced_toggle.toggled.connect(self._on_advanced_toggled)
+        main.addWidget(self.advanced_toggle)
+        self.advanced_widget.setVisible(False)
+        main.addWidget(self.advanced_widget)
+
         # Download bar
         download_bar = QtWidgets.QHBoxLayout()
         self.download_btn = QtWidgets.QPushButton("Download")
+        self.download_btn.setDefault(True)
+        self.download_btn.setAutoDefault(True)
+        self.download_btn.setMinimumWidth(120)
         self.download_btn.clicked.connect(self.on_download)
         download_bar.addWidget(self.download_btn)
 
@@ -288,6 +319,14 @@ class SingleTab(QtWidgets.QWidget):
         self.progress_label.setAccessibleName("Download progress detail")
         main.addWidget(self.progress_label)
 
+        # The end of a download is the moment that matters, so it gets its own
+        # persistent line instead of a line of console chatter.
+        self.result_label = QtWidgets.QLabel("")
+        self.result_label.setAccessibleName("Download result")
+        self.result_label.setWordWrap(True)
+        self.result_label.setVisible(False)
+        main.addWidget(self.result_label)
+
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
         self.hint_label.setVisible(False)
@@ -296,7 +335,7 @@ class SingleTab(QtWidgets.QWidget):
 
         self.clip_check = QtWidgets.QCheckBox("Download a clip (time range)")
         self.clip_check.toggled.connect(self._on_clip_toggled)
-        main.addWidget(self.clip_check)
+        advanced_layout.addWidget(self.clip_check)
 
         self.clip_row = QtWidgets.QWidget()
         clip_layout = QtWidgets.QHBoxLayout(self.clip_row)
@@ -322,7 +361,7 @@ class SingleTab(QtWidgets.QWidget):
         clip_layout.addWidget(self.clip_exact_check)
         clip_layout.addStretch(1)
         self.clip_row.setVisible(False)
-        main.addWidget(self.clip_row)
+        advanced_layout.addWidget(self.clip_row)
 
         # --- Cookies ---
         cookies_row = QtWidgets.QHBoxLayout()
@@ -336,22 +375,34 @@ class SingleTab(QtWidgets.QWidget):
         self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)
-        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        cookies_label.setBuddy(self.cookies_input)
+        browse_cookies_btn = QtWidgets.QPushButton("Browse")
         browse_cookies_btn.clicked.connect(self.on_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         clear_cookies_btn = QtWidgets.QPushButton("Clear")
         clear_cookies_btn.setMinimumWidth(50)
         clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
         cookies_row.addWidget(clear_cookies_btn)
-        main.addLayout(cookies_row)
+        advanced_layout.addLayout(cookies_row)
 
-        # Console grows with the window instead of a fixed height, so a tall
-        # window shows more log rather than more empty space.
+        # The log is a details view: compact by default, expanded on request.
+        # It used to take every spare pixel, which made developer chatter the
+        # largest element on the tab.
+        self._main_layout = main
+        self.details_toggle = QtWidgets.QToolButton()
+        self.details_toggle.setText("Details")
+        self.details_toggle.setCheckable(True)
+        self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
+        self.details_toggle.setToolTip("Show the full activity log.")
+        self.details_toggle.toggled.connect(self._on_details_toggled)
+        main.addWidget(self.details_toggle)
+
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setMinimumHeight(120)
+        self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Activity log")
-        main.addWidget(self.console_log, 1)
+        main.addWidget(self.console_log)
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
@@ -520,6 +571,7 @@ class SingleTab(QtWidgets.QWidget):
 
     def _on_url_text_changed(self, _text):
         self.open_folder_btn.setVisible(False)
+        self.result_label.setVisible(False)
         self._last_path = ""
         self._url_timer.start()
 
@@ -545,6 +597,32 @@ class SingleTab(QtWidgets.QWidget):
         if obj is self.url_input and event.type() == QtCore.QEvent.FocusIn:
             self._fill_from_clipboard()
         return super().eventFilter(obj, event)
+
+    def _sync_resolution_state(self, _checked=None):
+        """The Resolution combo only applies while its checkbox is on.
+
+        Leaving it enabled while inert made the tab promise a resolution it
+        would not deliver, which is the surprise this app exists to prevent.
+        """
+        active = self.convert_checkbox.isChecked()
+        self.resolution_combo.setEnabled(active)
+        self.resolution_combo.setToolTip(
+            "Re-encode the download at this height." if active
+            else "Enable 'Convert to chosen resolution' to use this."
+        )
+
+    def _on_advanced_toggled(self, checked):
+        self.advanced_widget.setVisible(checked)
+        self.advanced_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
+        )
+
+    def _on_details_toggled(self, checked):
+        self.console_log.setMaximumHeight(16777215 if checked else 120)
+        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        self.details_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
+        )
 
     def _on_open_folder(self):
         if self._last_path:
@@ -707,7 +785,10 @@ class SingleTab(QtWidgets.QWidget):
 
     def on_download(self):
         if self.worker and self.worker.isRunning():
-            self.log("Already downloading. Wait for current download to finish.")
+            self.worker.cancel()
+            self.download_btn.setEnabled(False)
+            self.download_btn.setText("Cancelling...")
+            self.log("Cancelling the download...")
             return
         url = self.url_input.text().strip()
         if not url:
@@ -767,9 +848,11 @@ class SingleTab(QtWidgets.QWidget):
             self.cookies_file_ref["path"] = auto_cookie
             self.log(f"Auto-detected cookies: {auto_cookie}")
 
-        self.download_btn.setEnabled(False)
+        # The button doubles as Cancel while a download runs.
+        self.download_btn.setText("Cancel")
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
+        self.result_label.setVisible(False)
         self.progress_label.setText("")
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
@@ -793,11 +876,32 @@ class SingleTab(QtWidgets.QWidget):
         self.progress_label.setText(format_progress(p))
 
     def on_worker_finished(self, msg: str):
+        from ui.style import state_style
         self.log(msg)
+        self.download_btn.setText("Download")
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.progress_label.setText("")
         if self._last_path:
+            self.result_label.setText(
+                "Saved %s. Ready for your editor."
+                % os.path.basename(self._last_path)
+            )
+            self._result_kind = "ok"
             self.open_folder_btn.setVisible(True)
         else:
+            self.result_label.setText(msg or "The download did not finish.")
+            # A user-initiated cancel is not a failure.
+            self._result_kind = (
+                "muted" if getattr(self.worker, "cancelled", False) else "error"
+            )
             self.open_folder_btn.setVisible(False)
+        self.result_label.setStyleSheet(state_style(self._result_kind))
+        self.result_label.setVisible(True)
+
+    def refresh_state_colors(self):
+        """Re-color the result line after a theme change."""
+        if not self.result_label.text():
+            return
+        from ui.style import state_style
+        self.result_label.setStyleSheet(state_style(self._result_kind))

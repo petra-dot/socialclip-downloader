@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtGui, QtWidgets, QtCore
 
 from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
@@ -45,6 +45,42 @@ def build_job_options(save_dir: str, output_text: str, resolution: str,
         "subtitles": subtitles,
         "cookies_from_browser": cookies_from_browser,
     }
+
+
+def state_label(state: str) -> str:
+    """'running' -> 'Running', so the Status column reads as prose."""
+    return (state or "").capitalize()
+
+
+def state_kind(state: str) -> str:
+    """Map a job state to a UI state color kind."""
+    if state == "done":
+        return "ok"
+    if state == "failed":
+        return "error"
+    if state == "running":
+        return "busy"
+    return "muted"
+
+
+def state_brush(state: str):
+    """A foreground brush for a job state, so success and failure scan."""
+    from ui.style import state_color
+    return QtGui.QBrush(QtGui.QColor(state_color(state_kind(state))))
+
+
+def job_options_summary(options: dict) -> str:
+    """A short, human summary of a job's baked options, e.g. 'MP4 1080p'."""
+    opts = options or {}
+    raw = opts.get("output_type")
+    fmt = raw if raw in ("MP3", "MP4") else "?"
+    parts = [fmt]
+    if fmt == "MP4" and opts.get("target_resolution"):
+        parts.append("%sp" % opts["target_resolution"])
+    subtitles = opts.get("subtitles", "off")
+    if subtitles and subtitles != "off":
+        parts.append("subs %s" % subtitles)
+    return " ".join(parts)
 
 
 def parse_url_lines(text: str) -> list:
@@ -131,7 +167,7 @@ class QueueTab(QtWidgets.QWidget):
 
         self.batch_table = QtWidgets.QTableWidget(0, 3)
         self.batch_table.setAccessibleName("Download queue")
-        self.batch_table.setHorizontalHeaderLabels(["URL", "Status", "Detail"])
+        self.batch_table.setHorizontalHeaderLabels(["Video", "Status", "Detail"])
         self.batch_table.horizontalHeader().setStretchLastSection(True)
         self.batch_table.setColumnWidth(0, 340)
         self.batch_table.setColumnWidth(1, 90)
@@ -168,7 +204,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addWidget(opts_heading)
 
         preset_row = QtWidgets.QHBoxLayout()
-        preset_row.addWidget(QtWidgets.QLabel("Preset:"))
+        preset_label = QtWidgets.QLabel("Preset:")
+        preset_row.addWidget(preset_label)
         self.batch_preset_combo = QtWidgets.QComboBox()
         self.batch_preset_combo.setAccessibleName("Queue preset")
         self.batch_preset_combo.setToolTip(
@@ -178,6 +215,7 @@ class QueueTab(QtWidgets.QWidget):
         )
         self.batch_preset_combo.currentIndexChanged.connect(self.on_preset_selected)
         preset_row.addWidget(self.batch_preset_combo)
+        preset_label.setBuddy(self.batch_preset_combo)
         preset_row.addStretch(1)
         queue_layout.addLayout(preset_row)
 
@@ -197,14 +235,26 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_output_combo = QtWidgets.QComboBox()
         self.batch_output_combo.setAccessibleName("Queue output format")
         self.batch_output_combo.addItems(OUTPUT_FORMATS)
-        queue_opts_layout.addWidget(QtWidgets.QLabel("Output:"))
+        output_label = QtWidgets.QLabel("Output:")
+        queue_opts_layout.addWidget(output_label)
         queue_opts_layout.addWidget(self.batch_output_combo)
+        output_label.setBuddy(self.batch_output_combo)
         self.batch_resolution_combo = QtWidgets.QComboBox()
         self.batch_resolution_combo.setAccessibleName("Queue target resolution")
         self.batch_resolution_combo.addItems(RESOLUTIONS)
         self.batch_resolution_combo.setCurrentText("1080")
-        queue_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
+        resolution_label = QtWidgets.QLabel("Resolution:")
+        queue_opts_layout.addWidget(resolution_label)
         queue_opts_layout.addWidget(self.batch_resolution_combo)
+        resolution_label.setBuddy(self.batch_resolution_combo)
+        self.apply_options_btn = QtWidgets.QPushButton("Apply to pending")
+        self.apply_options_btn.setToolTip(
+            "Stamp the options above onto every pending item. Options are set "
+            "when an item is added, so this updates items already in the queue."
+        )
+        self.apply_options_btn.clicked.connect(self.on_apply_options)
+        queue_opts_layout.addWidget(self.apply_options_btn)
+        queue_opts_layout.addStretch(1)
         queue_layout.addLayout(queue_opts_layout)
 
         cookies_row = QtWidgets.QHBoxLayout()
@@ -219,13 +269,15 @@ class QueueTab(QtWidgets.QWidget):
         )
         self.batch_cookies_input.editingFinished.connect(self._on_batch_cookies_changed)
         cookies_row.addWidget(self.batch_cookies_input)
-        browse_cookies_btn = QtWidgets.QPushButton("Browse...")
+        cookies_label.setBuddy(self.batch_cookies_input)
+        browse_cookies_btn = QtWidgets.QPushButton("Browse")
         browse_cookies_btn.clicked.connect(self.on_batch_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
         queue_layout.addLayout(cookies_row)
 
         sub_row = QtWidgets.QHBoxLayout()
-        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        subtitles_label = QtWidgets.QLabel("Subtitles:")
+        sub_row.addWidget(subtitles_label)
         self.batch_subtitle_combo = QtWidgets.QComboBox()
         self.batch_subtitle_combo.setAccessibleName("Queue subtitle delivery")
         for value, label in (
@@ -234,6 +286,7 @@ class QueueTab(QtWidgets.QWidget):
         ):
             self.batch_subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.batch_subtitle_combo)
+        subtitles_label.setBuddy(self.batch_subtitle_combo)
         sub_row.addStretch(1)
         queue_layout.addLayout(sub_row)
 
@@ -248,6 +301,10 @@ class QueueTab(QtWidgets.QWidget):
         )
         archive_row.addWidget(self.archive_check)
         self.clear_archive_btn = QtWidgets.QPushButton("Clear archive")
+        self.clear_archive_btn.setToolTip(
+            "Forget which videos have been downloaded, so they can be "
+            "downloaded again. Only affects 'Skip already downloaded'."
+        )
         self.clear_archive_btn.clicked.connect(self.on_clear_archive)
         archive_row.addWidget(self.clear_archive_btn)
         archive_row.addStretch(1)
@@ -520,11 +577,23 @@ class QueueTab(QtWidgets.QWidget):
         # Platform badge beside the URL so a long queue is scannable at a glance.
         url_item.setIcon(icon_for_url(job.url))
         self.batch_table.setItem(row, 0, url_item)
-        status_item = QtWidgets.QTableWidgetItem(job.state)
+        status_item = QtWidgets.QTableWidgetItem(state_label(job.state))
+        status_item.setForeground(state_brush(job.state))
         if job.state == "pending":
             status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
         self.batch_table.setItem(row, 1, status_item)
-        self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(job.message or ""))
+        detail = job.message or ""
+        if job.state == "pending" and not detail:
+            # Options are baked in when an item is added, so show them here;
+            # otherwise the only way to see them is the right-click menu.
+            detail = job_options_summary(job.options)
+        detail_item = QtWidgets.QTableWidgetItem(detail)
+        if job.state == "pending":
+            detail_item.setToolTip(
+                "Options are set when an item is added. Use 'Apply to pending' "
+                "or right-click > Edit options... to change them."
+            )
+        self.batch_table.setItem(row, 2, detail_item)
         self._row_for_id[job.id] = row
 
     def _job_at_row(self, row):
@@ -557,9 +626,9 @@ class QueueTab(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         remove_action = menu.addAction("Remove from queue")
         remove_action.setEnabled(can_remove(job.state))
-        cancel_this = menu.addAction("Cancel this download")
+        cancel_this = menu.addAction("Stop this download")
         cancel_this.setEnabled(job.state == "running")
-        cancel_action = menu.addAction("Cancel")
+        cancel_action = menu.addAction("Cancel this item")
         cancel_action.setEnabled(job.state == "pending")
         retry_action = menu.addAction("Retry")
         retry_action.setEnabled(job.state == "failed")
@@ -605,7 +674,9 @@ class QueueTab(QtWidgets.QWidget):
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
-            self.batch_table.item(row, 1).setText(status)
+            item = self.batch_table.item(row, 1)
+            item.setText(state_label(status))
+            item.setForeground(state_brush(status))
             self.batch_table.item(row, 2).setText(detail or "")
 
     def _on_job(self, job_id, state, job):
@@ -643,6 +714,14 @@ class QueueTab(QtWidgets.QWidget):
             self.show_hint("Add at least one URL before starting.")
             return
         self.show_hint("")
+        current = self._job_options()
+        stale = sum(1 for j in self.queue.jobs
+                    if j.state == "pending" and (j.options or {}) != current)
+        if stale:
+            self.batch_log(
+                "%d pending item(s) use different options than the ones above. "
+                "Use 'Apply to pending' to update them." % stale
+            )
         self.queue.resume()
         self.queue.store.save()
         self.batch_start_btn.setEnabled(False)
@@ -678,12 +757,33 @@ class QueueTab(QtWidgets.QWidget):
 
     def on_clear_archive(self):
         from core.archive import clear_archive, default_archive_path
+        if QtWidgets.QMessageBox.question(
+            self, "Clear archive",
+            "Forget every video recorded as downloaded?\n\n"
+            "They can then be downloaded again.",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
+        ) != QtWidgets.QMessageBox.Yes:
+            return
         removed = clear_archive(default_archive_path())
         self.batch_log("Archive cleared." if removed else "Archive is already empty.")
 
     def _archive_path(self):
         from core.archive import default_archive_path
         return default_archive_path() if self.archive_check.isChecked() else None
+
+    def on_apply_options(self):
+        options = self._job_options()
+        count = 0
+        for job in self.queue.jobs:
+            if job.state == "pending" and self.queue.set_options(job.id, options):
+                count += 1
+        if not count:
+            self.batch_log("No pending items to update.")
+            return
+        self.queue.store.save()
+        self.refresh_table()
+        self.batch_log("Applied the current options to %d pending item(s)." % count)
 
     def on_retry_failed(self):
         count = self.queue.retry_failed()

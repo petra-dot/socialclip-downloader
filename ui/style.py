@@ -20,6 +20,30 @@ THEME_LABELS = {
 }
 
 
+_STATE_LIGHT = {"ok": "#1a7f37", "error": "#b42318",
+                "busy": "#0b6bcb", "muted": "#57606a"}
+_STATE_DARK = {"ok": "#3fb950", "error": "#f85149",
+               "busy": "#4c9aff", "muted": "#9aa4b2"}
+
+_current_mode = THEME_SYSTEM
+
+
+def is_dark() -> bool:
+    return _current_mode == THEME_DARK
+
+
+def state_color(kind: str) -> str:
+    """A hex color for a UI state: ok / error / busy / muted."""
+    table = _STATE_DARK if is_dark() else _STATE_LIGHT
+    return table.get(kind, "")
+
+
+def state_style(kind: str) -> str:
+    """A stylesheet snippet that colors a widget by state."""
+    color = state_color(kind)
+    return "color: %s;" % color if color else ""
+
+
 def make_heading(label):
     """Style a QLabel as a section heading, scaled from the app font."""
     font = label.font()
@@ -36,7 +60,8 @@ def _dark_palette():
     window = QtGui.QColor(37, 38, 40)
     base = QtGui.QColor(28, 29, 31)
     text = QtGui.QColor(232, 234, 237)
-    disabled = QtGui.QColor(130, 135, 143)
+    # 154,164,178 clears 4.5:1 on the #252628 window; 130,135,143 did not.
+    disabled = QtGui.QColor(154, 164, 178)
     p.setColor(QtGui.QPalette.Window, window)
     p.setColor(QtGui.QPalette.WindowText, text)
     p.setColor(QtGui.QPalette.Base, base)
@@ -70,7 +95,8 @@ def apply_theme(app, mode: str):
     Fusion. Without this, Windows' native style keeps drawing light widget
     backgrounds while the palette paints the text light: unreadable.
     """
-    global _native_style
+    global _native_style, _current_mode
+    _current_mode = mode
     if _native_style is None:
         _native_style = app.style().objectName() or None
     if mode == THEME_DARK:
