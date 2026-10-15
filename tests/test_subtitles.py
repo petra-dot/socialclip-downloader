@@ -73,8 +73,13 @@ def test_write_subtitle_writes_manual_and_auto_names(tmp_path):
             return self._body
 
     base = str(tmp_path / "Video")
-    manual = SubtitleTrack("en", "manual", "u1", "srt")
-    auto = SubtitleTrack("en", "auto", "u2", "srt")
+    manual = SubtitleTrack("en", "manual", "https://example.com/en.srt", "srt")
+    auto = SubtitleTrack("en", "auto", "https://example.com/en-auto.srt", "srt")
     opener = lambda req, timeout=None: Response(b"1\n00:00:00,000 --> 00:00:01,000\nhi\n")
     assert write_subtitle(manual, base, opener=opener).endswith("Video.en.srt")
     assert write_subtitle(auto, base, opener=opener).endswith("Video.en.auto.srt")
+
+
+def test_write_subtitle_bad_url_returns_none(tmp_path):
+    bad = SubtitleTrack("en", "manual", "not-a-url", "srt")
+    assert write_subtitle(bad, str(tmp_path / "V"), opener=lambda *a, **k: None) is None

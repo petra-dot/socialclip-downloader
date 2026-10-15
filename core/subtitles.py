@@ -61,10 +61,6 @@ def write_subtitle(track, base_path, opener=None) -> Optional[str]:
         request = urllib.request.Request(
             track.url, headers={"User-Agent": "Mozilla/5.0"}
         )
-    except ValueError:
-        # A URL without a scheme (e.g. a bare test fixture) still goes to the opener.
-        request = track.url
-    try:
         with open_url(request, timeout=30) as response:
             data = response.read()
     except Exception:  # noqa: BLE001 - a missing subtitle must not fail the download
