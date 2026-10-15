@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtGui, QtWidgets, QtCore
 
 from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
@@ -45,6 +45,28 @@ def build_job_options(save_dir: str, output_text: str, resolution: str,
         "subtitles": subtitles,
         "cookies_from_browser": cookies_from_browser,
     }
+
+
+def state_label(state: str) -> str:
+    """'running' -> 'Running', so the Status column reads as prose."""
+    return (state or "").capitalize()
+
+
+def state_kind(state: str) -> str:
+    """Map a job state to a UI state color kind."""
+    if state == "done":
+        return "ok"
+    if state == "failed":
+        return "error"
+    if state == "running":
+        return "busy"
+    return "muted"
+
+
+def state_brush(state: str):
+    """A foreground brush for a job state, so success and failure scan."""
+    from ui.style import state_color
+    return QtGui.QBrush(QtGui.QColor(state_color(state_kind(state))))
 
 
 def job_options_summary(options: dict) -> str:
@@ -541,7 +563,8 @@ class QueueTab(QtWidgets.QWidget):
         # Platform badge beside the URL so a long queue is scannable at a glance.
         url_item.setIcon(icon_for_url(job.url))
         self.batch_table.setItem(row, 0, url_item)
-        status_item = QtWidgets.QTableWidgetItem(job.state)
+        status_item = QtWidgets.QTableWidgetItem(state_label(job.state))
+        status_item.setForeground(state_brush(job.state))
         if job.state == "pending":
             status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
         self.batch_table.setItem(row, 1, status_item)
@@ -636,7 +659,9 @@ class QueueTab(QtWidgets.QWidget):
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
-            self.batch_table.item(row, 1).setText(status)
+            item = self.batch_table.item(row, 1)
+            item.setText(state_label(status))
+            item.setForeground(state_brush(status))
             self.batch_table.item(row, 2).setText(detail or "")
 
     def _on_job(self, job_id, state, job):

@@ -312,6 +312,14 @@ class SingleTab(QtWidgets.QWidget):
         self.progress_label.setAccessibleName("Download progress detail")
         main.addWidget(self.progress_label)
 
+        # The end of a download is the moment that matters, so it gets its own
+        # persistent line instead of a line of console chatter.
+        self.result_label = QtWidgets.QLabel("")
+        self.result_label.setAccessibleName("Download result")
+        self.result_label.setWordWrap(True)
+        self.result_label.setVisible(False)
+        main.addWidget(self.result_label)
+
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
         self.hint_label.setVisible(False)
@@ -831,6 +839,7 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
+        self.result_label.setVisible(False)
         self.progress_label.setText("")
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
@@ -854,11 +863,20 @@ class SingleTab(QtWidgets.QWidget):
         self.progress_label.setText(format_progress(p))
 
     def on_worker_finished(self, msg: str):
+        from ui.style import state_style
         self.log(msg)
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.progress_label.setText("")
         if self._last_path:
+            self.result_label.setText(
+                "Saved %s. Ready for your editor."
+                % os.path.basename(self._last_path)
+            )
+            self.result_label.setStyleSheet(state_style("ok"))
             self.open_folder_btn.setVisible(True)
         else:
+            self.result_label.setText(msg or "The download did not finish.")
+            self.result_label.setStyleSheet(state_style("error"))
             self.open_folder_btn.setVisible(False)
+        self.result_label.setVisible(True)
