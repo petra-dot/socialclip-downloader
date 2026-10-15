@@ -167,6 +167,14 @@ helpers testable. CI lints and runs pytest.
   cookie file, and tests must fake yt-dlp rather than touch a real browser.
 - `ydl_opts.py` postprocessor key uses yt-dlp's intentional misspelling
   `ffmpegvideoconvertor` and `preferedformat`. Do not "fix" the spelling.
+- **The yt-dlp Python API is not the CLI.** `YoutubeDL` does not read the
+  user's yt-dlp config file, and its only default JS runtime is deno. YouTube
+  needs a JS runtime to solve its challenge, so without one every YouTube
+  download ends in HTTP 403. `utils/ytdlp.py` detects an installed runtime
+  (deno, node, bun, quickjs) and `_nle_ydl_opts` passes `js_runtimes`
+  explicitly; the doctor reports both the runtime and yt-dlp's age. A frozen
+  build bundles its yt-dlp and cannot update it, so staleness there is fixed
+  by shipping a release, not by the user.
 - Duration from yt-dlp can be a float; coerce to `int` before `:02d` formatting.
 
 ## Adding a platform

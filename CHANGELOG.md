@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased
+### Fixed
+- **YouTube downloads failing with HTTP 403.** yt-dlp's Python API does not read
+  your yt-dlp config file and defaults to deno as its only JavaScript runtime,
+  so a machine with node but no deno extracted YouTube without a runtime and
+  YouTube rejected the media URLs. The app now detects an installed runtime
+  (deno, node, bun, quickjs) and passes it explicitly.
+- The **Doctor** report now shows the JavaScript runtime it found and the
+  installed yt-dlp version with its age, flagging it when it is over 90 days
+  old (doctor schema `1.2`). A stale yt-dlp is also noted once in the activity
+  log at startup.
+
 ### Added
 - **Browser cookie source:** open **File -> Cookies** and pick one installed
   browser (Chrome, Firefox, Edge, Brave, and others); the app passes it to

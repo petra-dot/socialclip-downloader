@@ -86,7 +86,8 @@ without uploading anything to a third-party service.
   `presets.json` next to the app. On the Download tab use **Save as preset...**
   and **Manage** to add, rename, or delete your presets.
 - **Health check** — a built-in **Doctor** report covers ffmpeg, cookie files,
-  and network reachability, so you can fix problems before a download fails.
+  network reachability, the JavaScript runtime YouTube needs, and how old the
+  installed yt-dlp is, so you can fix problems before a download fails.
 - **Cross-platform** — Windows, macOS, and Linux, with prebuilt binaries that
   bundle ffmpeg.
 
@@ -113,6 +114,13 @@ Download the build for your operating system from the
 | Linux    | `socialclip-downloader-linux` | `socialclip-linux` |
 
 ffmpeg is bundled, so there is nothing else to install.
+
+**YouTube needs a JavaScript runtime.** yt-dlp solves YouTube's challenge with
+one, and the app looks for `deno`, `node`, `bun`, then `quickjs` on your `PATH`
+and uses the first it finds. Most machines already have Node.js; if none is
+installed, YouTube downloads fail with HTTP 403, and the **Doctor** report says
+so. Install Deno (`winget install DenoLand.Deno`, `brew install deno`) or
+Node.js.
 
 <details>
 <summary><strong>First-launch notes (macOS and Linux)</strong></summary>
