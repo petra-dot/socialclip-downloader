@@ -506,3 +506,43 @@ def test_clip_does_not_set_download_archive(monkeypatch, tmp_path):
         clip=ClipSpec(start=0.0, end=5.0, exact=False),
     )
     assert "download_archive" not in seen
+
+
+class NoneInfoYDL:
+    """Real archive short-circuit: extract_info returns None, no hook fires."""
+
+    def __init__(self, opts):
+        self.opts = opts
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def extract_info(self, url, download=True):
+        return None
+
+    def prepare_filename(self, info):
+        return ""
+
+
+def test_archived_none_info_returns_skipped(monkeypatch, tmp_path):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", NoneInfoYDL)
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        archive=str(tmp_path / "archive.txt"),
+    )
+    assert result.status == "error"
+    assert result.error_category == "skipped"
+
+
+def test_none_info_without_archive_is_not_found(monkeypatch, tmp_path):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", NoneInfoYDL)
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "error"
+    assert result.error_category == "not_found"

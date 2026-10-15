@@ -340,7 +340,7 @@ def _cmd_manifest_schema(args) -> int:
             "status": {"enum": ["ok", "error"]},
             "error_category": {
                 "enum": [None, "blocked", "cancelled", "format", "ffmpeg",
-                         "network", "not_found", "other"]
+                         "network", "not_found", "other", "skipped"]
             },
         },
         "required": ["schema_version", "status"],

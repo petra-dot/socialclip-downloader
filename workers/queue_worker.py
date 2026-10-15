@@ -90,7 +90,9 @@ class QueueWorker(QtCore.QThread):
         done = sum(1 for j in jobs if j.state == "done")
         failed = sum(1 for j in jobs if j.state == "failed")
         cancelled = sum(1 for j in jobs if j.state == "cancelled")
-        return f"Queue finished: {done} done, {failed} failed, {cancelled} cancelled"
+        skipped = sum(1 for j in jobs if j.state == "skipped")
+        return (f"Queue finished: {done} done, {failed} failed, "
+                f"{cancelled} cancelled, {skipped} skipped")
 
     def pause(self):
         self.queue.pause()

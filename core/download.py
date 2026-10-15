@@ -142,6 +142,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 downloaded_file = ydl.prepare_filename(info) if info else None
 
         if not info:
+            if archive and clip is None:
+                return error_result(
+                    "skipped", "Already downloaded; skipped.", url
+                )
             return error_result(
                 "not_found",
                 "Could not extract video info. The video may be private, "
