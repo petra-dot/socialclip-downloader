@@ -3,12 +3,16 @@ import os
 
 from PyQt5 import QtWidgets, QtCore
 
+from core.collections import new_entries
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
+from sites.collections import classify_url
 from sites.cookies import default_cookie_dir
+from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
 from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
 from utils.ui_helpers import looks_like_url
+from workers.expand_worker import ExpandWorker
 from workers.queue_worker import QueueWorker
 
 
@@ -71,6 +75,7 @@ class QueueTab(QtWidgets.QWidget):
         super().__init__()
         self.cookies_file_ref = cookies_file_ref
         self.queue_worker = None
+        self._expand_worker = None
         self._row_for_id = {}
         self._running_id = ""
         self.settings = QtCore.QSettings()
@@ -258,15 +263,91 @@ class QueueTab(QtWidgets.QWidget):
             self._batch_get_cookies_path(),
         )
 
+    def _queued_urls(self):
+        return [job.url for job in self.queue.jobs]
+
+    def expand_collection_url(self, url):
+        """List a collection URL and offer to enqueue its videos."""
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Queue is running; finish or pause it first.")
+            return
+        self.add_urls_btn.setEnabled(False)
+        self.paste_urls_btn.setEnabled(False)
+        self.batch_log("Expanding %s ..." % (url,))
+        cookies = self._batch_get_cookies_path()
+        self._expand_worker = ExpandWorker(url, cookies_file=cookies)
+        self._expand_worker.done_signal.connect(
+            lambda result, u=url: self._on_expanded(u, result)
+        )
+        self._expand_worker.error_signal.connect(self._on_expand_error)
+        self._expand_worker.start()
+
+    def _on_expand_error(self, message):
+        self._expand_re_enable()
+        self.batch_log("Could not list the collection: %s" % message)
+
+    def _expand_re_enable(self):
+        self.add_urls_btn.setEnabled(True)
+        self.paste_urls_btn.setEnabled(True)
+
+    def _on_expanded(self, url, result):
+        if result.error:
+            self._expand_re_enable()
+            self.batch_log(result.error)
+            return
+        kept, skipped = new_entries(result.entries, self._queued_urls())
+        if not kept:
+            self._expand_re_enable()
+            self.batch_log("All %d found videos are already queued." % len(result.entries))
+            return
+        dialog = ExpandConfirmDialog(result, skipped, self)
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
+            self._expand_re_enable()
+            self.batch_log("Expansion cancelled.")
+            return
+        chosen = dialog.chosen_limit()
+        if chosen > len(result.entries):
+            self.batch_log("Fetching %d entries ..." % chosen)
+            self._expand_worker = ExpandWorker(
+                url, cookies_file=self._batch_get_cookies_path(), limit=chosen,
+            )
+            self._expand_worker.done_signal.connect(
+                lambda more: self._add_expanded(more, chosen)
+            )
+            self._expand_worker.error_signal.connect(self._on_expand_error)
+            self._expand_worker.start()
+            return
+        self._add_expanded(result, chosen)
+
+    def _add_expanded(self, result, chosen):
+        options = self._job_options()
+        kept, _ = new_entries(result.entries[:chosen], self._queued_urls())
+        for entry in kept:
+            self.queue.add(entry.url, options, title=entry.title)
+        self.queue.store.save()
+        self.refresh_table()
+        self._expand_re_enable()
+        self.batch_log("Added %d video(s) to the queue." % len(kept))
+
     def _add_jobs(self, urls):
-        valid = [u for u in urls if looks_like_url(u)]
-        skipped = len(urls) - len(valid)
-        if valid:
-            self.queue.add_many(valid, self._job_options())
+        singles = []
+        collections = []
+        skipped = 0
+        for url in urls:
+            if not looks_like_url(url):
+                skipped += 1
+            elif classify_url(url) == "collection":
+                collections.append(url)
+            else:
+                singles.append(url)
+        if singles:
+            self.queue.add_many(singles, self._job_options())
             self.queue.store.save()
             self.refresh_table()
         if skipped:
-            self.batch_log(f"Skipped {skipped} line(s) that did not look like a URL.")
+            self.batch_log("Skipped %d line(s) that did not look like a URL." % skipped)
+        for url in collections:
+            self.expand_collection_url(url)
 
     def on_add_urls(self):
         dialog = BulkPasteDialog(self)
@@ -295,7 +376,8 @@ class QueueTab(QtWidgets.QWidget):
     def _insert_job_row(self, job):
         row = self.batch_table.rowCount()
         self.batch_table.insertRow(row)
-        url_item = QtWidgets.QTableWidgetItem(job.url)
+        url_item = QtWidgets.QTableWidgetItem(job.title or job.url)
+        url_item.setToolTip(job.url)
         # Platform badge beside the URL so a long queue is scannable at a glance.
         url_item.setIcon(icon_for_url(job.url))
         self.batch_table.setItem(row, 0, url_item)
