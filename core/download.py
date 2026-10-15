@@ -233,9 +233,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 written = write_subtitle(track, base)
                 if written:
                     sidecars.append((track.lang, written))
+            embedded = False
             if subtitles in ("embed", "both") and sidecars:
-                embed_subtitles(final_path, sidecars)
-            if subtitles == "embed":
+                embedded = embed_subtitles(final_path, sidecars)
+            if subtitles == "embed" and embedded:
                 for _lang, path in sidecars:
                     try:
                         os.remove(path)
