@@ -269,53 +269,60 @@ class QueueTab(QtWidgets.QWidget):
 
     def expand_collection_url(self, url):
         """List a collection URL and offer to enqueue its videos."""
+        if self._expand_worker is not None:
+            self._expand_queue.append(url)
+            return
         if self.queue_worker and self.queue_worker.isRunning():
             self.batch_log("Queue is running; finish or pause it first.")
-            return
-        if self._expand_worker and self._expand_worker.isRunning():
-            self._expand_queue.append(url)
             return
         self.add_urls_btn.setEnabled(False)
         self.paste_urls_btn.setEnabled(False)
         self.batch_log("Expanding %s ..." % (url,))
         cookies = self._batch_get_cookies_path()
-        self._expand_worker = ExpandWorker(url, cookies_file=cookies)
-        self._expand_worker.done_signal.connect(
+        worker = ExpandWorker(url, cookies_file=cookies)
+        worker.done_signal.connect(
             lambda result, u=url: self._on_expanded(u, result)
         )
-        self._expand_worker.error_signal.connect(self._on_expand_error)
-        self._expand_worker.start()
+        worker.error_signal.connect(self._on_expand_error)
+        self._expand_worker = worker
+        worker.start()
 
     def _on_expand_error(self, message):
-        self._expand_re_enable()
+        self._finish_expand()
         self.batch_log("Could not list the collection: %s" % message)
 
     def _expand_re_enable(self):
         self.add_urls_btn.setEnabled(True)
         self.paste_urls_btn.setEnabled(True)
-        if self._expand_queue:
-            self._expand_next()
+
+    def _finish_expand(self):
+        self._expand_worker = None
+        self._expand_re_enable()
+        self._expand_next()
 
     def _expand_next(self):
-        if self._expand_worker and self._expand_worker.isRunning():
+        if self._expand_worker is not None:
             return
         if not self._expand_queue:
+            return
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Queue is running; finish or pause it first.")
             return
         self.expand_collection_url(self._expand_queue.pop(0))
 
     def _on_expanded(self, url, result):
         if result.error:
-            self._expand_re_enable()
+            self._finish_expand()
             self.batch_log(result.error)
             return
         kept, skipped = new_entries(result.entries, self._queued_urls())
         if not kept:
-            self._expand_re_enable()
+            self._finish_expand()
             self.batch_log("All %d found videos are already queued." % len(result.entries))
             return
         dialog = ExpandConfirmDialog(result, skipped, self)
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
-            self._expand_re_enable()
+            self._finish_expand()
             self.batch_log("Expansion cancelled.")
             return
         chosen = dialog.chosen_limit()
@@ -335,7 +342,7 @@ class QueueTab(QtWidgets.QWidget):
     def _add_expanded(self, result, chosen):
         if result.error:
             self.batch_log(result.error)
-            self._expand_re_enable()
+            self._finish_expand()
             return
         options = self._job_options()
         kept, _ = new_entries(result.entries[:chosen], self._queued_urls())
@@ -343,7 +350,7 @@ class QueueTab(QtWidgets.QWidget):
             self.queue.add(entry.url, options, title=entry.title)
         self.queue.store.save()
         self.refresh_table()
-        self._expand_re_enable()
+        self._finish_expand()
         self.batch_log("Added %d video(s) to the queue." % len(kept))
 
     def _add_jobs(self, urls):

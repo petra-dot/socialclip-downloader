@@ -87,7 +87,7 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
     from sites.cookies import detect_platform
     from sites.errors import classify_error
 
-    platform = detect_platform(url)
+    platform = ""
     opts = {
         "extract_flat": "in_playlist",
         "skip_download": True,
@@ -103,10 +103,15 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
         opts["cookiefile"] = cookies_file
 
     try:
+        platform = detect_platform(url)
         from yt_dlp import YoutubeDL
 
         with YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
+        if info:
+            entries, total, truncated = entries_from_info(info, limit, platform)
+        else:
+            entries, total, truncated = [], None, False
     except Exception as exc:
         category, message = classify_error(str(exc), url)
         note = collection_note(platform)
@@ -122,7 +127,6 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
             category="not_found",
         )
 
-    entries, total, truncated = entries_from_info(info, limit, platform)
     if not entries:
         return ExpandResult(
             platform=platform, total=total,
