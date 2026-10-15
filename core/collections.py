@@ -77,3 +77,59 @@ def new_entries(entries, existing_urls):
         kept.append(entry)
         existing.add(entry.url)
     return kept, skipped
+
+
+def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResult:
+    """List a collection URL's videos. Never downloads. Never raises."""
+    import os
+
+    from sites.collections import collection_note
+    from sites.cookies import detect_platform
+    from sites.errors import classify_error
+
+    platform = detect_platform(url)
+    opts = {
+        "extract_flat": "in_playlist",
+        "skip_download": True,
+        "noplaylist": False,
+        "playlistend": limit,
+        "ignoreerrors": True,
+        "quiet": True,
+        "no_warnings": True,
+        "no_color": True,
+        "age_limit": 99,
+    }
+    if cookies_file and os.path.isfile(cookies_file):
+        opts["cookiefile"] = cookies_file
+
+    try:
+        from yt_dlp import YoutubeDL
+
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        category, message = classify_error(str(exc), url)
+        note = collection_note(platform)
+        return ExpandResult(
+            platform=platform, error=note or message, category=category,
+        )
+
+    if not info:
+        return ExpandResult(
+            platform=platform,
+            error="Found no videos. The profile may be private or the listing "
+                  "may be unsupported for this site.",
+            category="not_found",
+        )
+
+    entries, total, truncated = entries_from_info(info, limit, platform)
+    if not entries:
+        return ExpandResult(
+            platform=platform, total=total,
+            error="Found no videos. The profile may be private or the listing "
+                  "may be unsupported for this site.",
+            category="not_found",
+        )
+    return ExpandResult(
+        platform=platform, entries=entries, total=total, truncated=truncated,
+    )

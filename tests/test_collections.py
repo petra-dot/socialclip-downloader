@@ -127,3 +127,73 @@ def test_new_entries_dedupes_within_the_batch():
 
 def test_default_limit_value():
     assert DEFAULT_LIMIT == 200
+
+
+from core.collections import expand_collection
+
+
+class FakeListYDL:
+    info = {"playlist_count": 2, "entries": [
+        {"url": "https://www.youtube.com/watch?v=a", "title": "A", "id": "a"},
+        {"url": "https://www.youtube.com/watch?v=b", "title": "B", "id": "b"},
+    ]}
+    last_opts = {}
+
+    def __init__(self, opts):
+        FakeListYDL.last_opts = opts
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def extract_info(self, url, download=True):
+        return self.info
+
+
+def test_expand_collection_lists_entries(monkeypatch):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeListYDL)
+    result = expand_collection("https://www.youtube.com/@x")
+    assert result.platform == "youtube"
+    assert [e.title for e in result.entries] == ["A", "B"]
+    assert result.error is None
+    # The listing must never download and must not be a noplaylist call.
+    assert FakeListYDL.last_opts["skip_download"] is True
+    assert FakeListYDL.last_opts["noplaylist"] is False
+    assert FakeListYDL.last_opts["extract_flat"] == "in_playlist"
+
+
+class FakeEmptyYDL(FakeListYDL):
+    info = {"entries": []}
+
+
+def test_expand_collection_empty_is_an_error(monkeypatch):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeEmptyYDL)
+    result = expand_collection("https://www.youtube.com/@x")
+    assert result.entries == []
+    assert result.error
+    assert result.category == "not_found"
+
+
+class FakeBoomYDL:
+    def __init__(self, opts):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def extract_info(self, url, download=True):
+        raise RuntimeError("Sign in to confirm you are not a bot")
+
+
+def test_expand_collection_classifies_failure(monkeypatch):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeBoomYDL)
+    result = expand_collection("https://www.instagram.com/someuser/")
+    assert result.category == "blocked"
+    assert result.error
+    # Instagram's honest note wins over the generic classify_error message.
+    assert "post" in result.error.lower()
