@@ -24,17 +24,21 @@ def test_run_repairs_calls_the_right_installer(tmp_path, monkeypatch):
     monkeypatch.setattr(maintenance_worker, "check_all", lambda *a, **kw: [])
 
     seen = []
-    # progress is called with two arguments (key, detail), matching the
-    # worker's pyqtSignal(str, str); one event per component.
     result = run_repairs(
         ["yt-dlp", "js-runtime"],
         progress=lambda key, detail: seen.append((key, detail)),
     )
 
+    # The right installer ran for each key.
     assert calls == ["yt-dlp", "deno"]
     assert result == []
-    assert [key for key, _ in seen] == ["yt-dlp", "js-runtime"]
-    assert len(seen) == 2
+    # Two events per component: "installing", then the install outcome.
+    assert seen == [
+        ("yt-dlp", "installing"),
+        ("yt-dlp", "installed 1.0"),
+        ("js-runtime", "installing"),
+        ("js-runtime", "installed 1.0"),
+    ]
 
 
 def test_run_repairs_reports_failure_and_continues(tmp_path, monkeypatch):
@@ -64,7 +68,22 @@ def test_run_repairs_reports_failure_and_continues(tmp_path, monkeypatch):
 
     # The failed component did not abort the loop.
     assert calls == ["ffmpeg", "deno"]
-    assert seen[0] == ("ffmpeg", "failed: network down")
-    assert seen[1] == ("js-runtime", "installed 1.0")
+    assert seen == [
+        ("ffmpeg", "installing"),
+        ("ffmpeg", "failed: network down"),
+        ("js-runtime", "installing"),
+        ("js-runtime", "installed 1.0"),
+    ]
     # A fresh re-check is returned.
     assert result == ["fresh"]
+
+
+def test_run_repairs_reports_an_unknown_key(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    from workers import maintenance_worker
+    monkeypatch.setattr(maintenance_worker, "check_all", lambda *a, **kw: [])
+    seen = []
+    maintenance_worker.run_repairs(
+        ["yt-dlpp"], progress=lambda k, d: seen.append((k, d)),
+    )
+    assert seen == [("yt-dlpp", "unknown component")]

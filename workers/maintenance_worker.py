@@ -9,31 +9,28 @@ from core.maintenance import (
     install_ytdlp,
 )
 
-# component key -> installer attribute name. "js-runtime" is satisfied by a
-# managed deno. The name is resolved through the module globals at call time,
-# not frozen into a {key: function} dict at import: a module-scope dict would
-# bind the original installers, so a test monkeypatching `install_ytdlp` would
-# have no effect.
-INSTALLERS = {
-    "yt-dlp": "install_ytdlp",
-    "ffmpeg": "install_ffmpeg",
-    "js-runtime": "install_deno",
-}
-
 
 def run_repairs(keys, progress=None):
     """Install each requested component, then re-check. Returns the components.
 
     A failure is reported through `progress` and does not stop the others: one
-    broken component must not block the rest. `progress` is called once per
-    component with `(key, detail)`, matching `MaintenanceRepairWorker`'s
-    two-argument `progress_signal`.
+    broken component must not block the rest. `progress` is called with
+    `(key, detail)`, matching `MaintenanceRepairWorker`'s two-argument
+    `progress_signal`.
     """
+    installers = {           # resolved at call time, so tests can patch them
+        "yt-dlp": install_ytdlp,
+        "ffmpeg": install_ffmpeg,
+        "js-runtime": install_deno,
+    }
     for key in keys:
-        name = INSTALLERS.get(key)
-        installer = globals().get(name) if name else None
+        installer = installers.get(key)
         if installer is None:
+            if progress:
+                progress(key, "unknown component")
             continue
+        if progress:
+            progress(key, "installing")
         try:
             version = installer()
         except Exception as exc:  # noqa: BLE001 - report, keep going
