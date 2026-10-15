@@ -28,6 +28,27 @@ def _asset_path(name: str) -> str:
 
 
 def main():
+    if "--apply-update" in sys.argv:
+        from core.updater import apply_update
+
+        argv = sys.argv
+        target = None
+        pid = None
+        if "--target" in argv:
+            try:
+                target = argv[argv.index("--target") + 1]
+            except IndexError:
+                target = None
+        if "--wait-pid" in argv:
+            try:
+                pid = int(argv[argv.index("--wait-pid") + 1])
+            except (IndexError, ValueError):
+                pid = None
+        if not target or pid is None:
+            print("usage: --apply-update --target PATH --wait-pid PID")
+            return 2
+        return apply_update(target, pid)
+
     missing = []
     if YoutubeDL is None:
         missing.append("yt-dlp (Python package 'yt-dlp') - install with: pip install yt-dlp")
@@ -74,4 +95,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
