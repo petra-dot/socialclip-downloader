@@ -159,3 +159,65 @@ class ExpandConfirmDialog(QtWidgets.QDialog):
 
     def chosen_limit(self) -> int:
         return self.count_spin.value()
+
+
+def manage_presets(parent, store) -> bool:
+    """Rename or delete user presets. Returns True if anything changed."""
+    changed = False
+    dialog = QtWidgets.QDialog(parent)
+    dialog.setWindowTitle("Manage presets")
+    dialog.resize(420, 320)
+    layout = QtWidgets.QVBoxLayout(dialog)
+    layout.addWidget(QtWidgets.QLabel("Your presets:"))
+    listing = QtWidgets.QListWidget()
+    for preset in store.user():
+        listing.addItem(preset.name)
+    layout.addWidget(listing)
+
+    buttons = QtWidgets.QHBoxLayout()
+    rename_btn = QtWidgets.QPushButton("Rename")
+    delete_btn = QtWidgets.QPushButton("Delete")
+    buttons.addWidget(rename_btn)
+    buttons.addWidget(delete_btn)
+    buttons.addStretch(1)
+    close_btn = QtWidgets.QPushButton("Close")
+    buttons.addWidget(close_btn)
+    layout.addLayout(buttons)
+
+    def selected_name():
+        item = listing.currentItem()
+        return item.text() if item else ""
+
+    def on_rename():
+        nonlocal changed
+        old = selected_name()
+        if not old:
+            return
+        new, ok = QtWidgets.QInputDialog.getText(
+            dialog, "Rename preset", "New name:", text=old
+        )
+        if ok and new.strip() and store.rename(old, new.strip()):
+            changed = True
+            listing.clear()
+            for preset in store.user():
+                listing.addItem(preset.name)
+
+    def on_delete():
+        nonlocal changed
+        name = selected_name()
+        if not name:
+            return
+        confirm = QtWidgets.QMessageBox.question(
+            dialog, "Delete preset", "Delete '%s'?" % name
+        )
+        if confirm == QtWidgets.QMessageBox.Yes and store.remove(name):
+            changed = True
+            listing.clear()
+            for preset in store.user():
+                listing.addItem(preset.name)
+
+    rename_btn.clicked.connect(on_rename)
+    delete_btn.clicked.connect(on_delete)
+    close_btn.clicked.connect(dialog.accept)
+    dialog.exec_()
+    return changed
