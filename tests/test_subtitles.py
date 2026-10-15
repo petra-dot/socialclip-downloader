@@ -83,3 +83,23 @@ def test_write_subtitle_writes_manual_and_auto_names(tmp_path):
 def test_write_subtitle_bad_url_returns_none(tmp_path):
     bad = SubtitleTrack("en", "manual", "not-a-url", "srt")
     assert write_subtitle(bad, str(tmp_path / "V"), opener=lambda *a, **k: None) is None
+
+
+def test_write_subtitle_missing_ffmpeg_returns_none(tmp_path, monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"WEBVTT\n"
+
+    def boom(*a, **k):
+        raise FileNotFoundError("ffmpeg")
+
+    monkeypatch.setattr("core.subtitles.subprocess.run", boom)
+    track = SubtitleTrack("en", "manual", "https://example.com/en.vtt", "vtt")
+    opener = lambda req, timeout=None: Response()
+    assert write_subtitle(track, str(tmp_path / "V"), opener=opener) is None

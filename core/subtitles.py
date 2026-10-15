@@ -66,25 +66,28 @@ def write_subtitle(track, base_path, opener=None) -> Optional[str]:
     except Exception:  # noqa: BLE001 - a missing subtitle must not fail the download
         return None
 
-    if track.ext == "srt":
-        with open(dest, "wb") as fh:
-            fh.write(data)
-        return dest
-
-    tmp = dest + ".vtt"
-    with open(tmp, "wb") as fh:
-        fh.write(data)
     try:
-        result = subprocess.run(
-            [ffmpeg_path(), "-y", "-i", tmp, dest],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-    finally:
+        if track.ext == "srt":
+            with open(dest, "wb") as fh:
+                fh.write(data)
+            return dest
+
+        tmp = dest + ".vtt"
+        with open(tmp, "wb") as fh:
+            fh.write(data)
         try:
-            os.remove(tmp)
-        except OSError:
-            pass
-    return dest if result.returncode == 0 else None
+            result = subprocess.run(
+                [ffmpeg_path(), "-y", "-i", tmp, dest],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        return dest if result.returncode == 0 else None
+    except OSError:  # a missing ffmpeg or an unwritable sidecar must not fail the download
+        return None
 
 
 def embed_command(video_path, subtitles, out_path, ffmpeg="ffmpeg") -> list:
