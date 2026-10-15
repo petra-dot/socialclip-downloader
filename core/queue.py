@@ -27,6 +27,7 @@ STORE_VERSION = 1
 class QueueJob:
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     url: str = ""
+    title: str = ""
     state: str = "pending"
     message: str = ""
     path: Optional[str] = None
@@ -130,8 +131,9 @@ class Queue:
     def paused(self) -> bool:
         return self.store.paused
 
-    def add(self, url: str, options: Optional[dict] = None) -> QueueJob:
-        job = QueueJob(url=url, options=dict(options or {}))
+    def add(self, url: str, options: Optional[dict] = None,
+            title: str = "") -> QueueJob:
+        job = QueueJob(url=url, title=title, options=dict(options or {}))
         self.jobs.append(job)
         return job
 

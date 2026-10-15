@@ -256,3 +256,39 @@ def test_can_remove_only_blocks_running():
     for state in ("pending", "done", "failed", "cancelled", "paused"):
         assert can_remove(state) is True, state
     assert can_remove("running") is False
+
+
+def test_job_title_defaults_to_empty():
+    from core.queue import QueueJob
+    assert QueueJob(url="u").title == ""
+
+
+def test_add_accepts_a_title():
+    from core.queue import Queue
+    queue = Queue()
+    job = queue.add("https://youtu.be/x", title="My Video")
+    assert job.title == "My Video"
+
+
+def test_store_round_trip_without_title_is_backward_compatible(tmp_path):
+    import json
+    from core.queue import QueueStore
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({
+        "version": 1, "paused": False,
+        "jobs": [{"id": "a", "url": "https://youtu.be/x", "state": "pending"}],
+    }))
+    store = QueueStore(str(path))
+    store.load()
+    assert store.jobs[0].title == ""
+
+
+def test_store_persists_title(tmp_path):
+    from core.queue import Queue, QueueStore
+    path = str(tmp_path / "queue.json")
+    queue = Queue(QueueStore(path))
+    queue.add("https://youtu.be/x", title="My Video")
+    queue.store.save()
+    again = QueueStore(path)
+    again.load()
+    assert again.jobs[0].title == "My Video"
