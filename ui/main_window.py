@@ -239,6 +239,7 @@ class MainWindow(QtWidgets.QWidget):
         if app is not None:
             apply_theme(app, mode)
         self._sync_theme_actions(mode)
+        self._refresh_theme_colors()
 
     def _apply_saved_theme(self):
         mode = self.settings.value("ui/theme", "system")
@@ -246,6 +247,16 @@ class MainWindow(QtWidgets.QWidget):
         if app is not None:
             apply_theme(app, mode)
         self._sync_theme_actions(mode)
+        self._refresh_theme_colors()
+
+    def _refresh_theme_colors(self):
+        """Re-apply state colors after a theme change.
+
+        Row brushes and inline stylesheets hold literal hex colors, so a
+        palette switch does not reach them on its own.
+        """
+        self.batch_tab.refresh_table()
+        self.single_tab.refresh_state_colors()
 
     def _sync_theme_actions(self, mode: str):
         for name, action in getattr(self, "_theme_actions", {}).items():

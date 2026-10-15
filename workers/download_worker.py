@@ -21,6 +21,7 @@ class DownloadWorker(QtCore.QThread):
         self.subtitles = subtitles
         self.cookies_from_browser = cookies_from_browser
         self._cancel = threading.Event()
+        self.cancelled = False
 
     def cancel(self):
         """Ask the running download to stop. It ends as 'cancelled'."""
@@ -43,5 +44,6 @@ class DownloadWorker(QtCore.QThread):
             cookies_from_browser=self.cookies_from_browser,
             cancel=self._cancel.is_set,
         )
+        self.cancelled = result.error_category == "cancelled"
         self.path_signal.emit((result.path or "") if result.status == "ok" else "")
         self.finished_signal.emit(result.message or result.path or result.status)

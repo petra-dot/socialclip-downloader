@@ -72,7 +72,8 @@ def state_brush(state: str):
 def job_options_summary(options: dict) -> str:
     """A short, human summary of a job's baked options, e.g. 'MP4 1080p'."""
     opts = options or {}
-    fmt = "MP3" if opts.get("output_type") == "MP3" else "MP4"
+    raw = opts.get("output_type")
+    fmt = raw if raw in ("MP3", "MP4") else "?"
     parts = [fmt]
     if fmt == "MP4" and opts.get("target_resolution"):
         parts.append("%sp" % opts["target_resolution"])
@@ -587,10 +588,11 @@ class QueueTab(QtWidgets.QWidget):
             # otherwise the only way to see them is the right-click menu.
             detail = job_options_summary(job.options)
         detail_item = QtWidgets.QTableWidgetItem(detail)
-        detail_item.setToolTip(
-            "Options are set when an item is added. Use 'Apply to pending' or "
-            "right-click > Edit options... to change them."
-        )
+        if job.state == "pending":
+            detail_item.setToolTip(
+                "Options are set when an item is added. Use 'Apply to pending' "
+                "or right-click > Edit options... to change them."
+            )
         self.batch_table.setItem(row, 2, detail_item)
         self._row_for_id[job.id] = row
 
@@ -759,6 +761,8 @@ class QueueTab(QtWidgets.QWidget):
             self, "Clear archive",
             "Forget every video recorded as downloaded?\n\n"
             "They can then be downloaded again.",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
         ) != QtWidgets.QMessageBox.Yes:
             return
         removed = clear_archive(default_archive_path())

@@ -136,6 +136,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_seq = 0
         self._thumb_seq = 0
         self._last_path = ""
+        self._result_kind = "ok"
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
         self.preset_store.load()
@@ -570,6 +571,7 @@ class SingleTab(QtWidgets.QWidget):
 
     def _on_url_text_changed(self, _text):
         self.open_folder_btn.setVisible(False)
+        self.result_label.setVisible(False)
         self._last_path = ""
         self._url_timer.start()
 
@@ -885,10 +887,21 @@ class SingleTab(QtWidgets.QWidget):
                 "Saved %s. Ready for your editor."
                 % os.path.basename(self._last_path)
             )
-            self.result_label.setStyleSheet(state_style("ok"))
+            self._result_kind = "ok"
             self.open_folder_btn.setVisible(True)
         else:
             self.result_label.setText(msg or "The download did not finish.")
-            self.result_label.setStyleSheet(state_style("error"))
+            # A user-initiated cancel is not a failure.
+            self._result_kind = (
+                "muted" if getattr(self.worker, "cancelled", False) else "error"
+            )
             self.open_folder_btn.setVisible(False)
+        self.result_label.setStyleSheet(state_style(self._result_kind))
         self.result_label.setVisible(True)
+
+    def refresh_state_colors(self):
+        """Re-color the result line after a theme change."""
+        if not self.result_label.text():
+            return
+        from ui.style import state_style
+        self.result_label.setStyleSheet(state_style(self._result_kind))
