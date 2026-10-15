@@ -28,6 +28,7 @@ core/collections.py        collection listing + dedupe helpers (pure)
 core/clip.py               time-range parsing + ffmpeg cut args (pure)
 core/presets.py            named download presets: editor built-ins + user presets.json (pure)
 core/subtitles.py          subtitle track selection from info + sidecar/embed helpers
+core/progress.py           Progress payload + speed/eta/size formatters (pure)
 core/updater.py            GitHub Releases check, asset download/verify, self-apply
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
@@ -83,6 +84,11 @@ editor built-ins live in code (`core/presets.py:BUILTIN_PRESETS`).
 Subtitles are fetched from the video `info` and written as sidecars (manual
 `<base>.<lang>.srt`, auto `<base>.<lang>.auto.srt`), never delegated to yt-dlp
 naming; `core/subtitles.py` selects the tracks and writes or embeds them.
+
+The download progress payload is a `core.progress.Progress` (`percent`, `speed`,
+`eta`, `downloaded`, `total`); `format_progress` renders it, and both workers'
+`progress_signal` carry it (the Download tab's label and each queue row's Detail
+cell show it).
 
 ## Commands
 

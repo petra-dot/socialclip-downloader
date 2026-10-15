@@ -64,6 +64,10 @@
   `queue retry`. Right-click a pending job and choose **Edit options...** to
   replace its format, resolution, folder, subtitles, and cookie file before it
   runs. Retry touches failed jobs only; edit applies to pending jobs only
+- **Download stats:** the progress display now shows speed, an ETA, and
+  downloaded/total size alongside the percentage, on the Download tab (a label
+  under the bar) and in each queue row's Detail cell. New `core/progress.py`
+  holds the `Progress` payload and the formatters that render it
 
 ## v0.9.2 - 2026-10-11
 ### Added

@@ -574,3 +574,43 @@ def test_download_one_forwards_browser_cookies(monkeypatch, tmp_path):
         cookies_from_browser="chrome",
     )
     assert seen.get("cookiesfrombrowser") == ("chrome", None, None, None)
+
+
+def test_progress_carries_speed_eta_and_size(monkeypatch, tmp_path):
+    from core.progress import Progress
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            for hook in self.opts.get("progress_hooks", []):
+                hook({"status": "downloading", "downloaded_bytes": 1024 * 1024,
+                      "total_bytes": 1024 * 1024 * 4, "speed": 1024 * 1024 * 2,
+                      "eta": 3})
+            return None
+
+        def prepare_filename(self, info):
+            return ""
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    seen = []
+    download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        progress=seen.append,
+    )
+    assert seen, "the hook must report progress"
+    p = seen[0]
+    assert isinstance(p, Progress)
+    assert p.percent == 25
+    assert p.speed == 1024 * 1024 * 2
+    assert p.eta == 3
+    assert p.downloaded == 1024 * 1024
+    assert p.total == 1024 * 1024 * 4

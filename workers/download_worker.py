@@ -4,7 +4,7 @@ from PyQt5 import QtCore
 class DownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
-    progress_signal = QtCore.pyqtSignal(int)
+    progress_signal = QtCore.pyqtSignal(object)  # a core.progress.Progress
     path_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None, clip=None, subtitles="off", cookies_from_browser=""):
@@ -18,19 +18,6 @@ class DownloadWorker(QtCore.QThread):
         self.clip = clip
         self.subtitles = subtitles
         self.cookies_from_browser = cookies_from_browser
-        self._progress_hook = self._create_progress_hook()
-
-    def _create_progress_hook(self):
-        def hook(d):
-            if d.get("status") == "downloading":
-                total = d.get("total_bytes") or d.get("total_bytes_estimate")
-                downloaded = d.get("downloaded_bytes", 0)
-                if total and total > 0:
-                    pct = int(downloaded / total * 100)
-                    self.progress_signal.emit(pct)
-            elif d.get("status") == "finished":
-                self.progress_signal.emit(100)
-        return hook
 
     def run(self):
         from core.download import download_one

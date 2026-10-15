@@ -284,6 +284,10 @@ class SingleTab(QtWidgets.QWidget):
         download_bar.addWidget(self.progress_bar)
         main.addLayout(download_bar)
 
+        self.progress_label = QtWidgets.QLabel("")
+        self.progress_label.setAccessibleName("Download progress detail")
+        main.addWidget(self.progress_label)
+
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
         self.hint_label.setVisible(False)
@@ -766,6 +770,7 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
+        self.progress_label.setText("")
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
@@ -774,7 +779,7 @@ class SingleTab(QtWidgets.QWidget):
             cookies_from_browser=self.settings.value("cookies/browser", "") or "",
         )
         self.worker.status_signal.connect(self.log)
-        self.worker.progress_signal.connect(self.progress_bar.setValue)
+        self.worker.progress_signal.connect(self._on_progress)
         self.worker.path_signal.connect(self._on_worker_path)
         self.worker.finished_signal.connect(self.on_worker_finished)
         self.worker.start()
@@ -782,10 +787,16 @@ class SingleTab(QtWidgets.QWidget):
     def _on_worker_path(self, path):
         self._last_path = path or ""
 
+    def _on_progress(self, p):
+        from core.progress import format_progress
+        self.progress_bar.setValue(int(p.percent))
+        self.progress_label.setText(format_progress(p))
+
     def on_worker_finished(self, msg: str):
         self.log(msg)
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
+        self.progress_label.setText("")
         if self._last_path:
             self.open_folder_btn.setVisible(True)
         else:

@@ -47,6 +47,9 @@ without uploading anything to a third-party service.
 - **Single download** — paste a URL and metadata is fetched automatically;
   preview the thumbnail, download as MP4 or MP3, then **Open folder** to reveal
   the saved file.
+- **Live progress stats** — while a download runs, the display shows speed,
+  estimated time remaining, and downloaded/total size alongside the percentage:
+  under the bar on the Download tab, and in each Queue row.
 - **Clip downloads** — tick **Clip** to save only a time range: set a **Start**
   with an **End**, or a **Start** with a **Duration**. The cut is lossless
   (stream copy) by default; enable **Exact cut** to re-encode at the precise
@@ -197,11 +200,11 @@ Exit codes are stable: `0` success, `1` download failure, `2` usage error,
 The **Queue** tab holds a table of URLs with a live status per item. Use
 **Add URLs** or **Paste** to enqueue, then **Start** to download them — up to 3
 at once by default, adjustable with **Downloads at once** (1 to 8). Each running
-row shows its own progress, a running row can be cancelled on its own, and
-**Cancel all** stops the batch. While running you can **Pause** / **Resume**,
-cancel an individual pending row, or **Clear finished** to drop everything in a
-terminal state. The queue reloads on startup, so unfinished work is still there
-after a restart.
+row shows its own progress (percent, speed, ETA, and size), a running row can be
+cancelled on its own, and **Cancel all** stops the batch. While running you can
+**Pause** / **Resume**, cancel an individual pending row, or **Clear finished**
+to drop everything in a terminal state. The queue reloads on startup, so
+unfinished work is still there after a restart.
 
 Failed a download? **Retry failed** re-queues every failed job, and
 right-clicking a failed row offers the same **Retry**. Right-click a pending job
