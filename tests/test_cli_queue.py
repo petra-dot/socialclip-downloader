@@ -247,3 +247,27 @@ def test_queue_add_rejects_unknown_browser(tmp_path, monkeypatch, capsys):
                    "--cookies-from-browser", "netscape"])
     assert rc == cli.EXIT_USAGE
     assert "invalid choice" in capsys.readouterr().err
+
+
+def test_queue_retry_requeues_failed(tmp_path, monkeypatch, capsys):
+    import cli
+    import json
+    from core.queue import QueueStore
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    assert cli.main(["queue", "add", "https://a.com/1", "--json"]) == cli.EXIT_OK
+    capsys.readouterr()
+
+    store = QueueStore(str(tmp_path / "q.json"))
+    store.load()
+    store.jobs[0].state = "failed"
+    store.save()
+
+    rc = cli.main(["queue", "retry", "--json"])
+    data = json.loads(capsys.readouterr().out)
+    assert rc == cli.EXIT_OK
+    assert data["retried"] == 1
+
+    again = QueueStore(str(tmp_path / "q.json"))
+    again.load()
+    assert again.jobs[0].state == "pending"
