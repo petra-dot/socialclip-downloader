@@ -72,3 +72,10 @@ def test_update_workers_expose_their_signals():
     assert hasattr(UpdateDownloadWorker, "progress_signal")
     assert hasattr(UpdateDownloadWorker, "done_signal")
     assert hasattr(UpdateDownloadWorker, "error_signal")
+
+
+def test_expand_worker_exposes_its_signals():
+    from workers.expand_worker import ExpandWorker
+
+    assert hasattr(ExpandWorker, "done_signal")
+    assert hasattr(ExpandWorker, "error_signal")

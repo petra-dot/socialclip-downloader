@@ -23,9 +23,11 @@ core/doctor.py             health report builder (ffmpeg, cookies, network); sch
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
 core/queue.py              persistent download queue + QueueStore (thread-free)
+core/collections.py        collection listing + dedupe helpers (pure)
 core/updater.py            GitHub Releases check, asset download/verify, self-apply
 sites/cookies.py           platform detection, cookie file lookup, error copy
 sites/errors.py            classify_error() -> (category, friendly message)
+sites/collections.py       collection URL classification
 ui/main_window.py          QTabWidget shell holding the three tabs
 ui/dialogs.py              first-run welcome + Doctor report dialogs
 ui/single_tab.py           Fetch -> metadata cache -> Download (also FetchWorker)
@@ -34,6 +36,7 @@ ui/convert_tab.py          local file format/resolution conversion
 ui/update_indicator.py     top-right update button (state + click signal)
 workers/download_worker.py single download + MP3/resolution post-process
 workers/queue_worker.py    drives a Queue: one job at a time, saves after each
+workers/expand_worker.py   expands a collection URL for the Queue tab
 workers/convert_worker.py  local file conversion
 workers/update_worker.py   update check + digest-verified asset download
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
@@ -92,6 +95,8 @@ helpers testable. CI lints and runs pytest.
 - `core.convert.convert_file` keeps the legacy three-format path
   (`output_type` in MP3/WAV/MP4 + optional resolution) byte-identical. The
   format path (`target_format`) is additive; do not rewrite the legacy branch.
+- Collection listing uses yt-dlp `extract_flat`; it is reliable on YouTube and
+  best-effort elsewhere.
 - Route any new user-facing error copy through
   `sites.errors.classify_error`; do not re-add keyword lists to the workers.
 - Cancel is a callable checked in the yt-dlp progress hook

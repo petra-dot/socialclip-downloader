@@ -18,6 +18,7 @@ from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
+from sites.collections import classify_url
 from sites.errors import classify_error
 from ui.style import make_heading
 
@@ -118,6 +119,8 @@ class ThumbnailWorker(QtCore.QThread):
 
 
 class SingleTab(QtWidgets.QWidget):
+    collection_requested = QtCore.pyqtSignal(str)
+
     def __init__(self, cookies_file_ref):
         super().__init__()
         self.cookies_file_ref = cookies_file_ref
@@ -458,6 +461,10 @@ class SingleTab(QtWidgets.QWidget):
         if not url:
             self.show_hint("Paste a video URL first.")
             return
+        if classify_url(url) == "collection":
+            self.show_hint("This is a playlist or channel; opening the Queue.")
+            self.collection_requested.emit(url)
+            return
         self.show_hint("")
         self._url_timer.stop()
         if self.fetch_worker and self.fetch_worker.isRunning():
@@ -509,6 +516,9 @@ class SingleTab(QtWidgets.QWidget):
         url = self.url_input.text().strip()
         if not url:
             self.show_hint("Paste a video URL first.")
+            return
+        if classify_url(url) == "collection":
+            self.collection_requested.emit(url)
             return
 
         info = self._cached_info

@@ -154,14 +154,46 @@ def _queue_executor(job):
     )
 
 
+def _expand_for_cli(url, cookies):
+    from core.collections import expand_collection
+    return expand_collection(url, cookies_file=cookies)
+
+
+def _collect_expanded(urls, cookies, limit=200, existing=None):
+    from core.collections import new_entries
+    from sites.cookies import get_cookie_path
+
+    pairs = []
+    seen = list(existing or [])
+    for url in urls:
+        cookie = cookies or get_cookie_path(url)
+        result = _expand_for_cli(url, cookie)
+        if result.error:
+            print("warning: %s" % result.error, file=sys.stderr)
+            continue
+        kept, _ = new_entries(result.entries[:limit], seen + [p[0] for p in pairs])
+        pairs.extend((entry.url, entry.title) for entry in kept)
+        seen.extend(entry.url for entry in kept)
+    return pairs
+
+
 def _cmd_queue(args) -> int:
     command = args.queue_command
     queue = _load_queue()
 
     if command == "add":
-        queue.add_many(args.urls)
-        queue.store.save()
-        n = len(args.urls)
+        if getattr(args, "expand", False):
+            pairs = _collect_expanded(
+                args.urls, args.cookies, existing=[j.url for j in queue.jobs]
+            )
+            for url, title in pairs:
+                queue.add(url, title=title)
+            queue.store.save()
+            n = len(pairs)
+        else:
+            queue.add_many(args.urls)
+            queue.store.save()
+            n = len(args.urls)
         if args.json:
             print(json.dumps({"schema_version": SCHEMA_VERSION, "added": n}))
         else:
@@ -287,6 +319,8 @@ def build_parser() -> argparse.ArgumentParser:
     qa = qsub.add_parser("add")
     qa.add_argument("urls", nargs="+")
     qa.add_argument("--json", action="store_true")
+    qa.add_argument("--expand", action="store_true")
+    qa.add_argument("--cookies")
     qa.set_defaults(func=_cmd_queue)
 
     ql = qsub.add_parser("list")

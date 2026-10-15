@@ -77,6 +77,12 @@ class MainWindow(QtWidgets.QWidget):
                 lambda i=index: self.tabs.setCurrentIndex(i)
             )
 
+        self.single_tab.collection_requested.connect(self._route_collection)
+
+    def _route_collection(self, url):
+        self.tabs.setCurrentWidget(self.batch_tab)
+        self.batch_tab.expand_collection_url(url)
+
     def _build_menubar(self):
         menubar = QtWidgets.QMenuBar(self)
 

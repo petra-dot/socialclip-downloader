@@ -3,10 +3,19 @@
 ## Unreleased
 ### Added
 - **In-app updater**: the app checks GitHub Releases at most once a day
-  (`Help → Check for updates` forces it) and shows a top-right indicator when a
+  (`Help -> Check for updates` forces it) and shows a top-right indicator when a
   newer release exists. On Windows it downloads the new build, verifies its
   SHA-256 digest, and self-installs with a restart via `--apply-update`;
   macOS/Linux and source runs open the release page
+- **Collection expansion:** paste a playlist, channel, or profile URL and the
+  Queue offers to add its videos: preview the list, confirm, then enqueue them.
+  Duplicates already in the queue are skipped and the batch is capped. Listing
+  is reliable on YouTube and best-effort elsewhere
+- `socialclip queue add --expand`: expand a collection URL into its videos
+  before enqueuing; the single-video path is unchanged without the flag
+- New modules: `sites/collections.py` (URL classification),
+  `core/collections.py` (pure listing and dedupe helpers),
+  `workers/expand_worker.py` (Qt expansion thread)
 
 ## v0.9.2 - 2026-10-11
 ### Added
