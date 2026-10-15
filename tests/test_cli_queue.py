@@ -177,3 +177,10 @@ def test_queue_add_expand_skips_already_queued(monkeypatch, tmp_path):
         "https://www.youtube.com/watch?v=a",
         "https://www.youtube.com/watch?v=b",
     ]
+
+
+def test_queue_run_rejects_bad_jobs(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    rc = cli.main(["queue", "run", "--jobs", "99"])
+    assert rc == cli.EXIT_USAGE == 2
+    assert "invalid choice" in capsys.readouterr().err
