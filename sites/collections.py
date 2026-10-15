@@ -32,6 +32,13 @@ COLLECTION_PATTERNS = (
     (r"douyin\.com/user/", "douyin"),
 )
 
+# A bare YouTube channel URL (no trailing tab path). yt-dlp flat-extracts such
+# a URL into the channel's tabs (Videos, Shorts, ...), not the videos, so the
+# Videos tab has to be named explicitly.
+_YOUTUBE_BARE_CHANNEL = re.compile(
+    r"^(?:[\w-]+\.)*youtube\.com/(?:channel/[\w-]+|@[\w.-]+|c/[\w.-]+|user/[\w.-]+)$"
+)
+
 _NOTES = {
     "instagram": "Instagram profile listing is best-effort and often returns "
                  "nothing. Paste individual post links instead.",
@@ -84,3 +91,15 @@ def classify_url(url: str) -> str:
 def collection_note(platform: str) -> str:
     """Honest expectation text for listing this platform. Empty when reliable."""
     return _NOTES.get((platform or "").lower(), "")
+
+
+def normalize_collection_url(url: str) -> str:
+    """Point a bare YouTube channel URL at its Videos tab.
+
+    Every other URL is returned unchanged.
+    """
+    if not url:
+        return url
+    if _YOUTUBE_BARE_CHANNEL.match(_target(url)):
+        return url.rstrip("/") + "/videos"
+    return url

@@ -83,10 +83,13 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
     """List a collection URL's videos. Never downloads. Never raises."""
     import os
 
-    from sites.collections import collection_note
+    from sites.collections import collection_note, normalize_collection_url
     from sites.cookies import detect_platform
     from sites.errors import classify_error
 
+    # A bare YouTube channel URL lists the channel's tabs, not its videos, so
+    # point it at the Videos tab before extracting.
+    fetch_url = normalize_collection_url(url)
     platform = ""
     opts = {
         "extract_flat": "in_playlist",
@@ -107,7 +110,7 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
         from yt_dlp import YoutubeDL
 
         with YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(fetch_url, download=False)
         if info:
             entries, total, truncated = entries_from_info(info, limit, platform)
         else:

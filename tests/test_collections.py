@@ -197,3 +197,36 @@ def test_expand_collection_classifies_failure(monkeypatch):
     assert result.error
     # Instagram's honest note wins over the generic classify_error message.
     assert "post" in result.error.lower()
+
+from sites.collections import normalize_collection_url
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://www.youtube.com/channel/UCabc",
+         "https://www.youtube.com/channel/UCabc/videos"),
+        ("https://www.youtube.com/channel/UCabc/",
+         "https://www.youtube.com/channel/UCabc/videos"),
+        ("https://www.youtube.com/@somechannel",
+         "https://www.youtube.com/@somechannel/videos"),
+        ("https://www.youtube.com/c/SomeName",
+         "https://www.youtube.com/c/SomeName/videos"),
+        ("https://www.youtube.com/user/SomeName",
+         "https://www.youtube.com/user/SomeName/videos"),
+        ("https://m.youtube.com/@handle",
+         "https://m.youtube.com/@handle/videos"),
+        ("https://www.youtube.com/channel/UCabc/videos",
+         "https://www.youtube.com/channel/UCabc/videos"),
+        ("https://www.youtube.com/channel/UCabc/shorts",
+         "https://www.youtube.com/channel/UCabc/shorts"),
+        ("https://www.youtube.com/playlist?list=PL123",
+         "https://www.youtube.com/playlist?list=PL123"),
+        ("https://www.instagram.com/someuser/",
+         "https://www.instagram.com/someuser/"),
+        ("https://www.tiktok.com/@user",
+         "https://www.tiktok.com/@user"),
+    ],
+)
+def test_normalize_collection_url(url, expected):
+    assert normalize_collection_url(url) == expected
