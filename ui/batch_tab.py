@@ -627,10 +627,11 @@ class QueueTab(QtWidgets.QWidget):
         finished = sum(1 for j in self.queue.jobs if j.state in TERMINAL_STATES)
         self.progress_bar.setValue(int(finished / total * 100))
 
-    def _on_progress(self, job_id, percent):
+    def _on_progress(self, job_id, p):
+        from core.progress import format_progress
         row = self._row_for_id.get(job_id)
         if row is not None:
-            self._set_row_status(row, "running", "%d%%" % int(percent))
+            self._set_row_status(row, "running", format_progress(p))
 
     def on_start_queue(self):
         if self.queue_worker and self.queue_worker.isRunning():

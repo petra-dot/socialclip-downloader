@@ -12,7 +12,7 @@ MAX_JOBS = 8
 
 
 class QueueWorker(QtCore.QThread):
-    progress_signal = QtCore.pyqtSignal(str, int)  # (job_id, percent)
+    progress_signal = QtCore.pyqtSignal(str, object)  # (job_id, Progress)
     job_signal = QtCore.pyqtSignal(str, str, object)  # (job_id, state, QueueJob)
     finished_signal = QtCore.pyqtSignal(str)
 
@@ -37,7 +37,7 @@ class QueueWorker(QtCore.QThread):
             cookies_file=opts.get("cookies_file"),
             cookies_from_browser=opts.get("cookies_from_browser"),
             cancel=event.is_set,
-            progress=lambda pct: self.progress_signal.emit(job.id, pct),
+            progress=lambda p: self.progress_signal.emit(job.id, p),
             subtitles=opts.get("subtitles", "off"),
             archive=self.archive,
         )

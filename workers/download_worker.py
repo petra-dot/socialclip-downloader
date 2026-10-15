@@ -4,7 +4,7 @@ from PyQt5 import QtCore
 class DownloadWorker(QtCore.QThread):
     status_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(str)
-    progress_signal = QtCore.pyqtSignal(int)
+    progress_signal = QtCore.pyqtSignal(object)  # a core.progress.Progress
     path_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None, clip=None, subtitles="off", cookies_from_browser=""):
