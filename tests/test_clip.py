@@ -268,3 +268,12 @@ def test_download_one_clip_cut_failure_returns_error(monkeypatch, tmp_path):
     assert str(full) in result.message
     # The completed full download is left on disk for the user to find.
     assert full.is_file()
+
+
+def test_parse_time_rejects_a_minute_overflow():
+    from core.clip import parse_time
+    assert parse_time("1:90") is None
+    assert parse_time("00:70:00") is None
+    assert parse_time("1:59") == 119.0
+    assert parse_time("90") == 90.0
+    assert parse_time("00:01:30") == 90.0

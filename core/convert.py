@@ -2,7 +2,7 @@ import os
 import subprocess
 from collections import namedtuple
 
-from core.formats import EDITOR_SAFE_A, get
+from core.formats import get
 from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
@@ -18,12 +18,12 @@ def plan_conversion(src_info, target, copy_streams=None):
     a = (src_info or {}).get("acodec", "") or ""
     is_video = target.kind == "video"
 
-    # A forced copy is only honoured for editor-safe streams. Copying a VP9 or
-    # Opus source produces a file the editor rejects, so it is upgraded to a
-    # transcode even when the caller asked for a copy.
+    # A forced copy is only honoured for streams the TARGET can actually hold.
+    # The global EDITOR_SAFE_A list is not enough: it would let an AAC source
+    # be copied into an MP3 file, which ffmpeg rejects.
     if copy_streams is True:
         v_copy = v == "h264" if is_video else True
-        a_copy = a in EDITOR_SAFE_A
+        a_copy = a in target.remux_a
         if v_copy and a_copy:
             return ConvertPlan(
                 "remux", "copy" if is_video else "", "copy", target.container

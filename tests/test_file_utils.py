@@ -67,3 +67,12 @@ def test_unique_filepath_numeric_suffix_when_both_taken(tmp_path):
     (tmp_path / "clip_abc.mp4").write_text("x")
     expected = str(tmp_path / "clip_1.mp4")
     assert make_unique_filepath(str(tmp_path), "clip", "mp4", fallback_id="abc") == expected
+
+
+def test_output_code_for_accepts_a_label_or_a_code():
+    from utils.file_utils import output_code_for
+    assert output_code_for("Audio (MP3)") == "MP3"
+    assert output_code_for("MP3") == "MP3"
+    assert output_code_for("mp3") == "MP3"
+    assert output_code_for("Video (MP4)") == "MP4"
+    assert output_code_for("") == "MP4"

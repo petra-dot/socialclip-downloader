@@ -29,11 +29,15 @@ def parse_time(text) -> Optional[float]:
     if len(parts) > 3:
         return None
     total = 0.0
-    for part in parts:
+    for index, part in enumerate(parts):
         part = part.strip()
         if not _TIME_PART.fullmatch(part):
             return None
-        total = total * 60 + float(part)
+        value = float(part)
+        # Only the leading field may exceed 59: "1:90" is a typo, not 150s.
+        if index and value >= 60:
+            return None
+        total = total * 60 + value
     return total
 
 

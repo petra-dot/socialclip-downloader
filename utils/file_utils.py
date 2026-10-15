@@ -13,6 +13,15 @@ def output_index_for(value: str) -> int:
     return -1
 
 
+def output_code_for(value: str) -> str:
+    """Map an OUTPUT_FORMATS label or a short code to "MP4" or "MP3".
+
+    The GUI stores the combo's label ("Audio (MP3)") and built-in presets store
+    the code ("MP3"); both must resolve to the same thing.
+    """
+    return "MP3" if "MP3" in (value or "").upper() else "MP4"
+
+
 def default_download_folder():
     home = os.path.expanduser("~")
     downloads = os.path.join(home, "Downloads")

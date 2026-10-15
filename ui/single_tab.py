@@ -10,6 +10,7 @@ from utils.file_utils import (
     get_uploader,
     make_unique_filepath,
     default_download_folder,
+    output_code_for,
     restore_or,
     OUTPUT_FORMATS,
     RESOLUTIONS,
@@ -469,7 +470,7 @@ class SingleTab(QtWidgets.QWidget):
     def _current_settings_preset(self, name):
         return Preset(
             name=name,
-            output=self.output_combo.currentText(),
+            output=output_code_for(self.output_combo.currentText()),
             resolution=self.resolution_combo.currentText(),
             convert=self.convert_checkbox.isChecked(),
             add_channel=self.checkbox_channel.isChecked(),

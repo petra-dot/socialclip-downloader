@@ -67,8 +67,12 @@ def _coerce_jobs(raw_jobs) -> List[QueueJob]:
     for raw in raw_jobs:
         if not isinstance(raw, dict):
             continue
+        # Drop keys this build does not know instead of dropping the job: a
+        # queue written by a newer or older build must not lose entries.
+        known = QueueJob.__dataclass_fields__
+        clean = {key: value for key, value in raw.items() if key in known}
         try:
-            job = QueueJob(**raw)
+            job = QueueJob(**clean)
         except (TypeError, ValueError):
             continue
         for name in _INT_FIELDS:

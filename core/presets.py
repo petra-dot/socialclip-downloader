@@ -140,6 +140,9 @@ class PresetStore:
         if not new or new in _BUILTIN_NAMES:
             return False
         for preset in self.presets:
+            if preset.name == new and preset.name != old:
+                return False
+        for preset in self.presets:
             if preset.name == old:
                 preset.name = new
                 return True
