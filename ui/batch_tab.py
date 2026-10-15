@@ -47,6 +47,19 @@ def build_job_options(save_dir: str, output_text: str, resolution: str,
     }
 
 
+def job_options_summary(options: dict) -> str:
+    """A short, human summary of a job's baked options, e.g. 'MP4 1080p'."""
+    opts = options or {}
+    fmt = "MP3" if opts.get("output_type") == "MP3" else "MP4"
+    parts = [fmt]
+    if fmt == "MP4" and opts.get("target_resolution"):
+        parts.append("%sp" % opts["target_resolution"])
+    subtitles = opts.get("subtitles", "off")
+    if subtitles and subtitles != "off":
+        parts.append("subs %s" % subtitles)
+    return " ".join(parts)
+
+
 def parse_url_lines(text: str) -> list:
     seen = set()
     urls = []
@@ -205,6 +218,14 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_resolution_combo.setCurrentText("1080")
         queue_opts_layout.addWidget(QtWidgets.QLabel("Resolution:"))
         queue_opts_layout.addWidget(self.batch_resolution_combo)
+        self.apply_options_btn = QtWidgets.QPushButton("Apply to pending")
+        self.apply_options_btn.setToolTip(
+            "Stamp the options above onto every pending item. Options are set "
+            "when an item is added, so this updates items already in the queue."
+        )
+        self.apply_options_btn.clicked.connect(self.on_apply_options)
+        queue_opts_layout.addWidget(self.apply_options_btn)
+        queue_opts_layout.addStretch(1)
         queue_layout.addLayout(queue_opts_layout)
 
         cookies_row = QtWidgets.QHBoxLayout()
@@ -524,7 +545,17 @@ class QueueTab(QtWidgets.QWidget):
         if job.state == "pending":
             status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
         self.batch_table.setItem(row, 1, status_item)
-        self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(job.message or ""))
+        detail = job.message or ""
+        if job.state == "pending" and not detail:
+            # Options are baked in when an item is added, so show them here;
+            # otherwise the only way to see them is the right-click menu.
+            detail = job_options_summary(job.options)
+        detail_item = QtWidgets.QTableWidgetItem(detail)
+        detail_item.setToolTip(
+            "Options are set when an item is added. Use 'Apply to pending' or "
+            "right-click > Edit options... to change them."
+        )
+        self.batch_table.setItem(row, 2, detail_item)
         self._row_for_id[job.id] = row
 
     def _job_at_row(self, row):
@@ -643,6 +674,14 @@ class QueueTab(QtWidgets.QWidget):
             self.show_hint("Add at least one URL before starting.")
             return
         self.show_hint("")
+        current = self._job_options()
+        stale = sum(1 for j in self.queue.jobs
+                    if j.state == "pending" and (j.options or {}) != current)
+        if stale:
+            self.batch_log(
+                "%d pending item(s) use different options than the ones above. "
+                "Use 'Apply to pending' to update them." % stale
+            )
         self.queue.resume()
         self.queue.store.save()
         self.batch_start_btn.setEnabled(False)
@@ -684,6 +723,19 @@ class QueueTab(QtWidgets.QWidget):
     def _archive_path(self):
         from core.archive import default_archive_path
         return default_archive_path() if self.archive_check.isChecked() else None
+
+    def on_apply_options(self):
+        options = self._job_options()
+        count = 0
+        for job in self.queue.jobs:
+            if job.state == "pending" and self.queue.set_options(job.id, options):
+                count += 1
+        if not count:
+            self.batch_log("No pending items to update.")
+            return
+        self.queue.store.save()
+        self.refresh_table()
+        self.batch_log("Applied the current options to %d pending item(s)." % count)
 
     def on_retry_failed(self):
         count = self.queue.retry_failed()

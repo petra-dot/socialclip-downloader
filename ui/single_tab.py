@@ -234,7 +234,9 @@ class SingleTab(QtWidgets.QWidget):
         main.addLayout(fmt_row)
 
         self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
+        self.convert_checkbox.toggled.connect(self._sync_resolution_state)
         main.addWidget(self.convert_checkbox)
+        self._sync_resolution_state()
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
         main.addWidget(self.checkbox_channel)
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
@@ -545,6 +547,19 @@ class SingleTab(QtWidgets.QWidget):
         if obj is self.url_input and event.type() == QtCore.QEvent.FocusIn:
             self._fill_from_clipboard()
         return super().eventFilter(obj, event)
+
+    def _sync_resolution_state(self, _checked=None):
+        """The Resolution combo only applies while its checkbox is on.
+
+        Leaving it enabled while inert made the tab promise a resolution it
+        would not deliver, which is the surprise this app exists to prevent.
+        """
+        active = self.convert_checkbox.isChecked()
+        self.resolution_combo.setEnabled(active)
+        self.resolution_combo.setToolTip(
+            "Re-encode the download at this height." if active
+            else "Enable 'Convert to chosen resolution' to use this."
+        )
 
     def _on_open_folder(self):
         if self._last_path:
