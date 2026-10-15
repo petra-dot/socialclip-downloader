@@ -2,11 +2,11 @@
 
 ## Unreleased
 ### Added
-- **Collection expansion** — paste a playlist, channel, or profile URL and the
+- **Collection expansion:** paste a playlist, channel, or profile URL and the
   Queue offers to add its videos: preview the list, confirm, then enqueue them.
   Duplicates already in the queue are skipped and the batch is capped. Listing
   is reliable on YouTube and best-effort elsewhere
-- `socialclip queue add --expand` — expand a collection URL into its videos
+- `socialclip queue add --expand`: expand a collection URL into its videos
   before enqueuing; the single-video path is unchanged without the flag
 - New modules: `sites/collections.py` (URL classification),
   `core/collections.py` (pure listing and dedupe helpers),
