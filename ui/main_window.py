@@ -139,14 +139,17 @@ class MainWindow(QtWidgets.QWidget):
     def _on_update_available(self, release):
         self._stamp_check()
         if release is None:
+            self._update_state = "idle"
             self.update_button.set_state("hidden")
             return
         from socialclip_downloader import __version__
         if not is_newer(release.version, __version__):
+            self._update_state = "idle"
             self.update_button.set_state("hidden")
             return
         self._update_release = release
         self._update_asset = select_asset(release.assets)
+        self._update_state = "available"
         self.update_button.set_state("available", version=release.version)
 
     def _on_update_error(self, message):
