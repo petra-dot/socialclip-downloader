@@ -59,6 +59,11 @@
   muxes the tracks into the video, and a failed embed still keeps the sidecars.
   The CLI gains `download --subtitles off|sidecar|embed|both` (default `off`).
   New `core/subtitles.py` selects the tracks and writes or embeds them
+- **Queue retry and per-job editing:** re-queue failed jobs from the Queue tab
+  (**Retry failed**, or right-click a row and choose **Retry**) or the CLI
+  `queue retry`. Right-click a pending job and choose **Edit options...** to
+  replace its format, resolution, folder, subtitles, and cookie file before it
+  runs. Retry touches failed jobs only; edit applies to pending jobs only
 
 ## v0.9.2 - 2026-10-11
 ### Added

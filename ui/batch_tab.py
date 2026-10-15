@@ -117,6 +117,9 @@ class QueueTab(QtWidgets.QWidget):
         self.clear_finished_btn = QtWidgets.QPushButton("Clear finished")
         self.clear_finished_btn.clicked.connect(self.on_clear_finished)
         urls_toolbar.addWidget(self.clear_finished_btn)
+        self.retry_failed_btn = QtWidgets.QPushButton("Retry failed")
+        self.retry_failed_btn.clicked.connect(self.on_retry_failed)
+        urls_toolbar.addWidget(self.retry_failed_btn)
         urls_toolbar.addStretch(1)
         queue_layout.addLayout(urls_toolbar)
 
@@ -558,6 +561,10 @@ class QueueTab(QtWidgets.QWidget):
         cancel_this.setEnabled(job.state == "running")
         cancel_action = menu.addAction("Cancel")
         cancel_action.setEnabled(job.state == "pending")
+        retry_action = menu.addAction("Retry")
+        retry_action.setEnabled(job.state == "failed")
+        edit_action = menu.addAction("Edit options...")
+        edit_action.setEnabled(job.state == "pending")
 
         chosen = menu.exec_(self.batch_table.viewport().mapToGlobal(pos))
         if chosen is None:
@@ -568,6 +575,10 @@ class QueueTab(QtWidgets.QWidget):
             self.on_cell_clicked(index.row(), 1)
         elif chosen is cancel_this:
             self._cancel_running_job(job)
+        elif chosen is retry_action:
+            self.on_retry_job(job)
+        elif chosen is edit_action:
+            self.on_edit_job(job)
 
     def _cancel_running_job(self, job):
         if self.queue_worker and self.queue_worker.isRunning():
@@ -672,6 +683,38 @@ class QueueTab(QtWidgets.QWidget):
     def _archive_path(self):
         from core.archive import default_archive_path
         return default_archive_path() if self.archive_check.isChecked() else None
+
+    def on_retry_failed(self):
+        count = self.queue.retry_failed()
+        if not count:
+            self.batch_log("No failed jobs to retry.")
+            return
+        self.queue.store.save()
+        self.refresh_table()
+        self.batch_log("Retrying %d failed job(s)." % count)
+
+    def on_retry_job(self, job):
+        if self.queue.retry_failed(job.id):
+            self.queue.store.save()
+            self.refresh_table()
+            self.batch_log("Retrying one failed job.")
+
+    def on_edit_job(self, job):
+        from ui.dialogs import EditJobDialog
+        dialog = EditJobDialog(self, job)
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        fields = dialog.chosen()
+        options = build_job_options(
+            fields["save_dir"] or default_download_folder(),
+            fields["output_text"], fields["resolution"],
+            fields["cookies_path"], fields["subtitles"],
+            (job.options or {}).get("cookies_from_browser", "") or "",
+        )
+        if self.queue.set_options(job.id, options):
+            self.queue.store.save()
+            self.refresh_table()
+            self.batch_log("Updated the options for one job.")
 
     def on_clear_finished(self):
         if self.queue_worker and self.queue_worker.isRunning():

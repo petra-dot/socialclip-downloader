@@ -1,3 +1,5 @@
+import os
+
 from PyQt5 import QtCore, QtWidgets
 
 from core.doctor import run_checks
@@ -269,3 +271,92 @@ class CookiesDialog(QtWidgets.QDialog):
 
     def chosen_browser(self) -> str:
         return self.browser_combo.currentData()
+
+
+class EditJobDialog(QtWidgets.QDialog):
+    """Edit one pending queue job's options. Prefilled from its options dict."""
+
+    def __init__(self, parent, job):
+        super().__init__(parent)
+        from utils.file_utils import OUTPUT_FORMATS, RESOLUTIONS, output_index_for
+
+        opts = job.options or {}
+        self.setWindowTitle("Edit job options")
+        self.resize(520, 280)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        fmt_row = QtWidgets.QHBoxLayout()
+        fmt_row.addWidget(QtWidgets.QLabel("Output:"))
+        self.output_combo = QtWidgets.QComboBox()
+        self.output_combo.setAccessibleName("Edit job output format")
+        self.output_combo.addItems(OUTPUT_FORMATS)
+        index = output_index_for(opts.get("output_type", "MP4"))
+        self.output_combo.setCurrentIndex(index if index >= 0 else 0)
+        fmt_row.addWidget(self.output_combo)
+        fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
+        self.resolution_combo = QtWidgets.QComboBox()
+        self.resolution_combo.setAccessibleName("Edit job target resolution")
+        self.resolution_combo.addItems(RESOLUTIONS)
+        self.resolution_combo.setCurrentText(str(opts.get("target_resolution", 1080)))
+        fmt_row.addWidget(self.resolution_combo)
+        fmt_row.addStretch(1)
+        layout.addLayout(fmt_row)
+
+        folder_row = QtWidgets.QHBoxLayout()
+        folder_row.addWidget(QtWidgets.QLabel("Folder:"))
+        self.folder_input = QtWidgets.QLineEdit(
+            os.path.dirname(opts.get("outtmpl", "") or "")
+        )
+        self.folder_input.setAccessibleName("Edit job download folder")
+        folder_row.addWidget(self.folder_input)
+        browse = QtWidgets.QPushButton("Browse")
+        browse.clicked.connect(self._browse)
+        folder_row.addWidget(browse)
+        layout.addLayout(folder_row)
+
+        sub_row = QtWidgets.QHBoxLayout()
+        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        self.subtitle_combo = QtWidgets.QComboBox()
+        self.subtitle_combo.setAccessibleName("Edit job subtitle delivery")
+        for value, label in (
+            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
+            ("embed", "Embed"), ("both", "Both"),
+        ):
+            self.subtitle_combo.addItem(label, value)
+        saved = opts.get("subtitles", "off")
+        sub_index = self.subtitle_combo.findData(saved)
+        self.subtitle_combo.setCurrentIndex(sub_index if sub_index >= 0 else 0)
+        sub_row.addWidget(self.subtitle_combo)
+        sub_row.addStretch(1)
+        layout.addLayout(sub_row)
+
+        cookie_row = QtWidgets.QHBoxLayout()
+        cookie_row.addWidget(QtWidgets.QLabel("Cookies file:"))
+        self.cookies_input = QtWidgets.QLineEdit(opts.get("cookies_file", "") or "")
+        self.cookies_input.setAccessibleName("Edit job cookies file path")
+        self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
+        cookie_row.addWidget(self.cookies_input)
+        layout.addLayout(cookie_row)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _browse(self):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Choose folder", self.folder_input.text()
+        )
+        if folder:
+            self.folder_input.setText(folder)
+
+    def chosen(self) -> dict:
+        return {
+            "save_dir": self.folder_input.text().strip(),
+            "output_text": self.output_combo.currentText(),
+            "resolution": self.resolution_combo.currentText(),
+            "cookies_path": self.cookies_input.text().strip(),
+            "subtitles": self.subtitle_combo.currentData(),
+        }

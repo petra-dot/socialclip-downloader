@@ -283,6 +283,15 @@ def _cmd_queue(args) -> int:
             print(f"cleared {n}")
         return EXIT_OK
 
+    if command == "retry":
+        n = queue.retry_failed()
+        queue.store.save()
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION, "retried": n}))
+        else:
+            print(f"retried {n}")
+        return EXIT_OK
+
     if command == "archive":
         from core.archive import clear_archive, default_archive_path
         removed = clear_archive(default_archive_path())
@@ -438,6 +447,10 @@ def build_parser() -> argparse.ArgumentParser:
     qarc.add_argument("--clear", action="store_true", required=True)
     qarc.add_argument("--json", action="store_true")
     qarc.set_defaults(func=_cmd_queue)
+
+    qrt = qsub.add_parser("retry")
+    qrt.add_argument("--json", action="store_true")
+    qrt.set_defaults(func=_cmd_queue)
 
     return parser
 

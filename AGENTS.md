@@ -65,6 +65,10 @@ The Queue archive (`core/archive.py`) reuses yt-dlp's `download_archive`
 (`status="error"` + `error_category="skipped"`, mirroring `cancelled`). It is
 off by default and applies to the Queue only, not the single Download tab.
 
+The Queue can retry failed jobs (`Queue.retry_failed()`, `queue retry`) and a
+pending job's options can be replaced (`Queue.set_options()`); retry touches
+`failed` only and edit applies to `pending` only.
+
 The in-app updater (`core/updater.py`, `workers/update_worker.py`,
 `ui/update_indicator.py`) checks GitHub Releases, verifies the asset SHA-256,
 and self-applies on Windows via `--apply-update`.
