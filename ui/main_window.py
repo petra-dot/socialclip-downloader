@@ -114,6 +114,8 @@ class MainWindow(QtWidgets.QWidget):
         return action
 
     def check_for_updates(self, force=False):
+        if self._update_state in ("downloading", "ready"):
+            return
         if not force:
             last = self.settings.value("update/last_check", "")
             if last:
@@ -137,6 +139,8 @@ class MainWindow(QtWidgets.QWidget):
         self.settings.setValue("update/last_check", datetime.now(timezone.utc).isoformat())
 
     def _on_update_available(self, release):
+        if self._update_state in ("downloading", "ready"):
+            return
         self._stamp_check()
         if release is None:
             self._update_state = "idle"
@@ -196,8 +200,7 @@ class MainWindow(QtWidgets.QWidget):
             return
         flags = getattr(subprocess, "DETACHED_PROCESS", 0) if os.name == "nt" else 0
         subprocess.Popen(
-            [self._update_path, "--apply-update", "--target", sys.executable,
-             "--wait-pid", str(os.getpid())],
+            [self._update_path, "--apply-update", "--target", sys.executable],
             creationflags=flags, close_fds=True,
         )
         QtWidgets.QApplication.quit()

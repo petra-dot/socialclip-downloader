@@ -54,9 +54,15 @@ class UpdateDownloadWorker(QtCore.QThread):
                 cancel=lambda: self._cancelled,
             )
             if not verify_digest(self.dest, self.asset.digest):
-                self.error_signal.emit(
-                    "Download failed verification. The file was deleted."
-                )
+                if self.asset.digest:
+                    self.error_signal.emit(
+                        "Download failed verification. The file was deleted."
+                    )
+                else:
+                    self.error_signal.emit(
+                        "This release published no checksum, so the download "
+                        "was discarded."
+                    )
                 return
         except DownloadCancelled:
             return  # a cancelled download emits nothing; the UI restores its own state

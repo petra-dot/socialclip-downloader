@@ -59,7 +59,7 @@ LATEST_API = "https://api.github.com/repos/petra-dot/socialclip-downloader/relea
 
 @dataclass ReleaseInfo: tag: str; version: str; page_url: str; assets: list
 @dataclass AssetInfo:   name: str; download_url: str; digest: Optional[str]
-@dataclass ApplyPlan:   target: str; source: str; wait_pid: int
+@dataclass ApplyPlan:   target: str; source: str
 
 parse_version(text) -> tuple                 # "v0.9.2" -> (0, 9, 2)
 is_newer(latest, current) -> bool            # semver, tolerant of tags
@@ -67,7 +67,7 @@ release_from_json(data) -> ReleaseInfo       # pure, testable
 select_asset(assets, platform) -> AssetInfo|None
 download_asset(asset, dest, progress=None, cancel=None) -> str
 verify_digest(path, expected_hex) -> bool
-apply_update(target, wait_pid, timeout=30) -> int
+apply_update(target, timeout=30) -> int
 write_batch_fallback(plan) -> str
 cleanup_update_temp(temp_dir)
 ```
@@ -85,9 +85,9 @@ cleanup_update_temp(temp_dir)
 - `apply_update` runs inside the newly downloaded exe: it copies
   `sys.executable` over `target` in a retry loop bounded by `timeout` (the
   target stays locked until the old process exits, so the retry *is* the wait),
-  relaunches `target` detached, and returns. `wait_pid` is passed for the batch
-  fallback, which uses it to wait before replacing. If the copy never succeeds,
-  `apply_update` calls `write_batch_fallback` and spawns the `.bat`.
+  relaunches `target` detached, and returns. If the copy never succeeds,
+  `apply_update` calls `write_batch_fallback` and spawns the `.bat`; the
+  `.bat`'s own copy-retry loop is that wait, so no PID is passed or used.
 - `cleanup_update_temp` deletes leftover `socialclip-update-*.exe` in the temp
   directory on startup (a running exe cannot delete itself, so the next launch
   does it).
@@ -136,8 +136,7 @@ the apply flag and quits:
 
 ```python
 subprocess.Popen(
-    [download_path, "--apply-update", "--target", sys.executable,
-     "--wait-pid", str(os.getpid())],
+    [download_path, "--apply-update", "--target", sys.executable],
     creationflags=DETACHED_PROCESS,   # Windows
     close_fds=True,
 )
@@ -154,7 +153,7 @@ An early branch in `main()`, before any Qt is constructed:
 ```python
 if "--apply-update" in sys.argv:
     from core.updater import apply_update
-    return apply_update(target=..., wait_pid=...)
+    return apply_update(target=...)
 ```
 
 ## Platform behaviour

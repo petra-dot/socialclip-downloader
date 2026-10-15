@@ -84,8 +84,16 @@ def select_asset(assets, platform=None) -> Optional[AssetInfo]:
     return None
 
 
+def _discard(path) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 def verify_digest(path, expected_hex) -> bool:
     if not expected_hex:
+        _discard(path)
         return False
     sha = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -93,10 +101,7 @@ def verify_digest(path, expected_hex) -> bool:
             sha.update(chunk)
     if sha.hexdigest().lower() == expected_hex.lower():
         return True
-    try:
-        os.remove(path)
-    except OSError:
-        pass
+    _discard(path)
     return False
 
 
@@ -123,7 +128,7 @@ def fetch_latest_release(opener=None, timeout=10) -> ReleaseInfo:
     return release_from_json(data)
 
 
-def download_asset(asset, dest, progress=None, cancel=None, opener=None) -> str:
+def download_asset(asset, dest, progress=None, cancel=None, opener=None, timeout=30) -> str:
     open_url = opener or urllib.request.urlopen
     host = urllib.parse.urlparse(asset.download_url).hostname or ""
     if host not in ALLOWED_HOSTS:
@@ -131,7 +136,7 @@ def download_asset(asset, dest, progress=None, cancel=None, opener=None) -> str:
     request = urllib.request.Request(
         asset.download_url, headers={"User-Agent": "SocialClip-Downloader"}
     )
-    with open_url(request) as response, open(dest, "wb") as out:
+    with open_url(request, timeout=timeout) as response, open(dest, "wb") as out:
         total = int(response.headers.get("Content-Length") or 0)
         done = 0
         while True:
@@ -157,12 +162,12 @@ import time
 class ApplyPlan:
     target: str
     source: str
-    wait_pid: int
 
 
 def update_temp_path(version, temp_dir=None) -> str:
     temp_dir = temp_dir or tempfile.gettempdir()
-    return os.path.join(temp_dir, "socialclip-update-%s.exe" % version)
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", str(version))
+    return os.path.join(temp_dir, "socialclip-update-%s.exe" % safe)
 
 
 def write_batch_fallback(plan, temp_dir=None) -> str:
@@ -190,7 +195,7 @@ def _spawn_detached(cmd) -> None:
     subprocess.Popen(cmd, creationflags=flags, close_fds=True)
 
 
-def apply_update(target, wait_pid, timeout=30, sleep=time.sleep) -> int:
+def apply_update(target, timeout=30, sleep=time.sleep) -> int:
     """Run inside the newly downloaded exe: copy it over target, relaunch."""
     source = sys.executable
     deadline = time.time() + timeout
@@ -201,7 +206,7 @@ def apply_update(target, wait_pid, timeout=30, sleep=time.sleep) -> int:
             return 0
         except OSError:
             sleep(0.5)
-    plan = ApplyPlan(target=target, source=source, wait_pid=wait_pid)
+    plan = ApplyPlan(target=target, source=source)
     _spawn_detached(["cmd", "/c", write_batch_fallback(plan)])
     return 0
 

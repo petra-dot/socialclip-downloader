@@ -33,21 +33,15 @@ def main():
 
         argv = sys.argv
         target = None
-        pid = None
         if "--target" in argv:
             try:
                 target = argv[argv.index("--target") + 1]
             except IndexError:
                 target = None
-        if "--wait-pid" in argv:
-            try:
-                pid = int(argv[argv.index("--wait-pid") + 1])
-            except (IndexError, ValueError):
-                pid = None
-        if not target or pid is None:
-            print("usage: --apply-update --target PATH --wait-pid PID")
+        if not target:
+            print("usage: --apply-update --target PATH")
             return 2
-        return apply_update(target, pid)
+        return apply_update(target)
 
     missing = []
     if YoutubeDL is None:

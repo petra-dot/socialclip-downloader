@@ -94,6 +94,7 @@ def test_verify_digest_no_expected_returns_false(tmp_path):
     path = tmp_path / "f.bin"
     path.write_bytes(b"hello")
     assert verify_digest(str(path), None) is False
+    assert not path.exists()  # no digest deletes the file too
 
 
 from core.updater import DownloadCancelled, download_asset, fetch_latest_release
@@ -164,8 +165,18 @@ def test_update_temp_path_is_prefixed():
     assert "socialclip-update-0.10.0" in path
 
 
+def test_update_temp_path_sanitizes_version():
+    import os
+    path = update_temp_path("release/1.0")
+    name = os.path.basename(path)
+    assert os.sep not in name
+    assert "/" not in name
+    assert ".." not in name
+    assert "socialclip-update-release_1.0.exe" == name
+
+
 def test_write_batch_fallback_names_source_and_target(tmp_path):
-    plan = ApplyPlan(target="C:/app/old.exe", source="C:/tmp/new.exe", wait_pid=123)
+    plan = ApplyPlan(target="C:/app/old.exe", source="C:/tmp/new.exe")
     bat = write_batch_fallback(plan, temp_dir=str(tmp_path))
     assert bat.endswith(".bat")
     text = open(bat, encoding="ascii").read()
@@ -201,7 +212,7 @@ def test_apply_update_retries_then_succeeds(monkeypatch, tmp_path):
         return real_copy(a, b)
 
     monkeypatch.setattr(updater.shutil, "copy2", flaky_copy)
-    rc = updater.apply_update(str(target), wait_pid=1, timeout=5, sleep=lambda s: None)
+    rc = updater.apply_update(str(target), timeout=5, sleep=lambda s: None)
     assert rc == 0
     assert target.read_bytes() == b"new"
     assert calls["n"] == 3
