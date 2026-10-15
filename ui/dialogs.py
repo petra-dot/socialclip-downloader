@@ -81,3 +81,68 @@ def show_doctor(parent=None):
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
     dialog.exec_()
+
+
+from sites.collections import collection_note
+
+
+def _platform_label(platform: str) -> str:
+    return (platform or "This site").capitalize()
+
+
+class ExpandConfirmDialog(QtWidgets.QDialog):
+    """Confirm how many videos of a found collection to queue."""
+
+    def __init__(self, result, skipped_count=0, parent=None):
+        super().__init__(parent)
+        self.result = result
+        total = result.total if result.total is not None else len(result.entries)
+        self._max = max(1, total)
+        self._default = min(200, len(result.entries) or self._max)
+
+        self.setWindowTitle("Add collection to queue")
+        self.resize(560, 420)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        found = result.total if result.total is not None else len(result.entries)
+        layout.addWidget(QtWidgets.QLabel(
+            "%s: %d video(s) found." % (_platform_label(result.platform), found)
+        ))
+
+        note = collection_note(result.platform)
+        if note:
+            hint = QtWidgets.QLabel(note)
+            hint.setWordWrap(True)
+            layout.addWidget(hint)
+
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Add first"))
+        self.count_spin = QtWidgets.QSpinBox()
+        self.count_spin.setRange(1, self._max)
+        self.count_spin.setValue(self._default)
+        row.addWidget(self.count_spin)
+        row.addWidget(QtWidgets.QLabel("of %d" % found))
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        preview = QtWidgets.QListWidget()
+        for entry in result.entries[:20]:
+            preview.addItem(entry.title)
+        if len(result.entries) > 20:
+            preview.addItem("...and %d more" % (len(result.entries) - 20))
+        layout.addWidget(preview)
+
+        if skipped_count:
+            layout.addWidget(QtWidgets.QLabel(
+                "%d already in the queue will be skipped." % skipped_count
+            ))
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def chosen_limit(self) -> int:
+        return self.count_spin.value()
