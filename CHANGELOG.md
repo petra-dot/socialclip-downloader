@@ -2,6 +2,12 @@
 
 ## Unreleased
 ### Added
+- **Parallel queue downloads:** the Queue runs up to 3 downloads at once by
+  default, adjustable 1-8 with **Downloads at once** (or `queue run --jobs N`).
+  Each running row shows its own percent, a running row can be cancelled on its
+  own, and **Cancel all** stops the batch. `core/queue.py` stays thread-free
+  with new pure `claim_next()`/`apply_result()` primitives; the pool lives in
+  `workers/queue_worker.py` and `cli.py`
 - **In-app updater**: the app checks GitHub Releases at most once a day
   (`Help -> Check for updates` forces it) and shows a top-right indicator when a
   newer release exists. On Windows it downloads the new build, verifies its
