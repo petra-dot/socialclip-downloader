@@ -214,8 +214,18 @@ override the location.
 
 ## Cookie authentication
 
-Some platforms block automated downloads unless you are signed in. To supply
-cookies:
+Some platforms block automated downloads unless you are signed in. You can
+supply cookies from an installed browser, from a per-platform file, or both.
+
+**From an installed browser.** Open **File → Cookies** and pick one browser
+(Chrome, Firefox, Edge, Brave, and others). The app passes that browser to
+yt-dlp as its cookie source, and the one choice applies to every download. The
+CLI exposes the same source as `download --cookies-from-browser` and
+`queue add --cookies-from-browser`.
+
+**From a cookies file.** Export the site's cookies and let the app auto-detect
+them, or point to the file directly. A per-platform file, when present, wins
+over the browser choice.
 
 1. Install the **"Get cookies.txt LOCALLY"** browser extension.
 2. Sign in to the site, export the cookies, and save the file as

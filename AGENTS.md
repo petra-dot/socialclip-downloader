@@ -151,6 +151,10 @@ helpers testable. CI lints and runs pytest.
   script, or the frozen exe), then the working directory. `default_cookie_dir()`
   is the app directory and also decides where `queue.json` lives, so the queue
   no longer moves with the launch directory.
+- The Cookies dialog (`File -> Cookies`) and CLI `--cookies-from-browser` pass
+  one browser to yt-dlp as `cookiesfrombrowser`; a per-platform cookie file
+  still wins over it. The app never reads a browser profile and never writes a
+  cookie file, and tests must fake yt-dlp rather than touch a real browser.
 - `ydl_opts.py` postprocessor key uses yt-dlp's intentional misspelling
   `ffmpegvideoconvertor` and `preferedformat`. Do not "fix" the spelling.
 - Duration from yt-dlp can be a float; coerce to `int` before `:02d` formatting.

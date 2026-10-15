@@ -2,6 +2,11 @@
 
 ## Unreleased
 ### Added
+- **Browser cookie source:** open **File -> Cookies** and pick one installed
+  browser (Chrome, Firefox, Edge, Brave, and others); the app passes it to
+  yt-dlp as `cookiesfrombrowser`, and the one choice applies to every download.
+  A per-platform cookie file still wins over it. The CLI gains
+  `download --cookies-from-browser` and `queue add --cookies-from-browser`
 - **Skip already-downloaded videos:** the Queue can skip a video it has already
   saved. Tick **Skip already downloaded** on the Queue tab, or pass
   `queue run --archive`, and each finished video is recorded in `archive.txt`
