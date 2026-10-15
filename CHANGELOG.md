@@ -33,6 +33,14 @@
   gains `download --preset NAME` (explicit flags win over the preset). New
   `core/presets.py` holds the pure model and store, and a new
   `ui.dialogs.manage_presets` dialog renames and deletes user presets
+- **Subtitle downloads:** choose **Off**, **Sidecar**, **Embed**, or **Both** on
+  the Download and Queue tabs. Sidecars are written next to the video as
+  `<base>.<lang>.srt`; every language the source offers is fetched, and a
+  human-made track and an auto-generated track for the same language are kept as
+  separate files (`<base>.<lang>.srt` vs `<base>.<lang>.auto.srt`). **Embed**
+  muxes the tracks into the video, and a failed embed still keeps the sidecars.
+  The CLI gains `download --subtitles off|sidecar|embed|both` (default `off`).
+  New `core/subtitles.py` selects the tracks and writes or embeds them
 
 ## v0.9.2 - 2026-10-11
 ### Added
