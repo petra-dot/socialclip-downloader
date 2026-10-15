@@ -1,7 +1,7 @@
 import os
 import sys
 
-__version__ = "0.9.3"
+from core.version import __version__  # noqa: F401 - re-exported
 
 try:
     from PyQt5 import QtWidgets, QtCore, QtGui
