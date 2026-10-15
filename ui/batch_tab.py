@@ -86,7 +86,6 @@ class QueueTab(QtWidgets.QWidget):
         self._expand_worker = None
         self._expand_queue = []
         self._row_for_id = {}
-        self._running_id = ""
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
         self.preset_store.load()
@@ -233,6 +232,19 @@ class QueueTab(QtWidgets.QWidget):
         sub_row.addStretch(1)
         queue_layout.addLayout(sub_row)
 
+        jobs_row = QtWidgets.QHBoxLayout()
+        jobs_row.addWidget(QtWidgets.QLabel("Downloads at once:"))
+        self.jobs_spin = QtWidgets.QSpinBox()
+        self.jobs_spin.setAccessibleName("Queue concurrent downloads")
+        self.jobs_spin.setRange(1, 8)
+        self.jobs_spin.setValue(int(self.settings.value("queue/jobs", 3)))
+        self.jobs_spin.valueChanged.connect(
+            lambda v: self.settings.setValue("queue/jobs", int(v))
+        )
+        jobs_row.addWidget(self.jobs_spin)
+        jobs_row.addStretch(1)
+        queue_layout.addLayout(jobs_row)
+
         start_row = QtWidgets.QHBoxLayout()
         self.batch_start_btn = QtWidgets.QPushButton("Start")
         self.batch_start_btn.clicked.connect(self.on_start_queue)
@@ -241,10 +253,10 @@ class QueueTab(QtWidgets.QWidget):
         self.pause_btn.setEnabled(False)
         self.pause_btn.clicked.connect(self.on_pause_resume)
         start_row.addWidget(self.pause_btn)
-        self.cancel_current_btn = QtWidgets.QPushButton("Cancel current")
-        self.cancel_current_btn.setEnabled(False)
-        self.cancel_current_btn.clicked.connect(self.on_cancel_current)
-        start_row.addWidget(self.cancel_current_btn)
+        self.cancel_all_btn = QtWidgets.QPushButton("Cancel all")
+        self.cancel_all_btn.setEnabled(False)
+        self.cancel_all_btn.clicked.connect(self.on_cancel_all)
+        start_row.addWidget(self.cancel_all_btn)
         queue_layout.addLayout(start_row)
 
         self.batch_console_log = QtWidgets.QTextEdit()
@@ -523,6 +535,8 @@ class QueueTab(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         remove_action = menu.addAction("Remove from queue")
         remove_action.setEnabled(can_remove(job.state))
+        cancel_this = menu.addAction("Cancel this download")
+        cancel_this.setEnabled(job.state == "running")
         cancel_action = menu.addAction("Cancel")
         cancel_action.setEnabled(job.state == "pending")
 
@@ -533,6 +547,13 @@ class QueueTab(QtWidgets.QWidget):
             self.on_remove_job(job)
         elif chosen is cancel_action:
             self.on_cell_clicked(index.row(), 1)
+        elif chosen is cancel_this:
+            self._cancel_running_job(job)
+
+    def _cancel_running_job(self, job):
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.queue_worker.cancel_job(job.id)
+            self.batch_log("Cancelling this download...")
 
     def on_remove_selected(self):
         """Delete key: remove the highlighted row (keyboard equivalent of the
@@ -566,18 +587,20 @@ class QueueTab(QtWidgets.QWidget):
         else:
             detail = job.message or ""
         self._set_row_status(row, state, detail)
-        if state == "running":
-            self._running_id = job_id
+        self._update_overall_progress()
+
+    def _update_overall_progress(self):
+        total = len(self.queue.jobs)
+        if not total:
             self.progress_bar.setValue(0)
-            self.cancel_current_btn.setEnabled(True)
-        elif state in TERMINAL_STATES:
-            if job_id == self._running_id:
-                self._running_id = ""
-                self.progress_bar.setValue(0)
-                self.cancel_current_btn.setEnabled(False)
+            return
+        finished = sum(1 for j in self.queue.jobs if j.state in TERMINAL_STATES)
+        self.progress_bar.setValue(int(finished / total * 100))
 
     def _on_progress(self, job_id, percent):
-        self.progress_bar.setValue(int(percent))
+        row = self._row_for_id.get(job_id)
+        if row is not None:
+            self._set_row_status(row, "running", "%d%%" % int(percent))
 
     def on_start_queue(self):
         if self.queue_worker and self.queue_worker.isRunning():
@@ -594,9 +617,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_start_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
         self.pause_btn.setText("Pause")
-        self.cancel_current_btn.setEnabled(True)
+        self.cancel_all_btn.setEnabled(True)
         self.batch_log("Starting queue...")
-        self.queue_worker = QueueWorker(self.queue)
+        self.queue_worker = QueueWorker(self.queue, jobs=self.jobs_spin.value())
         self.queue_worker.job_signal.connect(self._on_job)
         self.queue_worker.progress_signal.connect(self._on_progress)
         self.queue_worker.finished_signal.connect(self.on_queue_finished)
@@ -614,11 +637,11 @@ class QueueTab(QtWidgets.QWidget):
             self.pause_btn.setText("Resume")
             self.batch_log("Paused. Finishing the current item first.")
 
-    def on_cancel_current(self):
+    def on_cancel_all(self):
         if self.queue_worker and self.queue_worker.isRunning():
             self.queue_worker.cancel_all()
-            self.cancel_current_btn.setEnabled(False)
-            self.batch_log("Cancelling the current item...")
+            self.cancel_all_btn.setEnabled(False)
+            self.batch_log("Cancelling all running downloads...")
 
     def on_clear_finished(self):
         if self.queue_worker and self.queue_worker.isRunning():
@@ -635,6 +658,6 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_start_btn.setEnabled(True)
         self.pause_btn.setEnabled(False)
         self.pause_btn.setText("Pause")
-        self.cancel_current_btn.setEnabled(False)
+        self.cancel_all_btn.setEnabled(False)
         self.progress_bar.setValue(0)
         self.refresh_table()
