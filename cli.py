@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 
-from core.manifest import SCHEMA_VERSION
+from core.manifest import SCHEMA_VERSION, error_result
 from core.subtitles import DELIVERIES
 
 EXIT_OK = 0
@@ -194,6 +194,13 @@ def _queue_executor(job):
     )
 
 
+def _run_cli_job(job):
+    try:
+        return job, _queue_executor(job)
+    except Exception as exc:  # noqa: BLE001 - one job must not kill the pool
+        return job, error_result("other", str(exc), job.url)
+
+
 def _expand_for_cli(url, cookies):
     from core.collections import expand_collection
     return expand_collection(url, cookies_file=cookies)
@@ -215,6 +222,12 @@ def _collect_expanded(urls, cookies, limit=200, existing=None):
         pairs.extend((entry.url, entry.title) for entry in kept)
         seen.extend(entry.url for entry in kept)
     return pairs
+
+
+def _apply_cli_result(queue, future):
+    """Claimed job + its result -> applied job. Never raises."""
+    job, result = future.result()
+    return queue.apply_result(job, result)
 
 
 def _cmd_queue(args) -> int:
@@ -269,19 +282,29 @@ def _cmd_queue(args) -> int:
                 args, "ffmpeg",
                 "ffmpeg not found. Install ffmpeg and ensure it is on PATH.",
             )
+        from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
         run = done = failed = cancelled = 0
-        while True:
-            job = queue.run_once(_queue_executor)
-            if job is None:
-                break
-            queue.store.save()
-            run += 1
-            if job.state == "done":
-                done += 1
-            elif job.state == "failed":
-                failed += 1
-            elif job.state == "cancelled":
-                cancelled += 1
+        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            pending = set()
+            while True:
+                while len(pending) < args.jobs:
+                    job = queue.claim_next()
+                    if job is None:
+                        break
+                    pending.add(pool.submit(_run_cli_job, job))
+                if not pending:
+                    break
+                finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for future in finished:
+                    job = _apply_cli_result(queue, future)
+                    queue.store.save()
+                    run += 1
+                    if job.state == "done":
+                        done += 1
+                    elif job.state == "failed":
+                        failed += 1
+                    elif job.state == "cancelled":
+                        cancelled += 1
         result = {"schema_version": SCHEMA_VERSION, "run": run, "done": done,
                   "failed": failed, "cancelled": cancelled}
         if args.json:
@@ -374,6 +397,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     qr = qsub.add_parser("run")
     qr.add_argument("--json", action="store_true")
+    qr.add_argument("--jobs", type=int, default=3, choices=range(1, 9),
+                    metavar="N")
     qr.set_defaults(func=_cmd_queue)
 
     qc = qsub.add_parser("clear")

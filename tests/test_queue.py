@@ -292,3 +292,64 @@ def test_store_persists_title(tmp_path):
     again = QueueStore(path)
     again.load()
     assert again.jobs[0].title == "My Video"
+
+
+def test_claim_next_marks_running_and_counts_attempt():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    claimed = q.claim_next()
+    assert claimed is job
+    assert job.state == "running"
+    assert job.attempts == 1
+    assert q.claim_next() is None
+
+
+def test_claim_next_returns_none_when_paused():
+    q = Queue()
+    q.add("https://a.com/1", {})
+    q.pause()
+    assert q.claim_next() is None
+
+
+def test_apply_result_ok_sets_done_fields():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    result = DownloadResult(status="ok", url=job.url, path="C:/out.mp4",
+                            bytes=10, height=1080, message="done")
+    q.apply_result(job, result)
+    assert job.state == "done"
+    assert job.path == "C:/out.mp4"
+    assert job.bytes == 10
+    assert job.height == 1080
+    assert job.message == "done"
+
+
+def test_apply_result_cancelled():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    result = DownloadResult(status="error", error_category="cancelled",
+                            message="Cancelled.")
+    q.apply_result(job, result)
+    assert job.state == "cancelled"
+
+
+def test_apply_result_generic_failure():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    result = DownloadResult(status="error", error_category="network",
+                            message="No network.")
+    q.apply_result(job, result)
+    assert job.state == "failed"
+    assert job.message == "No network."
+
+
+def test_apply_result_non_result_is_failed():
+    q = Queue()
+    job = q.add("https://a.com/1", {})
+    job.state = "running"
+    q.apply_result(job, None)
+    assert job.state == "failed"
+    assert job.message == "executor returned no result"

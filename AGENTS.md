@@ -38,7 +38,7 @@ ui/batch_tab.py            QueueTab: persistent Queue tab (add/paste, pause/resu
 ui/convert_tab.py          local file format/resolution conversion
 ui/update_indicator.py     top-right update button (state + click signal)
 workers/download_worker.py single download + MP3/resolution post-process
-workers/queue_worker.py    drives a Queue: one job at a time, saves after each
+workers/queue_worker.py    drives a Queue: up to N jobs at a time, saves after each
 workers/expand_worker.py   expands a collection URL for the Queue tab
 workers/convert_worker.py  local file conversion
 workers/update_worker.py   update check + digest-verified asset download
@@ -54,7 +54,10 @@ tests/                     pytest suite for pure logic
 `core/` is Qt-free by rule: it must not import PyQt5/PySide so the CLI can use it
 without a display. Enforced by `tests/test_core_isolation.py`. `core/queue.py`
 is additionally **thread-free**: it only holds data and pure logic; the worker
-(`workers/queue_worker.py`) owns the thread.
+(`workers/queue_worker.py`) owns the thread. The Queue runs up to N downloads at
+once (`QueueWorker(queue, jobs=)` and `queue run --jobs`); the pool lives in
+`workers/queue_worker.py` and `cli.py`, and `core/queue.py` stays thread-free
+with `claim_next()`/`apply_result()` as the pure primitives.
 
 The in-app updater (`core/updater.py`, `workers/update_worker.py`,
 `ui/update_indicator.py`) checks GitHub Releases, verifies the asset SHA-256,

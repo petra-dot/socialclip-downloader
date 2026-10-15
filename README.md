@@ -59,8 +59,12 @@ without uploading anything to a third-party service.
   The control is on the Download and Queue tabs, and the CLI adds
   `--subtitles off|sidecar|embed|both`.
 - **Persistent queue** — add multiple URLs (type them, or paste from the
-  clipboard), then run them one at a time with pause, resume, per-item cancel,
-  and cancel-all. The queue is saved to disk, so it survives a restart.
+  clipboard), then run them with pause, resume, per-item cancel, and cancel-all.
+  The queue is saved to disk, so it survives a restart.
+- **Parallel downloads** — the Queue downloads up to 3 videos at once by
+  default; set **Downloads at once** between 1 and 8 (or use
+  `queue run --jobs N`). Each running download shows its own progress and can be
+  cancelled on its own, while **Cancel all** stops the batch.
 - **Collection expansion** — paste a playlist, channel, or profile URL and the
   Queue offers to add its videos: preview the list, confirm, and duplicates are
   skipped. Reliable on YouTube, best-effort elsewhere.
@@ -156,7 +160,7 @@ socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [-
 socialclip convert FILE [--to KEY] [--copy|--no-copy] [--resolution 1080]
 socialclip queue add URL [URL ...] [--expand]
 socialclip queue list
-socialclip queue run
+socialclip queue run [--jobs N]
 socialclip queue clear
 socialclip doctor
 socialclip manifest-schema
@@ -166,7 +170,7 @@ socialclip manifest-schema
 |---------|--------------|
 | `download` | Fetch one URL and save it as MP4 or MP3. `--preset NAME` fills unset options from a saved download preset (built-in or your own); an explicit flag wins over the preset. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. `--subtitles off|sidecar|embed|both` saves subtitle sidecars, muxes them into the video, or does both (default `off`). |
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
-| `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. |
+| `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. `run --jobs N` downloads up to `N` (1-8, default 3) at once. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
 | `manifest-schema` | Print the JSON Schema for structured results. |
 
@@ -189,8 +193,10 @@ Exit codes are stable: `0` success, `1` download failure, `2` usage error,
 ## Queue
 
 The **Queue** tab holds a table of URLs with a live status per item. Use
-**Add URLs** or **Paste** to enqueue, then **Start** to download them one at a
-time. While running you can **Pause** / **Resume**, **Cancel** the current item,
+**Add URLs** or **Paste** to enqueue, then **Start** to download them — up to 3
+at once by default, adjustable with **Downloads at once** (1 to 8). Each running
+row shows its own progress, a running row can be cancelled on its own, and
+**Cancel all** stops the batch. While running you can **Pause** / **Resume**,
 cancel an individual pending row, or **Clear finished** to drop everything in a
 terminal state. The queue reloads on startup, so unfinished work is still there
 after a restart.
