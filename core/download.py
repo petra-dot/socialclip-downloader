@@ -86,7 +86,7 @@ def _section_range(clip):
 
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
-                 subtitles=False, embed_thumbnail=False, format_id=None,
+                 subtitles="off", embed_thumbnail=False, format_id=None,
                  clip=None):
     in_flight = {"created": set()}
     try:
@@ -220,6 +220,26 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 os.remove(final_path)
                 final_path = out_file
                 reencoded = True
+
+        if subtitles and subtitles != "off" and os.path.isfile(final_path):
+            from core.subtitles import (
+                embed_subtitles, subtitle_tracks, write_subtitle,
+            )
+
+            base = os.path.splitext(final_path)[0]
+            sidecars = []
+            for track in subtitle_tracks(info):
+                written = write_subtitle(track, base)
+                if written:
+                    sidecars.append((track.lang, written))
+            if subtitles in ("embed", "both") and sidecars:
+                embed_subtitles(final_path, sidecars)
+            if subtitles == "embed":
+                for _lang, path in sidecars:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
 
         if reencoded:
             message = f"Re-encoded for editor compatibility: {final_path}"
