@@ -3,8 +3,15 @@ import subprocess
 
 from sites.cookies import PLATFORM_NAMES, cookie_file_for, default_cookie_dir
 from utils.ffmpeg import find_ffmpeg
+from utils.ytdlp import (
+    RUNTIMES,
+    find_js_runtime,
+    is_stale,
+    version_age_days,
+    ytdlp_version,
+)
 
-DOCTOR_SCHEMA_VERSION = "1.1"
+DOCTOR_SCHEMA_VERSION = "1.2"
 
 
 def _default_probe():
@@ -69,9 +76,29 @@ def run_checks(env=None, which=None, exists=None, probe=None, runner=None,
     except Exception as exc:
         ok, detail = None, str(exc)
 
+    try:
+        runtime_name, runtime_path = find_js_runtime(which=which)
+    except Exception:
+        runtime_name, runtime_path = "", ""
+
+    try:
+        version = ytdlp_version()
+        age_days = version_age_days(version)
+        stale = is_stale(version)
+    except Exception:
+        version, age_days, stale = "", None, False
+
     return {
         "schema_version": DOCTOR_SCHEMA_VERSION,
         "ffmpeg": ffmpeg,
         "cookies": cookies,
         "network": {"ok": ok, "detail": str(detail)},
+        "js_runtime": {
+            "found": bool(runtime_name),
+            "name": runtime_name or None,
+            "path": runtime_path or None,
+            "candidates": list(RUNTIMES),
+        },
+        "ytdlp": {"version": version or None, "age_days": age_days,
+                  "stale": stale},
     }

@@ -14,6 +14,29 @@ def _ffmpeg_line(report):
     return "ffmpeg: NOT found. Merging/conversion will fail."
 
 
+def _js_runtime_line(report):
+    js = report.get("js_runtime", {})
+    if js.get("found"):
+        return "JavaScript runtime: %s (%s)" % (js.get("name"), js.get("path"))
+    return (
+        "JavaScript runtime: NONE found. YouTube downloads will fail with "
+        "HTTP 403. Install Deno (winget install DenoLand.Deno) or Node.js."
+    )
+
+
+def _ytdlp_line(report):
+    ytdlp = report.get("ytdlp", {})
+    version = ytdlp.get("version")
+    if not version:
+        return "yt-dlp: version unknown"
+    age = ytdlp.get("age_days")
+    age_text = "%d days old" % age if isinstance(age, int) else "age unknown"
+    line = "yt-dlp: %s (%s)" % (version, age_text)
+    if ytdlp.get("stale"):
+        line += "  STALE - update with: pip install -U yt-dlp"
+    return line
+
+
 def show_welcome(parent=None):
     folder = default_download_folder()
     try:
@@ -70,6 +93,10 @@ def show_doctor(parent=None):
     lines.append("network:")
     lines.append("  ok: %s" % network.get("ok"))
     lines.append("  detail: %s" % network.get("detail"))
+
+    lines.append("")
+    lines.append(_js_runtime_line(report))
+    lines.append(_ytdlp_line(report))
 
     dialog = QtWidgets.QDialog(parent)
     dialog.setWindowTitle("Doctor")

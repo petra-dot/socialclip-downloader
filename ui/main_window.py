@@ -44,6 +44,7 @@ class MainWindow(QtWidgets.QWidget):
             self.settings.setValue("first_run_done", True)
 
         QtCore.QTimer.singleShot(4000, self.check_for_updates)
+        self._warn_if_ytdlp_stale()
 
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
@@ -226,6 +227,22 @@ class MainWindow(QtWidgets.QWidget):
 
         folder = self.single_tab.save_dir_input.text().strip() or default_download_folder()
         reveal_in_folder(folder)
+
+    def _warn_if_ytdlp_stale(self):
+        """Say once, in the activity log, when yt-dlp has gone stale.
+
+        YouTube extraction breaks as yt-dlp ages, and a frozen build cannot
+        update the copy it ships, so the user needs to hear it from us.
+        """
+        from utils.ytdlp import is_stale, version_age_days, ytdlp_version
+        version = ytdlp_version()
+        if not version or not is_stale(version):
+            return
+        age = version_age_days(version)
+        self.single_tab.log(
+            "yt-dlp %s is %s days old. YouTube extraction breaks when it is "
+            "stale; update with: pip install -U yt-dlp" % (version, age)
+        )
 
     def open_cookies(self):
         from ui.dialogs import CookiesDialog

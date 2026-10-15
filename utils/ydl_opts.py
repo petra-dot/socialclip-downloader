@@ -3,6 +3,7 @@ import re
 import subprocess
 
 from utils.ffmpeg import ffmpeg_path, ffprobe_path
+from utils.ytdlp import js_runtimes
 
 
 def _nle_safe_format_selector() -> str:
@@ -98,6 +99,12 @@ def _nle_ydl_opts(outtmpl: str, progress_hooks: list = None,
         opts["cookiefile"] = cookies_file
     elif cookies_from_browser:
         opts["cookiesfrombrowser"] = (cookies_from_browser, None, None, None)
+    # YouTube needs a JavaScript runtime to solve its challenge; the Python API
+    # defaults to deno only and ignores the user's yt-dlp config, so without
+    # this a node-only machine gets HTTP 403 on every YouTube download.
+    runtime = js_runtimes()
+    if runtime:
+        opts["js_runtimes"] = runtime
     if archive_file:
         opts["download_archive"] = archive_file
     return opts

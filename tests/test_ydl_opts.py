@@ -50,3 +50,15 @@ def test_neither_cookie_source_sets_nothing():
     opts = _nle_ydl_opts("t")
     assert "cookiefile" not in opts
     assert "cookiesfrombrowser" not in opts
+
+
+def test_nle_opts_pass_a_detected_js_runtime(monkeypatch):
+    import utils.ydl_opts as yo
+    monkeypatch.setattr(yo, "js_runtimes", lambda: {"node": {"path": "n"}})
+    assert yo._nle_ydl_opts("t")["js_runtimes"] == {"node": {"path": "n"}}
+
+
+def test_nle_opts_omit_js_runtime_when_none_installed(monkeypatch):
+    import utils.ydl_opts as yo
+    monkeypatch.setattr(yo, "js_runtimes", lambda: {})
+    assert "js_runtimes" not in yo._nle_ydl_opts("t")
