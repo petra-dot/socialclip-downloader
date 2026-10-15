@@ -265,6 +265,11 @@ replaces a working copy.
 - **Command line** — `socialclip repair` runs the same check and repair;
   `socialclip repair --dry-run` lists what it would change and stops.
 
+A repaired yt-dlp is used by the **next** download only after you restart the
+app: the running process already loaded the old extractor, so the Health view
+and `socialclip repair` say "restart to use the new version" when they install
+one. ffmpeg and deno take effect immediately.
+
 yt-dlp, ffmpeg, and deno are downloaded and SHA-256 verified on first need, so a
 frozen build keeps working without a new release. Platform coverage is honest
 about its gaps: **macOS has no verified automatic ffmpeg source**, so `repair`

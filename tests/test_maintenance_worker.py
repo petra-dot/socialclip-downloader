@@ -32,10 +32,11 @@ def test_run_repairs_calls_the_right_installer(tmp_path, monkeypatch):
     # The right installer ran for each key.
     assert calls == ["yt-dlp", "deno"]
     assert result == []
-    # Two events per component: "installing", then the install outcome.
+    # yt-dlp gets an extra note: the running process still holds the old copy.
     assert seen == [
         ("yt-dlp", "installing"),
         ("yt-dlp", "installed 1.0"),
+        ("yt-dlp", "restart to use the new version"),
         ("js-runtime", "installing"),
         ("js-runtime", "installed 1.0"),
     ]

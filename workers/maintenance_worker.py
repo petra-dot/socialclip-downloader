@@ -39,6 +39,10 @@ def run_repairs(keys, progress=None):
             continue
         if progress:
             progress(key, "installed %s" % (version or ""))
+        if key == "yt-dlp" and progress:
+            # core/download.py already holds the yt-dlp it imported at startup,
+            # so the new extractor is used only after a restart.
+            progress(key, "restart to use the new version")
     return check_all()
 
 
