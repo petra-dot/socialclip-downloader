@@ -163,6 +163,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 downloaded_file = ydl.prepare_filename(info) if info else None
 
         if not info:
+            # With the archive on, an already-recorded video can come back as no
+            # info at all. Report it as skipped rather than an error: a genuine
+            # extraction failure raises above, so this branch only sees the
+            # archive's own no-op.
             if archive and clip is None:
                 return error_result(
                     "skipped", "Already downloaded; skipped.", url
