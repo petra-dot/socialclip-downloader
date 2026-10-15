@@ -87,7 +87,7 @@ def _section_range(clip):
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
                  subtitles="off", embed_thumbnail=False, format_id=None,
-                 clip=None, archive=None):
+                 clip=None, archive=None, cookies_from_browser=None):
     in_flight = {"created": set()}
     saw_download = {"value": False}
     try:
@@ -117,6 +117,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         ydl_opts = _nle_ydl_opts(
             outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
             archive_file=archive if clip is None else None,
+            cookies_from_browser=cookies_from_browser,
         )
         section_ok = False
         if clip is not None:
@@ -136,6 +137,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             full_opts = _nle_ydl_opts(
                 outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
                 archive_file=archive if clip is None else None,
+                cookies_from_browser=cookies_from_browser,
             )
             with YoutubeDL(full_opts) as ydl:
                 info = ydl.extract_info(url, download=True)

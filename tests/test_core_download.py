@@ -546,3 +546,31 @@ def test_none_info_without_archive_is_not_found(monkeypatch, tmp_path):
     )
     assert result.status == "error"
     assert result.error_category == "not_found"
+
+
+def test_download_one_forwards_browser_cookies(monkeypatch, tmp_path):
+    seen = {}
+
+    class YDL:
+        def __init__(self, opts):
+            seen.update(opts)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            return None
+
+        def prepare_filename(self, info):
+            return ""
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert seen.get("cookiesfrombrowser") == ("chrome", None, None, None)

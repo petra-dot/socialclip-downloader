@@ -26,3 +26,27 @@ def test_selector_accepts_a_non_h264_source():
 def test_selector_ends_with_a_general_fallback():
     last = _nle_safe_format_selector().split("/")[-1].strip()
     assert last in ("bestvideo+bestaudio", "bestvideo*+bestaudio", "best")
+
+
+def test_cookie_file_wins_over_browser(tmp_path):
+    from utils.ydl_opts import _nle_ydl_opts
+    cookie = tmp_path / "cookies.txt"
+    cookie.write_text("x")
+    opts = _nle_ydl_opts("t", cookies_file=str(cookie),
+                         cookies_from_browser="chrome")
+    assert opts["cookiefile"] == str(cookie)
+    assert "cookiesfrombrowser" not in opts
+
+
+def test_browser_used_when_no_file():
+    from utils.ydl_opts import _nle_ydl_opts
+    opts = _nle_ydl_opts("t", cookies_from_browser="firefox")
+    assert opts["cookiesfrombrowser"] == ("firefox", None, None, None)
+    assert "cookiefile" not in opts
+
+
+def test_neither_cookie_source_sets_nothing():
+    from utils.ydl_opts import _nle_ydl_opts
+    opts = _nle_ydl_opts("t")
+    assert "cookiefile" not in opts
+    assert "cookiesfrombrowser" not in opts
