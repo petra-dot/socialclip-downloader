@@ -139,3 +139,20 @@ def get_cookie_message(platform: str) -> str:
         "facebook": "Facebook may require cookies. Export and save as facebook_cookies.txt.",
     }
     return messages.get(platform, "")
+
+
+BROWSERS = ("chrome", "chromium", "firefox", "edge", "brave", "opera",
+            "vivaldi", "safari", "whale")
+
+
+def cookie_status() -> list:
+    """One (platform, display_name, file_path) per known platform.
+
+    ``file_path`` is "" when no cookie file exists for that platform. This is
+    a file-presence report only; it never reads a browser.
+    """
+    return [
+        (platform, get_platform_display_name(platform),
+         cookie_file_for(platform))
+        for platform in PLATFORM_NAMES
+    ]
