@@ -146,22 +146,25 @@ class Queue:
                 return job
         return None
 
-    def run_once(
-        self, executor: Callable[[QueueJob], Optional[DownloadResult]]
-    ) -> Optional[QueueJob]:
+    def claim_next(self) -> Optional[QueueJob]:
+        """Take the first pending job: mark it running, count the attempt.
+
+        The caller owns any locking; a concurrent caller must serialize this
+        and apply_result against the shared job list.
+        """
         if self.paused:
             return None
         job = self.next_pending()
         if job is None:
             return None
-        try:
-            job.state = "running"
-            job.attempts += 1
-            result = executor(job)
-        except Exception as exc:  # noqa: BLE001 - never let a job crash the loop
-            job.state = "failed"
-            job.message = str(exc)
-            return job
+        job.state = "running"
+        job.attempts += 1
+        return job
+
+    def apply_result(
+        self, job: QueueJob, result: Optional[DownloadResult]
+    ) -> QueueJob:
+        """Map a finished run onto the job's terminal state."""
         if not isinstance(result, DownloadResult):
             job.state = "failed"
             job.message = "executor returned no result"
@@ -181,6 +184,20 @@ class Queue:
             job.state = "failed"
             job.message = result.message or ""
         return job
+
+    def run_once(
+        self, executor: Callable[[QueueJob], Optional[DownloadResult]]
+    ) -> Optional[QueueJob]:
+        job = self.claim_next()
+        if job is None:
+            return None
+        try:
+            result = executor(job)
+        except Exception as exc:  # noqa: BLE001 - never let a job crash the loop
+            job.state = "failed"
+            job.message = str(exc)
+            return job
+        return self.apply_result(job, result)
 
     def pause(self) -> None:
         self.store.paused = True
