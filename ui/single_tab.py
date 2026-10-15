@@ -237,10 +237,17 @@ class SingleTab(QtWidgets.QWidget):
         self.convert_checkbox.toggled.connect(self._sync_resolution_state)
         main.addWidget(self.convert_checkbox)
         self._sync_resolution_state()
+
+        # Everything past the format choice is optional, so it lives behind one
+        # disclosure instead of competing with Download for attention.
+        self.advanced_widget = QtWidgets.QWidget()
+        advanced_layout = QtWidgets.QVBoxLayout(self.advanced_widget)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
-        main.addWidget(self.checkbox_channel)
+        advanced_layout.addWidget(self.checkbox_channel)
         self.checkbox_timestamp = QtWidgets.QCheckBox("Add timestamp to filename")
-        main.addWidget(self.checkbox_timestamp)
+        advanced_layout.addWidget(self.checkbox_timestamp)
 
         sub_row = QtWidgets.QHBoxLayout()
         sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
@@ -253,7 +260,7 @@ class SingleTab(QtWidgets.QWidget):
             self.subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.subtitle_combo)
         sub_row.addStretch(1)
-        main.addLayout(sub_row)
+        advanced_layout.addLayout(sub_row)
 
         save_layout = QtWidgets.QHBoxLayout()
         self.save_dir_input = QtWidgets.QLineEdit(
@@ -267,9 +274,24 @@ class SingleTab(QtWidgets.QWidget):
         save_layout.addWidget(browse_btn)
         main.addLayout(save_layout)
 
+        self.advanced_toggle = QtWidgets.QToolButton()
+        self.advanced_toggle.setText("Advanced")
+        self.advanced_toggle.setCheckable(True)
+        self.advanced_toggle.setArrowType(QtCore.Qt.RightArrow)
+        self.advanced_toggle.setToolTip(
+            "Subtitles, clip range, filename options, and cookies."
+        )
+        self.advanced_toggle.toggled.connect(self._on_advanced_toggled)
+        main.addWidget(self.advanced_toggle)
+        self.advanced_widget.setVisible(False)
+        main.addWidget(self.advanced_widget)
+
         # Download bar
         download_bar = QtWidgets.QHBoxLayout()
         self.download_btn = QtWidgets.QPushButton("Download")
+        self.download_btn.setDefault(True)
+        self.download_btn.setAutoDefault(True)
+        self.download_btn.setMinimumWidth(120)
         self.download_btn.clicked.connect(self.on_download)
         download_bar.addWidget(self.download_btn)
 
@@ -298,7 +320,7 @@ class SingleTab(QtWidgets.QWidget):
 
         self.clip_check = QtWidgets.QCheckBox("Download a clip (time range)")
         self.clip_check.toggled.connect(self._on_clip_toggled)
-        main.addWidget(self.clip_check)
+        advanced_layout.addWidget(self.clip_check)
 
         self.clip_row = QtWidgets.QWidget()
         clip_layout = QtWidgets.QHBoxLayout(self.clip_row)
@@ -324,7 +346,7 @@ class SingleTab(QtWidgets.QWidget):
         clip_layout.addWidget(self.clip_exact_check)
         clip_layout.addStretch(1)
         self.clip_row.setVisible(False)
-        main.addWidget(self.clip_row)
+        advanced_layout.addWidget(self.clip_row)
 
         # --- Cookies ---
         cookies_row = QtWidgets.QHBoxLayout()
@@ -345,15 +367,26 @@ class SingleTab(QtWidgets.QWidget):
         clear_cookies_btn.setMinimumWidth(50)
         clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
         cookies_row.addWidget(clear_cookies_btn)
-        main.addLayout(cookies_row)
+        advanced_layout.addLayout(cookies_row)
 
-        # Console grows with the window instead of a fixed height, so a tall
-        # window shows more log rather than more empty space.
+        # The log is a details view: compact by default, expanded on request.
+        # It used to take every spare pixel, which made developer chatter the
+        # largest element on the tab.
+        self._main_layout = main
+        self.details_toggle = QtWidgets.QToolButton()
+        self.details_toggle.setText("Details")
+        self.details_toggle.setCheckable(True)
+        self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
+        self.details_toggle.setToolTip("Show the full activity log.")
+        self.details_toggle.toggled.connect(self._on_details_toggled)
+        main.addWidget(self.details_toggle)
+
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setMinimumHeight(120)
+        self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Activity log")
-        main.addWidget(self.console_log, 1)
+        main.addWidget(self.console_log)
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
@@ -559,6 +592,19 @@ class SingleTab(QtWidgets.QWidget):
         self.resolution_combo.setToolTip(
             "Re-encode the download at this height." if active
             else "Enable 'Convert to chosen resolution' to use this."
+        )
+
+    def _on_advanced_toggled(self, checked):
+        self.advanced_widget.setVisible(checked)
+        self.advanced_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
+        )
+
+    def _on_details_toggled(self, checked):
+        self.console_log.setMaximumHeight(16777215 if checked else 120)
+        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        self.details_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )
 
     def _on_open_folder(self):
