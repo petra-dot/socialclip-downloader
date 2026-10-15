@@ -112,3 +112,111 @@ def test_redirect_handler_allows_an_allow_listed_host():
         "https://objects.githubusercontent.com/x",
     )
     assert result is not None
+
+
+import hashlib
+import io
+import json
+import zipfile
+
+
+def _wheel_bytes(version="2099.01.01"):
+    """A minimal wheel: a zip whose root holds the yt_dlp package."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("yt_dlp/__init__.py", "")
+        zf.writestr("yt_dlp/version.py", '__version__ = "%s"\n' % version)
+    return buffer.getvalue()
+
+
+def _release_opener(wheel, wheel_name, good_digest=True):
+    sums = hashlib.sha256(wheel).hexdigest()
+    if not good_digest:
+        sums = "0" * 64
+
+    class _Response:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def read(self):
+            return self._payload
+
+        def geturl(self):
+            return "https://github.com/x/x"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def opener(request, timeout=None):
+        url = getattr(request, "full_url", request)
+        if "latest" in url:
+            body = json.dumps({
+                "tag_name": "2099.01.01",
+                "assets": [
+                    {"name": "SHA2-256SUMS",
+                     "browser_download_url": "https://github.com/x/sums"},
+                    {"name": wheel_name,
+                     "browser_download_url": "https://github.com/x/" + wheel_name},
+                ],
+            }).encode("utf-8")
+            return _Response(body)
+        if url.endswith("sums"):
+            return _Response(("%s  %s\n" % (sums, wheel_name)).encode("utf-8"))
+        return _Response(wheel)
+
+    return opener
+
+
+def test_parse_sums_reads_the_checksum_file():
+    text = "abc123  yt_dlp-1-py3-none-any.whl\ndef456  other.zip\n"
+    assert maintenance._parse_sums(text) == {
+        "yt_dlp-1-py3-none-any.whl": "abc123",
+        "other.zip": "def456",
+    }
+
+
+def test_install_ytdlp_unpacks_a_verified_wheel(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    wheel = _wheel_bytes()
+    dest = tmp_path / "yt-dlp"
+    version = maintenance.install_ytdlp(
+        dest=str(dest),
+        opener=_release_opener(wheel, "yt_dlp-2099.01.01-py3-none-any.whl"),
+    )
+    assert version == "2099.01.01"
+    assert (dest / "yt_dlp" / "version.py").is_file()
+
+
+def test_install_ytdlp_refuses_a_bad_digest(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    dest = tmp_path / "yt-dlp"
+    wheel = _wheel_bytes()
+    try:
+        maintenance.install_ytdlp(
+            dest=str(dest),
+            opener=_release_opener(
+                wheel, "yt_dlp-2099.01.01-py3-none-any.whl", good_digest=False
+            ),
+        )
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+    assert not (dest / "yt_dlp").exists()
+
+
+def test_install_ytdlp_keeps_a_previous_copy(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    dest = tmp_path / "yt-dlp"
+    (dest / "yt_dlp").mkdir(parents=True)
+    (dest / "yt_dlp" / "version.py").write_text(
+        '__version__ = "1.0.0"\n', encoding="utf-8"
+    )
+    maintenance.install_ytdlp(
+        dest=str(dest),
+        opener=_release_opener(_wheel_bytes(), "yt_dlp-2099.01.01-py3-none-any.whl"),
+    )
+    assert (tmp_path / "yt-dlp.prev" / "yt_dlp" / "version.py").is_file()

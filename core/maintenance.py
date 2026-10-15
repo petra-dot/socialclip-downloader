@@ -8,8 +8,11 @@ Qt-free. Network access is injectable so the checks and installers are testable.
 """
 
 import hashlib
+import io
 import json
 import os
+import shutil
+import tempfile
 import urllib.parse
 import urllib.request
 import zipfile
@@ -200,3 +203,71 @@ def latest_ytdlp(opener=None):
     if not (version and wheel and sums):
         raise ValueError("the yt-dlp release is missing a wheel or its checksums")
     return version, wheel, sums
+
+
+def _parse_sums(text: str) -> dict:
+    """name -> hex digest, from a sha256sums-style file. Pure."""
+    sums = {}
+    for line in (text or "").splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            sums[parts[-1].lstrip("*")] = parts[0].lower()
+    return sums
+
+
+def _verify_bytes(data: bytes, expected_hex: str) -> bool:
+    return hashlib.sha256(data).hexdigest().lower() == (expected_hex or "").lower()
+
+
+def _unpack_wheel(data: bytes, target: str) -> None:
+    """Extract a wheel's ``yt_dlp`` package into `target`."""
+    os.makedirs(target, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        names = [n for n in zf.namelist() if n.startswith("yt_dlp/")]
+        if not names:
+            raise ValueError("the wheel does not contain a yt_dlp package")
+        zf.extractall(target, members=names)
+
+
+def _swap(new_dir: str, dest: str, keep_previous: bool) -> None:
+    """Replace `dest` with `new_dir`, keeping the old copy when asked."""
+    previous = dest + ".prev"
+    if keep_previous and os.path.isdir(dest):
+        if os.path.isdir(previous):
+            shutil.rmtree(previous, ignore_errors=True)
+        os.replace(dest, previous)
+    elif os.path.isdir(dest):
+        shutil.rmtree(dest, ignore_errors=True)
+    os.replace(new_dir, dest)
+
+
+def install_ytdlp(dest=None, opener=None) -> str:
+    """Download, verify, and install the newest yt-dlp. Returns its version.
+
+    The wheel is unpacked into a temporary directory and only swapped in after
+    its SHA-256 matches the release's checksum file, so a bad download never
+    replaces a working copy.
+    """
+    dest = dest or managed_dir("yt-dlp")
+    version, wheel_url, sums_url = latest_ytdlp(opener=opener)
+
+    sums = _parse_sums(_get(sums_url, opener=opener).decode("utf-8"))
+    name = wheel_url.rsplit("/", 1)[-1]
+    expected = sums.get(name)
+    if not expected:
+        raise ValueError("no checksum published for %s" % name)
+
+    data = _get(wheel_url, opener=opener)
+    if not _verify_bytes(data, expected):
+        raise ValueError("checksum mismatch for %s" % name)
+
+    parent = os.path.dirname(dest) or "."
+    os.makedirs(parent, exist_ok=True)
+    temp = tempfile.mkdtemp(prefix="ytdlp-", dir=parent)
+    try:
+        _unpack_wheel(data, temp)
+        _swap(temp, dest, keep_previous=True)
+    except Exception:
+        shutil.rmtree(temp, ignore_errors=True)
+        raise
+    return version
