@@ -98,3 +98,30 @@ def test_cookie_file_for_finds_and_misses(tmp_path):
     (tmp_path / "youtube_cookies.txt").write_text("c")
     assert cookie_file_for("youtube", str(tmp_path)).endswith("youtube_cookies.txt")
     assert cookie_file_for("tiktok", str(tmp_path)) == ""
+
+
+def test_browsers_is_a_nonempty_tuple_of_names():
+    from sites.cookies import BROWSERS
+    assert isinstance(BROWSERS, tuple) and BROWSERS
+    assert "chrome" in BROWSERS and "firefox" in BROWSERS
+
+
+def test_cookie_status_lists_every_platform(monkeypatch):
+    from sites import cookies as c
+    monkeypatch.setattr(c, "cookie_file_for",
+                        lambda platform, cookie_dir=None: "")
+    rows = c.cookie_status()
+    assert {r[0] for r in rows} == set(c.PLATFORM_NAMES)
+    assert all(r[2] == "" for r in rows)
+
+
+def test_cookie_status_reports_a_present_file(monkeypatch):
+    from sites import cookies as c
+    monkeypatch.setattr(
+        c, "cookie_file_for",
+        lambda platform, cookie_dir=None:
+        "C:/app/youtube_cookies.txt" if platform == "youtube" else "",
+    )
+    rows = dict((r[0], r[2]) for r in c.cookie_status())
+    assert rows["youtube"].endswith("youtube_cookies.txt")
+    assert rows["douyin"] == ""

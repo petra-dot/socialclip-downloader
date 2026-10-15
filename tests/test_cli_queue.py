@@ -226,3 +226,24 @@ def test_queue_archive_clear_removes_the_file(tmp_path, monkeypatch, capsys):
     assert rc == cli.EXIT_OK
     assert data["cleared"] is True
     assert not target.exists()
+
+
+def test_queue_add_stores_browser_cookies(tmp_path, monkeypatch):
+    import cli
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    rc = cli.main(["queue", "add", "https://a.com/1",
+                   "--cookies-from-browser", "chrome"])
+    assert rc == cli.EXIT_OK
+    from core.queue import QueueStore
+    store = QueueStore(str(tmp_path / "q.json"))
+    store.load()
+    assert store.jobs[0].options["cookies_from_browser"] == "chrome"
+
+
+def test_queue_add_rejects_unknown_browser(tmp_path, monkeypatch, capsys):
+    import cli
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "q.json"))
+    rc = cli.main(["queue", "add", "https://a.com/1",
+                   "--cookies-from-browser", "netscape"])
+    assert rc == cli.EXIT_USAGE
+    assert "invalid choice" in capsys.readouterr().err

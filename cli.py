@@ -89,6 +89,7 @@ def _cmd_download(args) -> int:
         args.url, outtmpl=outtmpl, output_type=output_type,
         convert=convert, target_resolution=resolution,
         cookies_file=cookies, clip=clip, subtitles=args.subtitles,
+        cookies_from_browser=args.cookies_from_browser,
     )
     return _emit(result, args.json)
 
@@ -154,6 +155,11 @@ def _queue_path() -> str:
     return os.path.join(default_cookie_dir(), "queue.json")
 
 
+def _browsers():
+    from sites.cookies import BROWSERS
+    return BROWSERS
+
+
 def _presets_path() -> str:
     from core.presets import default_presets_path
     return os.environ.get("SOCIALCLIP_PRESETS") or default_presets_path()
@@ -191,6 +197,7 @@ def _queue_executor(job, archive=None):
         target_resolution=opts.get("target_resolution", 1080),
         cookies_file=opts.get("cookies_file"),
         subtitles=opts.get("subtitles", "off"),
+        cookies_from_browser=opts.get("cookies_from_browser"),
         archive=archive,
     )
 
@@ -236,16 +243,19 @@ def _cmd_queue(args) -> int:
     queue = _load_queue()
 
     if command == "add":
+        options = {}
+        if getattr(args, "cookies_from_browser", None):
+            options["cookies_from_browser"] = args.cookies_from_browser
         if getattr(args, "expand", False):
             pairs = _collect_expanded(
                 args.urls, args.cookies, existing=[j.url for j in queue.jobs]
             )
             for url, title in pairs:
-                queue.add(url, title=title)
+                queue.add(url, options or None, title=title)
             queue.store.save()
             n = len(pairs)
         else:
-            queue.add_many(args.urls)
+            queue.add_many(args.urls, options or None)
             queue.store.save()
             n = len(args.urls)
         if args.json:
@@ -367,6 +377,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="re-encode down to --resolution (default: keep original)")
     d.add_argument("--resolution", type=int)
     d.add_argument("--cookies")
+    d.add_argument("--cookies-from-browser", choices=list(_browsers()))
     d.add_argument("--start", default="")
     d.add_argument("--end", default="")
     d.add_argument("--duration", default="")
@@ -405,6 +416,7 @@ def build_parser() -> argparse.ArgumentParser:
     qa.add_argument("--json", action="store_true")
     qa.add_argument("--expand", action="store_true")
     qa.add_argument("--cookies")
+    qa.add_argument("--cookies-from-browser", choices=list(_browsers()))
     qa.set_defaults(func=_cmd_queue)
 
     ql = qsub.add_parser("list")

@@ -91,6 +91,7 @@ class MainWindow(QtWidgets.QWidget):
         file_menu.addAction(
             self._action("&Open download folder", self.open_download_folder, "Ctrl+O")
         )
+        file_menu.addAction(self._action("&Cookies...", self.open_cookies))
         file_menu.addSeparator()
         file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
 
@@ -225,6 +226,12 @@ class MainWindow(QtWidgets.QWidget):
 
         folder = self.single_tab.save_dir_input.text().strip() or default_download_folder()
         reveal_in_folder(folder)
+
+    def open_cookies(self):
+        from ui.dialogs import CookiesDialog
+        dialog = CookiesDialog(self)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            self.settings.setValue("cookies/browser", dialog.chosen_browser())
 
     def set_theme(self, mode: str):
         self.settings.setValue("ui/theme", mode)
