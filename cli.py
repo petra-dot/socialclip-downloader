@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from core.manifest import SCHEMA_VERSION
+from core.subtitles import DELIVERIES
 
 EXIT_OK = 0
 EXIT_FAIL = 1
@@ -87,7 +88,7 @@ def _cmd_download(args) -> int:
     result = download_one(
         args.url, outtmpl=outtmpl, output_type=output_type,
         convert=convert, target_resolution=resolution,
-        cookies_file=cookies, clip=clip,
+        cookies_file=cookies, clip=clip, subtitles=args.subtitles,
     )
     return _emit(result, args.json)
 
@@ -331,6 +332,7 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--end", default="")
     d.add_argument("--duration", default="")
     d.add_argument("--exact-cut", action="store_true")
+    d.add_argument("--subtitles", choices=list(DELIVERIES), default="off")
     d.set_defaults(func=_cmd_download)
 
     c = sub.add_parser("convert")

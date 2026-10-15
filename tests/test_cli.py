@@ -76,7 +76,7 @@ def test_usage_error_returns_2():
 def test_download_json_success_stdout_is_pure_json(monkeypatch, capsys):
     def fake_download_one(url, outtmpl, output_type, convert,
                           target_resolution, cookies_file=None, progress=None,
-                          clip=None):
+                          clip=None, subtitles=None):
         return DownloadResult(
             status="ok", url=url, title="t", path="C:/fake/out.mp4",
             extension="mp4", message="Download finished: C:/fake/out.mp4",
@@ -144,7 +144,7 @@ def test_download_defaults_to_no_convert(monkeypatch, capsys):
 
     def fake_download_one(url, outtmpl, output_type, convert,
                           target_resolution, cookies_file=None, progress=None,
-                          clip=None):
+                          clip=None, subtitles=None):
         seen["convert"] = convert
         return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
                               extension="mp4", message="Download finished")
@@ -163,7 +163,7 @@ def test_download_convert_flag_opts_in(monkeypatch, capsys):
 
     def fake_download_one(url, outtmpl, output_type, convert,
                           target_resolution, cookies_file=None, progress=None,
-                          clip=None):
+                          clip=None, subtitles=None):
         seen["convert"] = convert
         seen["resolution"] = target_resolution
         return DownloadResult(status="ok", url=url, path="C:/fake/out.mp4",
@@ -333,3 +333,12 @@ def test_download_unknown_preset_exits_usage(monkeypatch, tmp_path, capsys):
     rc = cli.main(["download", "https://youtu.be/x", "--preset", "nope"])
     assert rc == 2
     assert "unknown preset" in capsys.readouterr().err.lower()
+
+
+def test_download_rejects_unknown_subtitle_delivery(monkeypatch, capsys):
+    import cli
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
+    rc = cli.main(["download", "https://youtu.be/x", "--subtitles", "burn"])
+    assert rc == 2
+    assert "invalid choice" in capsys.readouterr().err.lower()
