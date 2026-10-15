@@ -70,10 +70,12 @@ working component before its replacement is verified.
 7. **Atomic swap with rollback.** Unpack to a temp directory, verify, then
    swap. yt-dlp keeps a `.prev` copy; a copy that fails to import is rolled
    back and marked broken.
-8. **Sources:** yt-dlp's own GitHub release wheel plus its `SHA2-256SUMS`;
-   BtbN `ffmpeg-builds` latest (win64 / linux64 / macos64) plus its published
-   checksum; `denoland/deno` latest per-platform zip plus its `.sha256sum`.
-   All three are GitHub-hosted, so one host allow-list covers them.
+8. **Sources:** yt-dlp's own GitHub release **source tarball** (`yt-dlp.tar.gz`,
+   which carries the `yt_dlp` package) plus its `SHA2-256SUMS`; BtbN
+   `ffmpeg-builds` latest (win64 / linux64) plus its `checksums.sha256`;
+   `denoland/deno` latest per-platform zip plus its checksum. All are
+   GitHub-hosted, so one host allow-list covers them. The yt-dlp release
+   publishes **no wheel** (wheels live on PyPI), so the tarball is the source.
 9. **The Health view is the existing Doctor dialog, extended** - one row per
    component with its version and state, plus **Repair**, **Repair all**, and
    **Open data folder**.
@@ -209,15 +211,21 @@ managed copy takes precedence.
 
 | Component | Windows | macOS | Linux |
 |---|---|---|---|
-| yt-dlp | wheel + sums, auto | same | same |
-| ffmpeg | BtbN win64 | BtbN macos64 | BtbN linux64 |
+| yt-dlp | source tarball + `SHA2-256SUMS`, auto | same | same |
+| ffmpeg | BtbN win64 | **no verified source: refuse and point at Homebrew** | BtbN linux64 |
 | deno | `deno-x86_64-pc-windows-msvc.zip` | `...-apple-darwin.zip` | `...-unknown-linux-gnu.zip` |
 | app | `core/updater.py` (self-install) | notify | notify |
 
+A JavaScript runtime already on `PATH` is used first; a runtime the app
+installed is the fallback for a machine that has none, so the app never
+overrides a working system install.
+
 ## Security
 
-- HTTPS only. The host must be `github.com` or `objects.githubusercontent.com`,
-  checked before any download.
+- HTTPS only. The host must be `github.com`, `api.github.com`,
+  `objects.githubusercontent.com`, or `release-assets.githubusercontent.com`
+  (GitHub redirects release assets to the last of these), checked on the
+  initial URL **and on every redirect hop**.
 - Every asset's SHA-256 is verified against the publisher's checksum file before
   it is unpacked or used. A mismatch deletes the download and reports the
   reason.
@@ -259,12 +267,16 @@ verified by hand, matching the repo's treatment of network and Qt code.
 3. **BtbN builds are GPLv3**, unlike the LGPL ffmpeg the release bundles today.
    The app downloads them at the user's request and does not redistribute them,
    so this is a note, not a licence change - but it is worth stating.
-4. **First repair can be large** (~3 MB yt-dlp, ~40 MB deno, ~80 MB ffmpeg) and
+4. **macOS has no verified automatic ffmpeg source.** BtbN publishes no macOS
+   build, and the app will not install an unverified one, so `install_ffmpeg`
+   refuses on macOS with a message pointing at `brew install ffmpeg` or
+   `SOCIALCLIP_FFMPEG`. yt-dlp and deno still repair automatically there.
+5. **First repair can be large** (~3 MB yt-dlp, ~40 MB deno, ~80 MB ffmpeg) and
    only happens when a component is missing or stale.
-5. **Migration could surprise a user with a queue.** It copies and keeps the
+6. **Migration could surprise a user with a queue.** It copies and keeps the
    originals, and logs what it did, so nothing is lost either way.
-6. **macOS quarantines a downloaded binary.** `chmod +x` is applied; if
+7. **macOS quarantines a downloaded binary.** `chmod +x` is applied; if
    Gatekeeper still blocks it, Health shows the failure and the user can clear
    the attribute by hand.
-7. **Corporate proxies may block GitHub.** Health shows the reason; the manual
+8. **Corporate proxies may block GitHub.** Health shows the reason; the manual
    **Browse** cookie path and `SOCIALCLIP_FFMPEG` still work.
