@@ -161,6 +161,7 @@ socialclip convert FILE [--to KEY] [--copy|--no-copy] [--resolution 1080]
 socialclip queue add URL [URL ...] [--expand]
 socialclip queue list
 socialclip queue run [--jobs N] [--archive]
+socialclip queue retry
 socialclip queue clear
 socialclip queue archive --clear
 socialclip doctor
@@ -171,7 +172,7 @@ socialclip manifest-schema
 |---------|--------------|
 | `download` | Fetch one URL and save it as MP4 or MP3. `--preset NAME` fills unset options from a saved download preset (built-in or your own); an explicit flag wins over the preset. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. `--subtitles off|sidecar|embed|both` saves subtitle sidecars, muxes them into the video, or does both (default `off`). |
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
-| `queue add\|list\|run\|clear\|archive` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. `run --jobs N` downloads up to `N` (1-8, default 3) at once. `run --archive` skips videos already recorded in the archive, and `queue archive --clear` resets it. |
+| `queue add\|list\|run\|retry\|clear\|archive` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. `run --jobs N` downloads up to `N` (1-8, default 3) at once. `run --archive` skips videos already recorded in the archive, and `queue archive --clear` resets it. `retry` re-queues every failed job. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
 | `manifest-schema` | Print the JSON Schema for structured results. |
 
@@ -201,6 +202,11 @@ row shows its own progress, a running row can be cancelled on its own, and
 cancel an individual pending row, or **Clear finished** to drop everything in a
 terminal state. The queue reloads on startup, so unfinished work is still there
 after a restart.
+
+Failed a download? **Retry failed** re-queues every failed job, and
+right-clicking a failed row offers the same **Retry**. Right-click a pending job
+and choose **Edit options...** to change its format, resolution, folder,
+subtitles, and cookie file before it runs. The CLI adds `queue retry`.
 
 Already saved a video? Tick **Skip already downloaded** on the Queue tab (or run
 `socialclip queue run --archive`) and each finished video is recorded in
