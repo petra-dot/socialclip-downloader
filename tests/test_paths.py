@@ -74,3 +74,32 @@ def test_migrate_skips_when_same_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "legacy_dir", lambda: str(legacy))
     monkeypatch.setenv("SOCIALCLIP_DATA", str(legacy))
     assert paths.migrate_legacy_files() == []
+
+
+def test_default_cookie_dir_is_the_data_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    from sites.cookies import default_cookie_dir
+    assert default_cookie_dir() == str(tmp_path)
+
+
+def test_queue_path_override_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    override = tmp_path / "elsewhere" / "q.json"
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(override))
+    import cli
+    assert cli._queue_path() == str(override)
+
+
+def test_queue_path_defaults_into_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOCIALCLIP_QUEUE", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    import cli
+    assert cli._queue_path() == str(tmp_path / "data" / "queue.json")
+
+
+def test_presets_and_archive_follow_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOCIALCLIP_QUEUE", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    import cli
+    assert cli._presets_path() == str(tmp_path / "data" / "presets.json")
+    assert cli._archive_path() == str(tmp_path / "data" / "archive.txt")

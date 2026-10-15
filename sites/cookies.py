@@ -49,13 +49,13 @@ def app_dir() -> str:
 
 
 def default_cookie_dir() -> str:
-    """Where cookie files live by default: the app directory.
+    """Where cookie files live by default: the per-user data directory.
 
-    The app tells users to drop cookies "next to the app", so that is the
-    primary location. The working directory is still searched as a fallback
-    (see ``_cookie_search_dirs``), but it no longer decides the result.
+    Next to the executable is read-only in several real installs, so the app
+    keeps cookies (and the queue) in a writable per-user directory instead.
     """
-    return app_dir()
+    from core.paths import data_dir
+    return data_dir()
 
 
 def _cookie_search_dirs() -> list:

@@ -152,11 +152,11 @@ def _cmd_doctor(args) -> int:
 
 
 def _queue_path() -> str:
-    from sites.cookies import default_cookie_dir
+    from core.paths import data_dir
     override = os.environ.get("SOCIALCLIP_QUEUE")
     if override:
         return override
-    return os.path.join(default_cookie_dir(), "queue.json")
+    return os.path.join(data_dir(), "queue.json")
 
 
 def _browsers():
@@ -174,8 +174,8 @@ def _archive_path() -> str:
 
 
 def _presets_path() -> str:
-    from core.presets import default_presets_path
-    return os.environ.get("SOCIALCLIP_PRESETS") or default_presets_path()
+    from core.paths import data_dir
+    return os.path.join(data_dir(), "presets.json")
 
 
 def _preset_resolution(preset):
@@ -472,6 +472,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    from core.paths import migrate_legacy_files
+    migrate_legacy_files()
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

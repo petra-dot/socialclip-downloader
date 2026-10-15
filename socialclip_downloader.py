@@ -28,6 +28,9 @@ def _asset_path(name: str) -> str:
 
 
 def main():
+    from core.paths import migrate_legacy_files
+    migrate_legacy_files()
+
     if "--apply-update" in sys.argv:
         from core.updater import apply_update
 
