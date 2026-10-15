@@ -313,10 +313,13 @@ def test_convert_resolution_defaults_to_1080(monkeypatch, capsys):
     assert captured["resolution"] == 1080
 
 
-def test_download_bad_clip_range_exits_usage(monkeypatch, tmp_path):
+def test_download_bad_clip_range_exits_usage(monkeypatch, tmp_path, capsys):
     import cli
+    monkeypatch.setattr(cli, "_ytdlp_missing", lambda: False)
+    monkeypatch.setattr(cli, "_ffmpeg_missing", lambda: False)
     rc = cli.main([
         "download", "https://youtu.be/x", "--start", "90", "--end", "60",
         "--output", str(tmp_path),
     ])
     assert rc == 2
+    assert "after start" in capsys.readouterr().err.lower()
