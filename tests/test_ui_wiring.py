@@ -62,3 +62,10 @@ def test_convert_worker_announces_output_path():
 
     assert hasattr(ConvertFileWorker, "output_signal")
     assert hasattr(ConvertFileWorker, "finished_signal")
+
+
+def test_expand_worker_exposes_its_signals():
+    from workers.expand_worker import ExpandWorker
+
+    assert hasattr(ExpandWorker, "done_signal")
+    assert hasattr(ExpandWorker, "error_signal")
