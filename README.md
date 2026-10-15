@@ -64,6 +64,13 @@ without uploading anything to a third-party service.
 - **Format control** — choose a target resolution (720p / 1080p / 1440p /
   2160p), extract audio, or copy streams when the codecs are already
   editor-safe (a forced copy of a hostile codec is re-encoded).
+- **Download presets** — save a whole download setup (output format, resolution,
+  convert toggle, filename options, save folder, cookies) under a name and recall
+  it from the Download and Queue tabs. Editor-first built-ins — **Editor-safe
+  1080p**, **Editor-safe 720p**, **Audio only (MP3)**, **Original quality**, and
+  **Archive master** — ship in the app; your own presets are stored in
+  `presets.json` next to the app. On the Download tab use **Save as preset...**
+  and **Manage** to add, rename, or delete your presets.
 - **Health check** — a built-in **Doctor** report covers ffmpeg, cookie files,
   and network reachability, so you can fix problems before a download fails.
 - **Cross-platform** — Windows, macOS, and Linux, with prebuilt binaries that
@@ -138,7 +145,7 @@ scripts, servers, and AI agents. From a source checkout, run
 `python cli.py <command>`.
 
 ```bash
-socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE] [--start TIME] [--end TIME] [--duration TIME] [--exact-cut]
+socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE] [--preset NAME] [--start TIME] [--end TIME] [--duration TIME] [--exact-cut]
 socialclip convert FILE [--to KEY] [--copy|--no-copy] [--resolution 1080]
 socialclip queue add URL [URL ...] [--expand]
 socialclip queue list
@@ -150,7 +157,7 @@ socialclip manifest-schema
 
 | Command | What it does |
 |---------|--------------|
-| `download` | Fetch one URL and save it as MP4 or MP3. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. |
+| `download` | Fetch one URL and save it as MP4 or MP3. `--preset NAME` fills unset options from a saved download preset (built-in or your own); an explicit flag wins over the preset. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. |
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|clear` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. |
 | `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
@@ -241,6 +248,7 @@ socialclip-downloader/
 │   ├── formats.py             output-format registry
 │   ├── probe.py               ffprobe wrapper
 │   ├── queue.py               persistent download queue
+│   ├── presets.py             named download presets (built-ins + user file)
 │   ├── doctor.py              health report
 │   ├── manifest.py            structured result contract
 │   └── pipeline.py            post-processing decisions
