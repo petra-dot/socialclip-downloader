@@ -64,5 +64,7 @@ docs/superpowers/
 # Database files
 *.db
 
-# Runtime state (holds queued URLs - private, never commit)
+# Runtime state (private - queued URLs, presets, download archive)
 queue.json
+presets.json
+archive.txt
