@@ -81,3 +81,16 @@ def show_doctor(parent=None):
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
     dialog.exec_()
+
+
+def show_update_ready(parent, version: str) -> bool:
+    box = QtWidgets.QMessageBox(parent)
+    box.setWindowTitle("Update ready")
+    box.setText(
+        "SocialClip Downloader %s was downloaded and verified.\n\n"
+        "Install it now and restart?" % (version or "")
+    )
+    install = box.addButton("Install and restart", QtWidgets.QMessageBox.AcceptRole)
+    box.addButton("Later", QtWidgets.QMessageBox.RejectRole)
+    box.exec_()
+    return box.clickedButton() is install
