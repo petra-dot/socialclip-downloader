@@ -117,6 +117,7 @@ def test_redirect_handler_allows_an_allow_listed_host():
 import hashlib
 import io
 import json
+import sys as _sys
 import zipfile
 
 
@@ -220,3 +221,112 @@ def test_install_ytdlp_keeps_a_previous_copy(tmp_path, monkeypatch):
         opener=_release_opener(_wheel_bytes(), "yt_dlp-2099.01.01-py3-none-any.whl"),
     )
     assert (tmp_path / "yt-dlp.prev" / "yt_dlp" / "version.py").is_file()
+
+
+def test_platform_tag_is_known():
+    assert maintenance._platform_tag() in ("win64", "linux64", "macos64")
+
+
+def test_install_deno_unpacks_and_verifies(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    name = "deno.exe" if _sys.platform == "win32" else "deno"
+    binary = b"#!/bin/sh\necho deno\n"
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        zf.writestr(name, binary)
+    payload = zip_buffer.getvalue()
+    payload_digest = hashlib.sha256(payload).hexdigest()
+
+    class _Response:
+        def __init__(self, body):
+            self._body = body
+
+        def read(self):
+            return self._body
+
+        def geturl(self):
+            return "https://github.com/x/x"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def opener(request, timeout=None):
+        url = getattr(request, "full_url", request)
+        if url.endswith(".sha256sum"):
+            return _Response(("%s  deno.zip\n" % payload_digest).encode("utf-8"))
+        return _Response(payload)
+
+    version = maintenance.install_deno(
+        dest=str(tmp_path / "bin"), opener=opener,
+    )
+    assert version
+    assert (tmp_path / "bin" / name).is_file()
+
+
+class _StaticResponse:
+    def __init__(self, body):
+        self._body = body
+
+    def read(self):
+        return self._body
+
+    def geturl(self):
+        return "https://github.com/x/x"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+_FFMPEG_ASSET = "ffmpeg-master-latest-win64-gpl.zip"
+
+
+def _ffmpeg_opener(payload, digest):
+    def opener(request, timeout=None):
+        url = getattr(request, "full_url", request)
+        if url.endswith("checksums.sha256"):
+            return _StaticResponse(("%s  %s\n" % (digest, _FFMPEG_ASSET)).encode())
+        return _StaticResponse(payload)
+    return opener
+
+
+def _ffmpeg_zip():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("%s/bin/ffmpeg.exe" % _FFMPEG_ASSET, b"ffmpeg")
+        zf.writestr("%s/bin/ffprobe.exe" % _FFMPEG_ASSET, b"ffprobe")
+    return buffer.getvalue()
+
+
+def test_install_ffmpeg_unpacks_a_verified_build(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    monkeypatch.setattr(maintenance, "_platform_tag", lambda: "win64")
+    payload = _ffmpeg_zip()
+    dest = tmp_path / "bin"
+    version = maintenance.install_ffmpeg(
+        dest=str(dest),
+        opener=_ffmpeg_opener(payload, hashlib.sha256(payload).hexdigest()),
+    )
+    assert version
+    assert (dest / "ffmpeg.exe").is_file()
+    assert (dest / "ffprobe.exe").is_file()
+
+
+def test_install_ffmpeg_refuses_a_bad_digest(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    monkeypatch.setattr(maintenance, "_platform_tag", lambda: "win64")
+    dest = tmp_path / "bin"
+    try:
+        maintenance.install_ffmpeg(
+            dest=str(dest), opener=_ffmpeg_opener(_ffmpeg_zip(), "0" * 64),
+        )
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+    assert not (dest / "ffmpeg.exe").exists()

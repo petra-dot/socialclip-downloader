@@ -1,4 +1,5 @@
 import os
+import sys
 
 import utils.ffmpeg as ffmpeg_mod
 from utils.ffmpeg import find_ffmpeg
@@ -75,3 +76,15 @@ def test_ffprobe_path_resolves_next_to_ffmpeg(tmp_path, monkeypatch):
 def test_ffprobe_path_falls_back_to_bare_name(monkeypatch):
     monkeypatch.setattr(ffmpeg_mod, "ffmpeg_path", lambda: "ffmpeg")
     assert ffmpeg_mod.ffprobe_path() == "ffprobe"
+
+
+def test_find_ffmpeg_prefers_managed(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    (bin_dir / name).write_text("", encoding="utf-8")
+    from utils import ffmpeg
+    assert ffmpeg.find_ffmpeg(env={}, which=lambda _n: None,
+                              exists=os.path.isfile) == os.path.join(
+        str(bin_dir), name)

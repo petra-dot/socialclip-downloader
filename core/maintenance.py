@@ -11,7 +11,11 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
+import stat
+import sys
+import tarfile
 import tempfile
 import urllib.parse
 import urllib.request
@@ -271,3 +275,163 @@ def install_ytdlp(dest=None, opener=None) -> str:
         shutil.rmtree(temp, ignore_errors=True)
         raise
     return version
+
+
+FFMPEG_BUILDS = "https://github.com/BtbN/FFmpeg-Builds/releases/latest"
+DENO_RELEASE = "https://github.com/denoland/deno/releases/latest/download"
+
+# A 64-character hex digest, anywhere in a checksum file.
+_HEX64 = re.compile(r"[0-9a-fA-F]{64}")
+
+# The names ffmpeg and ffprobe ship under, on either platform.
+_FFMPEG_BINARIES = ("ffmpeg", "ffmpeg.exe", "ffprobe", "ffprobe.exe")
+
+
+def _platform_tag() -> str:
+    """BtbN's build tag for this platform."""
+    if sys.platform == "win32":
+        return "win64"
+    if sys.platform == "darwin":
+        return "macos64"
+    return "linux64"
+
+
+def _ffmpeg_asset() -> str:
+    """BtbN's release asset for this platform, or "" when there is none.
+
+    BtbN ships Windows as a .zip and Linux as a .tar.xz; it publishes no macOS
+    build at all, so macOS has no verified source and the installer refuses.
+    """
+    tag = _platform_tag()
+    if tag == "win64":
+        return "ffmpeg-master-latest-win64-gpl.zip"
+    if tag == "linux64":
+        return "ffmpeg-master-latest-linux64-gpl.tar.xz"
+    return ""
+
+
+def _deno_asset() -> str:
+    if sys.platform == "win32":
+        return "deno-x86_64-pc-windows-msvc.zip"
+    if sys.platform == "darwin":
+        return "deno-x86_64-apple-darwin.zip"
+    return "deno-x86_64-unknown-linux-gnu.zip"
+
+
+def _digest_for(text: str, name: str) -> str:
+    """The SHA-256 for `name` from a checksum file. Pure.
+
+    Handles the sha256sum layout ("<hex>  <name>") and Windows certutil output
+    ("Hash      : <HEX>"), which is what deno publishes for its Windows zip.
+    Falls back to the first 64-hex token; "" when the file holds no digest.
+    """
+    found = _parse_sums(text).get(name)
+    if found:
+        return found
+    match = _HEX64.search(text or "")
+    return match.group(0).lower() if match else ""
+
+
+def _make_executable(path: str) -> None:
+    try:
+        mode = os.stat(path).st_mode
+        os.chmod(path, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    except OSError:
+        pass
+
+
+def _extract_ffmpeg(data: bytes, asset: str, temp: str) -> None:
+    """Write ffmpeg and ffprobe from `data` (a zip or tar.xz) into `temp`."""
+    written = []
+    if asset.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            for name in zf.namelist():
+                if os.path.basename(name) not in _FFMPEG_BINARIES:
+                    continue
+                out = os.path.join(temp, os.path.basename(name))
+                with zf.open(name) as src, open(out, "wb") as fh:
+                    shutil.copyfileobj(src, fh)
+                written.append(out)
+    else:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:xz") as tf:
+            for member in tf.getmembers():
+                if not member.isfile():
+                    continue
+                if os.path.basename(member.name) not in _FFMPEG_BINARIES:
+                    continue
+                out = os.path.join(temp, os.path.basename(member.name))
+                src = tf.extractfile(member)
+                with open(out, "wb") as fh:
+                    shutil.copyfileobj(src, fh)
+                written.append(out)
+    if not written:
+        raise ValueError("the ffmpeg build has no ffmpeg binary")
+    for path in written:
+        _make_executable(path)
+
+
+def install_ffmpeg(dest=None, opener=None) -> str:
+    """Download a static ffmpeg build, verify it, and install ffmpeg/ffprobe.
+
+    Returns "installed". The archive is unpacked into a temporary directory and
+    only swapped in after its SHA-256 matches BtbN's checksum file, so a bad
+    download never replaces a working copy.
+    """
+    dest = dest or managed_dir("bin")
+    asset = _ffmpeg_asset()
+    if not asset:
+        raise ValueError(
+            "no verified ffmpeg build is available for this platform"
+        )
+    url = "%s/download/%s" % (FFMPEG_BUILDS, asset)
+    sums_url = "%s/download/checksums.sha256" % FFMPEG_BUILDS
+
+    expected = _parse_sums(_get(sums_url, opener=opener).decode("utf-8")).get(
+        asset
+    )
+    if not expected:
+        raise ValueError("no checksum published for %s" % asset)
+    data = _get(url, opener=opener)
+    if not _verify_bytes(data, expected):
+        raise ValueError("checksum mismatch for %s" % asset)
+
+    parent = os.path.dirname(dest) or "."
+    os.makedirs(parent, exist_ok=True)
+    temp = tempfile.mkdtemp(prefix="ffmpeg-", dir=parent)
+    try:
+        _extract_ffmpeg(data, asset, temp)
+        os.makedirs(dest, exist_ok=True)
+        for name in os.listdir(temp):
+            os.replace(os.path.join(temp, name), os.path.join(dest, name))
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+    return "installed"
+
+
+def install_deno(dest=None, opener=None) -> str:
+    """Download deno, verify it, and install it as the JS runtime."""
+    dest = dest or managed_dir("bin")
+    asset = _deno_asset()
+    url = "%s/%s" % (DENO_RELEASE, asset)
+    sums = _get(url + ".sha256sum", opener=opener).decode("utf-8")
+    expected = _digest_for(sums, asset)
+    if not expected:
+        raise ValueError("no checksum published for %s" % asset)
+
+    data = _get(url, opener=opener)
+    if not _verify_bytes(data, expected):
+        raise ValueError("checksum mismatch for %s" % asset)
+
+    os.makedirs(dest, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        name = next(
+            (n for n in zf.namelist() if os.path.basename(n).startswith("deno")),
+            "",
+        )
+        if not name:
+            raise ValueError("the deno archive has no binary")
+        out = os.path.join(dest, os.path.basename(name))
+        with zf.open(name) as src, open(out, "wb") as fh:
+            shutil.copyfileobj(src, fh)
+    _make_executable(out)
+    return "installed"
