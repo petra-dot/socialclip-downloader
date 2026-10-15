@@ -371,7 +371,6 @@ def _cmd_queue(args) -> int:
 
 def _cmd_repair(args) -> int:
     from core.maintenance import check_all, plan_repairs
-    from workers.maintenance_worker import run_repairs
 
     components = check_all()
     keys = plan_repairs(components)
@@ -388,13 +387,17 @@ def _cmd_repair(args) -> int:
     if not keys:
         print("nothing to repair")
         return EXIT_OK
+    # Imported here, not above the dry-run return, so `--dry-run` stays Qt-free.
+    from workers.maintenance_worker import run_repairs
     components = run_repairs(
-        keys, progress=lambda k, d: print("%s: %s" % (k, d)),
+        keys, progress=lambda k, d: print("%s: %s" % (k, d), file=sys.stderr),
     )
     remaining = plan_repairs(components)
     if args.json:
         print(json.dumps({"schema_version": SCHEMA_VERSION,
                           "repaired": keys, "remaining": remaining}))
+    elif remaining:
+        print("still needs attention: %s" % ", ".join(remaining))
     return EXIT_OK if not remaining else EXIT_FAIL
 
 
