@@ -79,3 +79,22 @@ def test_expand_worker_exposes_its_signals():
 
     assert hasattr(ExpandWorker, "done_signal")
     assert hasattr(ExpandWorker, "error_signal")
+
+
+def test_doctor_lines_include_every_component():
+    from core.maintenance import Component
+    from ui.dialogs import doctor_lines
+
+    components = [
+        Component("yt-dlp", "yt-dlp", "stale", version="2020.01.01",
+                  detail="2000 days old", action="update"),
+        Component("ffmpeg", "ffmpeg", "ok", version="ffmpeg version 6.1"),
+        Component("js-runtime", "JavaScript runtime", "missing",
+                  detail="YouTube needs deno or node", action="install"),
+    ]
+    text = "\n".join(doctor_lines({"schema_version": "1.2"}, components))
+    assert "yt-dlp" in text
+    assert "stale" in text
+    assert "JavaScript runtime" in text
+    assert "missing" in text
+    assert "ffmpeg version 6.1" in text

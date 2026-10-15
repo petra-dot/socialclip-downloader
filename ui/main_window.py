@@ -1,3 +1,4 @@
+import datetime
 import os
 import subprocess
 import sys
@@ -11,10 +12,24 @@ from ui.dialogs import show_welcome, show_doctor
 from ui.style import THEMES, THEME_LABELS, apply_theme
 from ui.update_indicator import UpdateButton
 from ui.dialogs import show_update_ready
+from core.paths import data_dir
+from utils.ui_helpers import reveal_in_folder
+from workers.maintenance_worker import (
+    MaintenanceCheckWorker, MaintenanceRepairWorker,
+)
 from workers.update_worker import UpdateCheckWorker, UpdateDownloadWorker
 from core.updater import (
     cleanup_update_temp, is_newer, select_asset, update_temp_path,
 )
+
+
+def _within_a_day(stamp: str) -> bool:
+    """True when `stamp` (ISO 8601) is less than a day old. Pure."""
+    try:
+        when = datetime.datetime.fromisoformat(stamp)
+    except (ValueError, TypeError):
+        return False
+    return datetime.datetime.now() - when < datetime.timedelta(hours=24)
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -33,6 +48,8 @@ class MainWindow(QtWidgets.QWidget):
         self._update_state = "idle"
         self._check_worker = None
         self._download_worker = None
+        self._maintenance_worker = None
+        self._repair_worker = None
         cleanup_update_temp()
 
         self.init_ui()
@@ -45,6 +62,7 @@ class MainWindow(QtWidgets.QWidget):
 
         QtCore.QTimer.singleShot(4000, self.check_for_updates)
         self._warn_if_ytdlp_stale()
+        self._check_components()
 
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
@@ -93,6 +111,9 @@ class MainWindow(QtWidgets.QWidget):
             self._action("&Open download folder", self.open_download_folder, "Ctrl+O")
         )
         file_menu.addAction(self._action("&Cookies...", self.open_cookies))
+        file_menu.addAction(self._action(
+            "Open data folder", lambda: reveal_in_folder(data_dir())
+        ))
         file_menu.addSeparator()
         file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
 
@@ -109,7 +130,12 @@ class MainWindow(QtWidgets.QWidget):
 
         help_menu = menubar.addMenu("&Help")
         help_menu.addAction(self._action("Check for updates", lambda: self.check_for_updates(force=True)))
-        help_menu.addAction(self._action("&Doctor", lambda: show_doctor(self)))
+        help_menu.addAction(self._action(
+            "&Health", lambda: show_doctor(self, on_repair=self._repair_components)
+        ))
+        help_menu.addAction(self._action(
+            "Check components", lambda: self._check_components(force=True)
+        ))
         help_menu.addAction(self._action("&About", self.show_about))
 
         return menubar
@@ -249,6 +275,51 @@ class MainWindow(QtWidgets.QWidget):
         dialog = CookiesDialog(self)
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             self.settings.setValue("cookies/browser", dialog.chosen_browser())
+
+    def log(self, message):
+        self.single_tab.log(message)
+
+    def _check_components(self, force=False):
+        """Check components at most once a day; repair what is broken."""
+        if not force:
+            last = self.settings.value("maintenance/last_check", "") or ""
+            if last and _within_a_day(last):
+                return
+        self.settings.setValue(
+            "maintenance/last_check", datetime.datetime.now().isoformat()
+        )
+        self._maintenance_worker = MaintenanceCheckWorker()
+        self._maintenance_worker.done_signal.connect(self._on_components_checked)
+        self._maintenance_worker.start()
+
+    def _on_components_checked(self, components):
+        from core.maintenance import plan_repairs
+        keys = plan_repairs(components)
+        if not keys:
+            return
+        self.log("Repairing: %s" % ", ".join(keys))
+        self._repair_worker = MaintenanceRepairWorker(keys)
+        self._repair_worker.done_signal.connect(self._on_repair_done)
+        self._repair_worker.progress_signal.connect(
+            lambda key, detail: self.log("%s: %s" % (key, detail))
+        )
+        self._repair_worker.start()
+
+    def _on_repair_done(self, components):
+        from core.maintenance import plan_repairs
+        remaining = plan_repairs(components)
+        self.log(
+            "Repair finished" if not remaining
+            else "Still needs attention: %s" % ", ".join(remaining)
+        )
+
+    def _repair_components(self, keys):
+        self._repair_worker = MaintenanceRepairWorker(keys)
+        self._repair_worker.done_signal.connect(self._on_repair_done)
+        self._repair_worker.progress_signal.connect(
+            lambda key, detail: self.log("%s: %s" % (key, detail))
+        )
+        self._repair_worker.start()
 
     def set_theme(self, mode: str):
         self.settings.setValue("ui/theme", mode)
