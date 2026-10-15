@@ -17,6 +17,8 @@ from utils.file_utils import (
 from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
 from core.clip import resolve_range
+from core.presets import Preset, PresetStore, default_presets_path
+from ui.dialogs import manage_presets
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
 from sites.collections import classify_url
@@ -134,6 +136,9 @@ class SingleTab(QtWidgets.QWidget):
         self._thumb_seq = 0
         self._last_path = ""
         self.settings = QtCore.QSettings()
+        self.preset_store = PresetStore(default_presets_path())
+        self.preset_store.load()
+        self._applying_preset = False
         self.init_ui()
 
     def init_ui(self):
@@ -195,6 +200,21 @@ class SingleTab(QtWidgets.QWidget):
         output_heading = QtWidgets.QLabel("Output")
         make_heading(output_heading)
         main.addWidget(output_heading)
+
+        preset_row = QtWidgets.QHBoxLayout()
+        preset_row.addWidget(QtWidgets.QLabel("Preset:"))
+        self.preset_combo = QtWidgets.QComboBox()
+        self.preset_combo.setAccessibleName("Download preset")
+        self.preset_combo.currentIndexChanged.connect(self.on_preset_selected)
+        preset_row.addWidget(self.preset_combo)
+        self.preset_save_btn = QtWidgets.QPushButton("Save as preset...")
+        self.preset_save_btn.clicked.connect(self.on_save_preset)
+        preset_row.addWidget(self.preset_save_btn)
+        self.preset_manage_btn = QtWidgets.QPushButton("Manage")
+        self.preset_manage_btn.clicked.connect(self.on_manage_presets)
+        preset_row.addWidget(self.preset_manage_btn)
+        preset_row.addStretch(1)
+        main.addLayout(preset_row)
 
         fmt_row = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()
@@ -314,6 +334,100 @@ class SingleTab(QtWidgets.QWidget):
         self.console_log.setMinimumHeight(120)
         self.console_log.setAccessibleName("Activity log")
         main.addWidget(self.console_log, 1)
+
+        for widget in (self.output_combo, self.resolution_combo):
+            widget.currentIndexChanged.connect(self._mark_custom)
+        for widget in (self.convert_checkbox, self.checkbox_channel,
+                       self.checkbox_timestamp):
+            widget.toggled.connect(self._mark_custom)
+
+        self._refresh_presets()
+
+    def _current_preset_name(self):
+        return self.settings.value("preset/last", "")
+
+    def _refresh_presets(self):
+        self._applying_preset = True
+        self.preset_combo.clear()
+        for preset in self.preset_store.all():
+            self.preset_combo.addItem(preset.name, preset.name)
+        self.preset_combo.addItem("Custom", None)
+        last = self._current_preset_name()
+        index = self.preset_combo.findData(last) if last else -1
+        self.preset_combo.setCurrentIndex(index if index >= 0 else self.preset_combo.count() - 1)
+        self._applying_preset = False
+
+    def on_preset_selected(self, _index):
+        if self._applying_preset:
+            return
+        name = self.preset_combo.currentData()
+        if not name:
+            return
+        preset = self.preset_store.get(name)
+        if preset:
+            self._apply_preset(preset)
+
+    def _apply_preset(self, preset):
+        self._applying_preset = True
+        self.output_combo.setCurrentText(preset.output)
+        self.resolution_combo.setCurrentText(preset.resolution)
+        self.convert_checkbox.setChecked(preset.convert)
+        self.checkbox_channel.setChecked(preset.add_channel)
+        self.checkbox_timestamp.setChecked(preset.add_timestamp)
+        self.save_dir_input.setText(preset.save_dir or default_download_folder())
+        self.cookies_input.setText(preset.cookies or "")
+        self.cookies_file_ref["path"] = preset.cookies or ""
+        self._applying_preset = False
+        self.settings.setValue("preset/last", preset.name)
+
+    def _mark_custom(self, *_args):
+        if self._applying_preset:
+            return
+        index = self.preset_combo.findData(None)
+        if index >= 0 and self.preset_combo.currentIndex() != index:
+            self._applying_preset = True
+            self.preset_combo.setCurrentIndex(index)
+            self._applying_preset = False
+
+    def _current_settings_preset(self, name):
+        return Preset(
+            name=name,
+            output=self.output_combo.currentText(),
+            resolution=self.resolution_combo.currentText(),
+            convert=self.convert_checkbox.isChecked(),
+            add_channel=self.checkbox_channel.isChecked(),
+            add_timestamp=self.checkbox_timestamp.isChecked(),
+            save_dir=self.save_dir_input.text().strip(),
+            cookies=self.cookies_input.text().strip(),
+        )
+
+    def on_save_preset(self):
+        name, ok = QtWidgets.QInputDialog.getText(
+            self, "Save preset", "Preset name:"
+        )
+        name = (name or "").strip()
+        if not ok or not name:
+            return
+        if self.preset_store.get(name) is not None and name in [
+            p.name for p in self.preset_store.user()
+        ]:
+            confirm = QtWidgets.QMessageBox.question(
+                self, "Overwrite preset", "Overwrite '%s'?" % name
+            )
+            if confirm != QtWidgets.QMessageBox.Yes:
+                return
+        if not self.preset_store.add(self._current_settings_preset(name)):
+            self.show_hint("That name is a built-in preset; pick another.")
+            return
+        self.preset_store.save()
+        self.settings.setValue("preset/last", name)
+        self._refresh_presets()
+        self.preset_combo.setCurrentIndex(self.preset_combo.findData(name))
+
+    def on_manage_presets(self):
+        if manage_presets(self, self.preset_store):
+            self.preset_store.save()
+            self._refresh_presets()
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
