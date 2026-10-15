@@ -160,3 +160,46 @@ def test_download_one_clip_falls_back_and_cuts(monkeypatch, tmp_path):
     assert result.status == "ok"
     assert result.path.endswith("_clip_10-20.mp4")
     assert os.path.isfile(result.path)
+
+
+def test_download_one_clip_cut_failure_returns_error(monkeypatch, tmp_path):
+    full = tmp_path / "T.mp4"
+    full.write_bytes(b"full")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True, **kw):
+            if "download_ranges" in self.opts:
+                raise RuntimeError("section download failed")
+            return {"id": "x", "title": "T", "height": 1080, "ext": "mp4"}
+
+        def prepare_filename(self, info):
+            return str(full)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+
+    class Proc:
+        returncode = 1
+        stdout = b""
+        stderr = b"boom"
+
+    monkeypatch.setattr("core.download.subprocess.run", lambda cmd, *a, **k: Proc())
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        clip=ClipSpec(10.0, 20.0, False),
+    )
+    assert result.status != "ok"
+    assert result.error_category == "ffmpeg"
+    assert str(full) in result.message
+    # The completed full download is left on disk for the user to find.
+    assert full.is_file()

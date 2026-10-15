@@ -158,6 +158,13 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 if cut:
                     os.remove(downloaded_file)
                     downloaded_file = cut
+                else:
+                    return error_result(
+                        "ffmpeg",
+                        "The clip could not be cut. The full video was kept at "
+                        "%s." % downloaded_file,
+                        url,
+                    )
 
         if not os.path.exists(downloaded_file):
             base = os.path.splitext(downloaded_file)[0]
