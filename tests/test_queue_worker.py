@@ -145,6 +145,23 @@ def test_cancel_all_while_paused_terminates(monkeypatch):
     assert [j.state for j in q.jobs] == ["cancelled", "cancelled"]
 
 
+def test_cancel_all_persists(tmp_path):
+    _app()
+    from core.queue import QueueStore
+    q = Queue(QueueStore(str(tmp_path / "q.json")))
+    q.add("https://a.com/1", {})
+    q.add("https://b.com/2", {})
+
+    worker = QueueWorker(q, jobs=1)
+    worker.pause()
+    worker.cancel_all()
+    worker.run()
+
+    again = QueueStore(str(tmp_path / "q.json"))
+    again.load()
+    assert [j.state for j in again.jobs] == ["cancelled", "cancelled"]
+
+
 def test_running_emit_is_not_retroactively_mutated(monkeypatch):
     _app()
     captured = []

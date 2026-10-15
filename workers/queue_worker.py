@@ -61,6 +61,7 @@ class QueueWorker(QtCore.QThread):
             while True:
                 if self._cancel_all.is_set():
                     self.queue.cancel_all()
+                    self.queue.store.save()
                     break
                 if not self.queue.paused:
                     while len(pending) < self.jobs:

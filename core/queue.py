@@ -101,7 +101,7 @@ class QueueStore:
         if not self.path:
             return
         data = self.to_dict()
-        tmp = f"{self.path}.{os.getpid()}.tmp"
+        tmp = f"{self.path}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
         os.replace(tmp, self.path)
