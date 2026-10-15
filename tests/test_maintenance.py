@@ -80,3 +80,35 @@ def test_latest_ytdlp_parses_the_release(monkeypatch):
     assert version == "2026.08.19"
     assert wheel.endswith(".whl")
     assert sums.endswith("sums")
+
+
+def test_get_refuses_http_and_unlisted_hosts():
+    import pytest as _pytest
+    from core.maintenance import _get
+    for url in ("http://github.com/x", "https://evil.example/x"):
+        with _pytest.raises(ValueError):
+            _get(url)
+
+
+def test_redirect_handler_refuses_an_unlisted_host():
+    import pytest as _pytest
+    from core.maintenance import _ValidatingRedirectHandler
+    handler = _ValidatingRedirectHandler()
+    with _pytest.raises(ValueError):
+        handler.redirect_request(
+            None, None, 302, "Found", {}, "http://evil.example/x"
+        )
+
+
+def test_redirect_handler_allows_an_allow_listed_host():
+    import urllib.request
+
+    from core.maintenance import _ValidatingRedirectHandler
+    handler = _ValidatingRedirectHandler()
+    # Must not raise for an allow-listed HTTPS host (the GitHub asset CDN).
+    request = urllib.request.Request("https://github.com/x")
+    result = handler.redirect_request(
+        request, None, 302, "Found", {},
+        "https://objects.githubusercontent.com/x",
+    )
+    assert result is not None

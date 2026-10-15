@@ -32,7 +32,6 @@ ALLOWED_HOSTS = ("github.com", "api.github.com",
                  "objects.githubusercontent.com")
 
 YTDLP_LATEST = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
-YTDLP_REPO = "https://github.com/yt-dlp/yt-dlp"
 
 USER_AGENT = "SocialClip-Downloader"
 
@@ -52,14 +51,35 @@ def _ytdlp_version() -> str:
     return ytdlp_version()
 
 
-def _get(url: str, opener=None, timeout: int = 30) -> bytes:
-    """Fetch a URL. HTTPS and an allow-listed host are required."""
+def _require_allowed(url: str) -> None:
+    """Raise unless `url` is HTTPS on an allow-listed host."""
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or (parsed.hostname or "") not in ALLOWED_HOSTS:
         raise ValueError("refusing to fetch %s" % (url or "an unknown URL"))
-    open_url = opener or urllib.request.urlopen
+
+
+class _ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse a redirect to a host or scheme the allow-list does not cover.
+
+    urllib follows 3xx transparently, so without this the initial-URL check
+    would be the only one, and a redirect could hand us an arbitrary host.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _require_allowed(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_ValidatingRedirectHandler)
+
+
+def _get(url: str, opener=None, timeout: int = 30) -> bytes:
+    """Fetch a URL. HTTPS and an allow-listed host are required, on every hop."""
+    _require_allowed(url)
+    open_url = opener or _OPENER.open
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with open_url(request, timeout=timeout) as response:
+        _require_allowed(response.geturl())
         return response.read()
 
 
@@ -78,15 +98,18 @@ def check_all(which=None, exists=None, runner=None) -> List[Component]:
     version = ""
     try:
         version = _ytdlp_version()
+        stale = is_stale(version)
+        age = version_age_days(version)
     except Exception:
         version = ""
+        stale = False
+        age = None
     if not version:
         ytdlp = Component(
             "yt-dlp", "yt-dlp", "missing", detail="not installed",
             action="install",
         )
-    elif is_stale(version):
-        age = version_age_days(version)
+    elif stale:
         ytdlp = Component(
             "yt-dlp", "yt-dlp", "stale", version=version,
             detail="%s days old" % age, action="update",
@@ -130,7 +153,8 @@ def check_all(which=None, exists=None, runner=None) -> List[Component]:
         )
 
     try:
-        writable = os.access(data_dir(), os.W_OK)
+        from core.paths import data_dir_writable
+        writable = data_dir_writable()
     except Exception:
         writable = False
     components.append(
@@ -163,7 +187,8 @@ def plan_repairs(components) -> List[str]:
 def latest_ytdlp(opener=None):
     """(version, wheel_url, sums_url) for the newest yt-dlp release."""
     data = _get_json(YTDLP_LATEST, opener=opener)
-    version = (data.get("tag_name") or "").lstrip("v")
+    tag = data.get("tag_name") or ""
+    version = tag[1:] if tag.startswith("v") else tag
     wheel = sums = ""
     for asset in data.get("assets", []):
         name = asset.get("name") or ""
