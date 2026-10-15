@@ -40,17 +40,23 @@ _YOUTUBE_BARE_CHANNEL = re.compile(
 )
 
 _NOTES = {
-    "instagram": "Instagram profile listing is best-effort and often returns "
-                 "nothing. Paste individual post links instead.",
-    "tiktok": "TikTok profile listing is best-effort and rate-limited. Try "
-              "again later or paste individual video links.",
-    "twitter": "Twitter/X timeline listing is best-effort and needs cookies. "
-               "Try again or paste individual post links.",
-    "facebook": "Facebook page listing rarely works. Paste individual video "
-                "links instead.",
-    "douyin": "Douyin profile listing is best-effort and often returns "
-              "nothing. Paste individual video links instead.",
-    "bilibili": "Bilibili channel listing may need cookies.",
+    "instagram": "Instagram does not list a profile's posts reliably without a "
+                 "login. Add an instagram_cookies.txt next to the app, or paste "
+                 "individual post or reel links instead.",
+    "tiktok": "TikTok rate-limits profile listing and usually needs a login. "
+              "Add a tiktok_cookies.txt next to the app, or paste individual "
+              "video links instead.",
+    "twitter": "Twitter/X does not list a timeline without a login. Add a "
+               "twitter_cookies.txt next to the app, or paste individual post "
+               "links instead.",
+    "facebook": "Facebook does not allow listing a profile's videos. Paste "
+                "individual video links instead.",
+    "douyin": "Douyin does not list a profile's videos reliably. Add a "
+              "douyin_cookies.txt next to the app, or paste individual video "
+              "links instead.",
+    "bilibili": "Bilibili channel listing may need a login. Add a "
+                "bilibili_cookies.txt next to the app, or paste individual "
+                "video links instead.",
 }
 
 

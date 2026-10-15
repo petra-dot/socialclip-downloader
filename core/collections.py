@@ -9,6 +9,12 @@ from typing import List, Optional
 
 DEFAULT_LIMIT = 200
 
+# Shown when a collection lists nothing and the platform has no specific note.
+_EMPTY_FALLBACK = (
+    "No videos were found for this link. It may be a private profile, or this "
+    "site may not allow listing. Try pasting an individual video link instead."
+)
+
 
 @dataclass
 class CollectionEntry:
@@ -125,16 +131,14 @@ def expand_collection(url, cookies_file=None, limit=DEFAULT_LIMIT) -> ExpandResu
     if not info:
         return ExpandResult(
             platform=platform,
-            error="Found no videos. The profile may be private or the listing "
-                  "may be unsupported for this site.",
+            error=collection_note(platform) or _EMPTY_FALLBACK,
             category="not_found",
         )
 
     if not entries:
         return ExpandResult(
             platform=platform, total=total,
-            error="Found no videos. The profile may be private or the listing "
-                  "may be unsupported for this site.",
+            error=collection_note(platform) or _EMPTY_FALLBACK,
             category="not_found",
         )
     return ExpandResult(

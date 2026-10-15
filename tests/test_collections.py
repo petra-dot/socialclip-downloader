@@ -230,3 +230,18 @@ from sites.collections import normalize_collection_url
 )
 def test_normalize_collection_url(url, expected):
     assert normalize_collection_url(url) == expected
+
+
+def test_expand_collection_empty_uses_platform_note(monkeypatch):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeEmptyYDL)
+    result = expand_collection("https://www.tiktok.com/@someuser")
+    assert result.category == "not_found"
+    assert "tiktok" in result.error.lower()
+    assert "cookie" in result.error.lower() or "paste" in result.error.lower()
+
+
+def test_expand_collection_empty_unknown_platform_is_actionable(monkeypatch):
+    monkeypatch.setattr("yt_dlp.YoutubeDL", FakeEmptyYDL)
+    result = expand_collection("https://example.com/someuser")
+    assert result.category == "not_found"
+    assert "pasting" in result.error.lower()
