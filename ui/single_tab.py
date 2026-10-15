@@ -16,6 +16,7 @@ from utils.file_utils import (
 )
 from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
+from core.clip import resolve_range
 from workers.download_worker import DownloadWorker
 from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
 from sites.collections import classify_url
@@ -255,6 +256,36 @@ class SingleTab(QtWidgets.QWidget):
         self.hint_label.setWordWrap(True)
         main.addWidget(self.hint_label)
 
+        self.clip_check = QtWidgets.QCheckBox("Download a clip (time range)")
+        self.clip_check.toggled.connect(self._on_clip_toggled)
+        main.addWidget(self.clip_check)
+
+        self.clip_row = QtWidgets.QWidget()
+        clip_layout = QtWidgets.QHBoxLayout(self.clip_row)
+        clip_layout.setContentsMargins(0, 0, 0, 0)
+        self.clip_mode_combo = QtWidgets.QComboBox()
+        self.clip_mode_combo.setAccessibleName("Clip range mode")
+        self.clip_mode_combo.addItem("Start + End", "end")
+        self.clip_mode_combo.addItem("Start + Duration", "duration")
+        self.clip_mode_combo.currentIndexChanged.connect(self._on_clip_mode_changed)
+        clip_layout.addWidget(self.clip_mode_combo)
+        self.clip_start_input = QtWidgets.QLineEdit()
+        self.clip_start_input.setAccessibleName("Clip start time")
+        self.clip_start_input.setPlaceholderText("Start, e.g. 1:30")
+        clip_layout.addWidget(self.clip_start_input)
+        self.clip_end_label = QtWidgets.QLabel("End")
+        clip_layout.addWidget(self.clip_end_label)
+        self.clip_end_input = QtWidgets.QLineEdit()
+        self.clip_end_input.setAccessibleName("Clip end time or duration")
+        self.clip_end_input.setPlaceholderText("End, e.g. 2:00")
+        clip_layout.addWidget(self.clip_end_input)
+        self.clip_exact_check = QtWidgets.QCheckBox("Exact cut")
+        self.clip_exact_check.setToolTip("Re-encode for a frame-accurate cut")
+        clip_layout.addWidget(self.clip_exact_check)
+        clip_layout.addStretch(1)
+        self.clip_row.setVisible(False)
+        main.addWidget(self.clip_row)
+
         # --- Cookies ---
         cookies_row = QtWidgets.QHBoxLayout()
         cookies_label = QtWidgets.QLabel("Cookies file:")
@@ -287,6 +318,31 @@ class SingleTab(QtWidgets.QWidget):
     def show_hint(self, text: str):
         self.hint_label.setText(text)
         self.hint_label.setVisible(bool(text))
+
+    def _on_clip_toggled(self, checked):
+        self.clip_row.setVisible(checked)
+
+    def _on_clip_mode_changed(self, _index):
+        mode = self.clip_mode_combo.currentData()
+        if mode == "duration":
+            self.clip_end_label.setText("Duration")
+            self.clip_end_input.setPlaceholderText("Duration, e.g. 0:30")
+        else:
+            self.clip_end_label.setText("End")
+            self.clip_end_input.setPlaceholderText("End, e.g. 2:00")
+
+    def _resolve_clip(self):
+        if not self.clip_check.isChecked():
+            return None
+        spec, error = resolve_range(
+            self.clip_start_input.text(), self.clip_end_input.text(),
+            self.clip_end_input.text(), self.clip_mode_combo.currentData(),
+            exact=self.clip_exact_check.isChecked(),
+        )
+        if error:
+            self.show_hint(error)
+            return False  # invalid: block the download
+        return spec
 
     def log(self, msg: str):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -527,6 +583,11 @@ class SingleTab(QtWidgets.QWidget):
             return
         self.show_hint("")
 
+        clip = self._resolve_clip()
+        if clip is False:
+            return
+        self.show_hint("")
+
         save_dir = self.save_dir_input.text().strip() or default_download_folder()
         os.makedirs(save_dir, exist_ok=True)
 
@@ -572,7 +633,7 @@ class SingleTab(QtWidgets.QWidget):
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
-            cookies_file=self._get_cookies_path(),
+            cookies_file=self._get_cookies_path(), clip=clip,
         )
         self.worker.status_signal.connect(self.log)
         self.worker.progress_signal.connect(self.progress_bar.setValue)
