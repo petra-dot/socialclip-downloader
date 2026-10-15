@@ -159,19 +159,21 @@ def _expand_for_cli(url, cookies):
     return expand_collection(url, cookies_file=cookies)
 
 
-def _collect_expanded(urls, cookies, limit=200):
+def _collect_expanded(urls, cookies, limit=200, existing=None):
     from core.collections import new_entries
     from sites.cookies import get_cookie_path
 
     pairs = []
+    seen = list(existing or [])
     for url in urls:
         cookie = cookies or get_cookie_path(url)
         result = _expand_for_cli(url, cookie)
         if result.error:
             print("warning: %s" % result.error, file=sys.stderr)
             continue
-        kept, _ = new_entries(result.entries[:limit], [p[0] for p in pairs])
+        kept, _ = new_entries(result.entries[:limit], seen + [p[0] for p in pairs])
         pairs.extend((entry.url, entry.title) for entry in kept)
+        seen.extend(entry.url for entry in kept)
     return pairs
 
 
@@ -181,7 +183,9 @@ def _cmd_queue(args) -> int:
 
     if command == "add":
         if getattr(args, "expand", False):
-            pairs = _collect_expanded(args.urls, args.cookies)
+            pairs = _collect_expanded(
+                args.urls, args.cookies, existing=[j.url for j in queue.jobs]
+            )
             for url, title in pairs:
                 queue.add(url, title=title)
             queue.store.save()

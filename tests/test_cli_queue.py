@@ -146,3 +146,34 @@ def test_queue_add_expand_lists_and_enqueues(monkeypatch, tmp_path):
     store = QueueStore(str(tmp_path / "queue.json"))
     store.load()
     assert [j.title for j in store.jobs] == ["A"]
+
+
+def test_queue_add_expand_skips_already_queued(monkeypatch, tmp_path):
+    import cli
+    from core.collections import CollectionEntry, ExpandResult
+
+    monkeypatch.setenv("SOCIALCLIP_QUEUE", str(tmp_path / "queue.json"))
+    assert cli.main(
+        ["queue", "add", "https://www.youtube.com/watch?v=a"]
+    ) == cli.EXIT_OK
+
+    monkeypatch.setattr(
+        cli, "_expand_for_cli",
+        lambda url, cookies: ExpandResult(
+            platform="youtube",
+            entries=[
+                CollectionEntry("https://www.youtube.com/watch?v=a", "A"),
+                CollectionEntry("https://www.youtube.com/watch?v=b", "B"),
+            ],
+        ),
+    )
+    rc = cli.main(["queue", "add", "--expand", "https://www.youtube.com/@x"])
+    assert rc == cli.EXIT_OK
+
+    from core.queue import QueueStore
+    store = QueueStore(str(tmp_path / "queue.json"))
+    store.load()
+    assert [j.url for j in store.jobs] == [
+        "https://www.youtube.com/watch?v=a",
+        "https://www.youtube.com/watch?v=b",
+    ]
