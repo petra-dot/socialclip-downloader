@@ -796,6 +796,7 @@ class SingleTab(QtWidgets.QWidget):
         self.log(msg)
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
+        self.progress_label.setText("")
         if self._last_path:
             self.open_folder_btn.setVisible(True)
         else:
