@@ -7,7 +7,7 @@ class DownloadWorker(QtCore.QThread):
     progress_signal = QtCore.pyqtSignal(int)
     path_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None):
+    def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None, clip=None):
         super().__init__()
         self.url = url
         self.outtmpl = outtmpl
@@ -15,6 +15,7 @@ class DownloadWorker(QtCore.QThread):
         self.target_resolution = target_resolution
         self.output_type = output_type
         self.cookies_file = cookies_file
+        self.clip = clip
         self._progress_hook = self._create_progress_hook()
 
     def _create_progress_hook(self):
@@ -41,6 +42,7 @@ class DownloadWorker(QtCore.QThread):
             target_resolution=self.target_resolution,
             cookies_file=self.cookies_file,
             progress=self.progress_signal.emit,
+            clip=self.clip,
         )
         self.path_signal.emit((result.path or "") if result.status == "ok" else "")
         self.finished_signal.emit(result.message or result.path or result.status)
