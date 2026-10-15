@@ -8,7 +8,9 @@ runtime itself and passes it explicitly.
 """
 
 import datetime
+import os
 import shutil
+import sys
 from typing import Optional
 
 # Preference order: yt-dlp's own default first, then the runtime most likely
@@ -19,10 +21,62 @@ RUNTIMES = ("deno", "node", "bun", "quickjs")
 STALE_AFTER_DAYS = 90
 
 
+def managed_ytdlp_dir() -> str:
+    """Directory of the managed yt-dlp package, or "" when none is installed."""
+    try:
+        from core.paths import managed_dir
+    except Exception:
+        return ""
+    return managed_dir("yt-dlp")
+
+
+def load() -> str:
+    """Put the managed yt-dlp directory on sys.path ahead of the installed one.
+
+    Returns "managed" when a managed package is present and will shadow the
+    system install, else "system". Must run before anything imports ``yt_dlp``:
+    the managed copy is newer by construction. Idempotent.
+    """
+    directory = managed_ytdlp_dir()
+    if not directory:
+        return "system"
+    if directory not in sys.path:
+        sys.path.insert(0, directory)
+    if os.path.isdir(os.path.join(directory, "yt_dlp")):
+        return "managed"
+    return "system"
+
+
+def _managed_bin() -> str:
+    try:
+        from core.paths import managed_dir
+    except Exception:
+        return ""
+    return managed_dir("bin")
+
+
+def _managed_runtime(name: str) -> str:
+    """Path to a runtime the app installed itself, or "" when absent."""
+    directory = _managed_bin()
+    if not directory:
+        return ""
+    for fname in (name, name + ".exe"):
+        candidate = os.path.join(directory, fname)
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
+
+
 def find_js_runtime(which=None):
-    """(name, path) of the first available JS runtime, or ("", "")."""
+    """(name, path) of the first available JS runtime, or ("", "").
+
+    A runtime the app installed itself is checked before PATH.
+    """
     which = shutil.which if which is None else which
     for name in RUNTIMES:
+        managed = _managed_runtime(name)
+        if managed:
+            return name, managed
         try:
             found = which(name)
         except Exception:

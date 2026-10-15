@@ -474,7 +474,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     from core.paths import migrate_legacy_files
+    from utils.ytdlp import load
     migrate_legacy_files()
+    load()
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

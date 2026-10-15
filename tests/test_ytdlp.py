@@ -56,3 +56,61 @@ def test_is_stale_threshold():
 def test_runtimes_order_and_membership():
     assert RUNTIMES[0] == "deno"
     assert "node" in RUNTIMES
+
+
+import os
+import subprocess
+import sys
+import textwrap
+
+
+def test_managed_ytdlp_dir_uses_data_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    from utils import ytdlp
+    assert ytdlp.managed_ytdlp_dir() == os.path.join(str(tmp_path), "yt-dlp")
+
+
+def test_load_prefers_managed_copy(tmp_path, monkeypatch):
+    """A package in the managed dir must win over the installed one."""
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    pkg = tmp_path / "yt-dlp" / "yt_dlp"
+    pkg.mkdir(parents=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "version.py").write_text('__version__ = "9999.01.01"\n',
+                                     encoding="utf-8")
+
+    code = textwrap.dedent(
+        """
+        from utils.ytdlp import load
+        state = load()
+        from yt_dlp.version import __version__
+        print(state, __version__)
+        """
+    )
+    env = dict(os.environ, PYTHONPATH=os.getcwd())
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env,
+        cwd=os.getcwd(),
+    )
+    assert out.stdout.split() == ["managed", "9999.01.01"], out.stderr
+
+
+def test_load_is_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    from utils import ytdlp
+    first = ytdlp.load()
+    second = ytdlp.load()
+    assert first == second
+    assert sys.path.count(ytdlp.managed_ytdlp_dir()) == 1
+
+
+def test_find_js_runtime_prefers_managed_deno(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    name = "deno.exe" if sys.platform == "win32" else "deno"
+    (bin_dir / name).write_text("", encoding="utf-8")
+    from utils import ytdlp
+    found_name, found_path = ytdlp.find_js_runtime(which=lambda _n: None)
+    assert found_name == "deno"
+    assert found_path == os.path.join(str(bin_dir), name)
