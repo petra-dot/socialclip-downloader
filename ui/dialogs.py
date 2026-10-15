@@ -3,6 +3,7 @@ import os
 from PyQt5 import QtCore, QtWidgets
 
 from core.doctor import run_checks
+from sites.collections import collection_note
 from utils.file_utils import default_download_folder
 
 
@@ -123,9 +124,6 @@ def show_update_ready(parent, version: str) -> bool:
     box.addButton("Later", QtWidgets.QMessageBox.RejectRole)
     box.exec_()
     return box.clickedButton() is install
-
-
-from sites.collections import collection_note
 
 
 def _platform_label(platform: str) -> str:
@@ -345,10 +343,8 @@ class EditJobDialog(QtWidgets.QDialog):
         sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
         self.subtitle_combo = QtWidgets.QComboBox()
         self.subtitle_combo.setAccessibleName("Edit job subtitle delivery")
-        for value, label in (
-            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
-            ("embed", "Embed"), ("both", "Both"),
-        ):
+        from core.subtitles import DELIVERY_CHOICES
+        for value, label in DELIVERY_CHOICES:
             self.subtitle_combo.addItem(label, value)
         saved = opts.get("subtitles", "off")
         sub_index = self.subtitle_combo.findData(saved)

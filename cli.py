@@ -80,7 +80,11 @@ def _cmd_download(args) -> int:
     fmt = args.format or (preset.output.lower() if preset else None) or "mp4"
     resolution = args.resolution or (preset and _preset_resolution(preset)) or 1080
     cookies = args.cookies or (preset.cookies if preset else None)
-    convert = args.convert or (preset.convert if preset else False)
+    # Precedence: an explicit flag beats the preset, which beats the default.
+    if args.convert is None:
+        convert = preset.convert if preset else False
+    else:
+        convert = args.convert
     out_dir = args.output or (preset.save_dir if preset and preset.save_dir else None) \
         or default_download_folder()
     outtmpl = f"{out_dir}/%(title)s.%(ext)s"
@@ -158,6 +162,15 @@ def _queue_path() -> str:
 def _browsers():
     from sites.cookies import BROWSERS
     return BROWSERS
+
+
+def _archive_path() -> str:
+    """The archive file, beside the queue file.
+
+    Derived from `_queue_path` so a SOCIALCLIP_QUEUE override moves the archive
+    with the queue instead of leaving it in the app directory.
+    """
+    return os.path.join(os.path.dirname(_queue_path()), "archive.txt")
 
 
 def _presets_path() -> str:
@@ -293,8 +306,8 @@ def _cmd_queue(args) -> int:
         return EXIT_OK
 
     if command == "archive":
-        from core.archive import clear_archive, default_archive_path
-        removed = clear_archive(default_archive_path())
+        from core.archive import clear_archive
+        removed = clear_archive(_archive_path())
         if args.json:
             print(json.dumps({"schema_version": SCHEMA_VERSION,
                               "cleared": removed}))
@@ -382,8 +395,11 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--output")
     d.add_argument("--preset")
     d.add_argument("--format", choices=["mp4", "mp3"])
-    d.add_argument("--convert", action="store_true",
+    d.add_argument("--convert", dest="convert", action="store_true",
+                   default=None,
                    help="re-encode down to --resolution (default: keep original)")
+    d.add_argument("--no-convert", dest="convert", action="store_false",
+                   help="keep the original resolution even when a preset converts")
     d.add_argument("--resolution", type=int)
     d.add_argument("--cookies")
     d.add_argument("--cookies-from-browser", choices=list(_browsers()))

@@ -99,8 +99,10 @@ class ThumbnailWorker(QtCore.QThread):
             self.done_signal.emit(None, self.seq, "download failed: %s" % e)
             return
 
-        pixmap = QtGui.QPixmap()
-        if not pixmap.loadFromData(data):
+        # Decode and scale with QImage: QPixmap may only be touched on the GUI
+        # thread, and this runs in a worker. The slot turns it into a QPixmap.
+        image = QtGui.QImage()
+        if not image.loadFromData(data):
             self.done_signal.emit(None, self.seq, "not a decodable image")
             return
 
@@ -113,7 +115,7 @@ class ThumbnailWorker(QtCore.QThread):
                 dpr = screen.devicePixelRatio()
         except Exception:
             pass
-        scaled = pixmap.scaled(
+        scaled = image.scaled(
             int(120 * dpr),
             int(68 * dpr),
             QtCore.Qt.KeepAspectRatio,
@@ -260,10 +262,8 @@ class SingleTab(QtWidgets.QWidget):
         sub_row.addWidget(subtitles_label)
         self.subtitle_combo = QtWidgets.QComboBox()
         self.subtitle_combo.setAccessibleName("Subtitle delivery")
-        for value, label in (
-            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
-            ("embed", "Embed"), ("both", "Both"),
-        ):
+        from core.subtitles import DELIVERY_CHOICES
+        for value, label in DELIVERY_CHOICES:
             self.subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.subtitle_combo)
         subtitles_label.setBuddy(self.subtitle_combo)
@@ -708,10 +708,13 @@ class SingleTab(QtWidgets.QWidget):
         self.info_section.setVisible(True)
         self.log("Metadata fetched.")
 
-    def _on_thumbnail_loaded(self, pixmap, seq, reason=""):
+    def _on_thumbnail_loaded(self, image, seq, reason=""):
         if seq != self._thumb_seq:
             return
-        if pixmap:
+        if image is not None and not image.isNull():
+            # The worker can only build a QImage; QPixmap belongs to this thread.
+            pixmap = QtGui.QPixmap.fromImage(image)
+            pixmap.setDevicePixelRatio(image.devicePixelRatio())
             self.thumbnail_label.setPixmap(pixmap)
         else:
             # Show the cause instead of a generic message, and log it so the

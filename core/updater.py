@@ -2,9 +2,16 @@
 it on Windows. Qt-free, standard library only."""
 
 import hashlib
+import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+import time
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -105,11 +112,6 @@ def verify_digest(path, expected_hex) -> bool:
     return False
 
 
-import json
-import urllib.parse
-import urllib.request
-
-
 class DownloadCancelled(Exception):
     """Raised from the download loop when the caller requests cancellation."""
 
@@ -130,9 +132,13 @@ def fetch_latest_release(opener=None, timeout=10) -> ReleaseInfo:
 
 def download_asset(asset, dest, progress=None, cancel=None, opener=None, timeout=30) -> str:
     open_url = opener or urllib.request.urlopen
-    host = urllib.parse.urlparse(asset.download_url).hostname or ""
-    if host not in ALLOWED_HOSTS:
-        raise ValueError("refusing to download from %s" % (host or "an unknown host"))
+    parsed = urllib.parse.urlparse(asset.download_url)
+    host = parsed.hostname or ""
+    if parsed.scheme != "https" or host not in ALLOWED_HOSTS:
+        raise ValueError(
+            "refusing to download from %s"
+            % (asset.download_url or "an unknown URL")
+        )
     request = urllib.request.Request(
         asset.download_url, headers={"User-Agent": "SocialClip-Downloader"}
     )
@@ -150,12 +156,6 @@ def download_asset(asset, dest, progress=None, cancel=None, opener=None, timeout
             if progress:
                 progress(done, total)
     return dest
-
-
-import shutil
-import subprocess
-import tempfile
-import time
 
 
 @dataclass

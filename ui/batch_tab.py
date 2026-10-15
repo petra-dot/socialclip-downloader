@@ -280,10 +280,8 @@ class QueueTab(QtWidgets.QWidget):
         sub_row.addWidget(subtitles_label)
         self.batch_subtitle_combo = QtWidgets.QComboBox()
         self.batch_subtitle_combo.setAccessibleName("Queue subtitle delivery")
-        for value, label in (
-            ("off", "Off"), ("sidecar", "Sidecar (.srt)"),
-            ("embed", "Embed"), ("both", "Both"),
-        ):
+        from core.subtitles import DELIVERY_CHOICES
+        for value, label in DELIVERY_CHOICES:
             self.batch_subtitle_combo.addItem(label, value)
         sub_row.addWidget(self.batch_subtitle_combo)
         subtitles_label.setBuddy(self.batch_subtitle_combo)
@@ -773,6 +771,9 @@ class QueueTab(QtWidgets.QWidget):
         return default_archive_path() if self.archive_check.isChecked() else None
 
     def on_apply_options(self):
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Cannot change options while the queue is running.")
+            return
         options = self._job_options()
         count = 0
         for job in self.queue.jobs:
@@ -786,6 +787,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_log("Applied the current options to %d pending item(s)." % count)
 
     def on_retry_failed(self):
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Cannot retry while the queue is running.")
+            return
         count = self.queue.retry_failed()
         if not count:
             self.batch_log("No failed jobs to retry.")
@@ -795,6 +799,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_log("Retrying %d failed job(s)." % count)
 
     def on_retry_job(self, job):
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Cannot retry while the queue is running.")
+            return
         if self.queue.retry_failed(job.id):
             self.queue.store.save()
             self.refresh_table()
@@ -802,6 +809,9 @@ class QueueTab(QtWidgets.QWidget):
 
     def on_edit_job(self, job):
         from ui.dialogs import EditJobDialog
+        if self.queue_worker and self.queue_worker.isRunning():
+            self.batch_log("Cannot edit options while the queue is running.")
+            return
         dialog = EditJobDialog(self, job)
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
