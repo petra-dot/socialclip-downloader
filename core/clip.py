@@ -37,8 +37,9 @@ def parse_time(text) -> Optional[float]:
     return total
 
 
-def _secs(value: Optional[float]) -> str:
-    return "end" if value is None else str(int(round(value)))
+def _fmt_time(value: float) -> str:
+    """Trimmed decimal seconds: 90.5 -> "90.5", 90.0 -> "90"."""
+    return "%g" % value
 
 
 def resolve_range(start_text, end_text, duration_text, mode, exact=False):
@@ -71,9 +72,9 @@ def resolve_range(start_text, end_text, duration_text, mode, exact=False):
 
 def clip_ffmpeg_args(spec: ClipSpec) -> List[str]:
     """ffmpeg args placed between -i input and the output path."""
-    args = ["-ss", _secs(spec.start)]
+    args = ["-ss", _fmt_time(spec.start)]
     if spec.end is not None:
-        args += ["-to", _secs(spec.end)]
+        args += ["-to", _fmt_time(spec.end)]
     if spec.exact:
         args += [
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",

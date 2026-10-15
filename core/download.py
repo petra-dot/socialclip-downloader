@@ -145,15 +145,17 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             )
 
         if clip is not None and os.path.isfile(downloaded_file):
+            moved = False
             if section_ok:
                 # yt-dlp already cut the section; just give it our name.
                 renamed = _clip_name(downloaded_file, clip)
                 try:
                     os.replace(downloaded_file, renamed)
                     downloaded_file = renamed
+                    moved = True
                 except OSError:
-                    pass
-            else:
+                    moved = False
+            if not moved:
                 cut = _cut_file(downloaded_file, clip)
                 if cut:
                     os.remove(downloaded_file)

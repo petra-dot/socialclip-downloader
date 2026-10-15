@@ -75,6 +75,16 @@ def test_clip_ffmpeg_args_exact_reencodes():
     assert "-to" not in args  # open end
 
 
+def test_clip_ffmpeg_args_fractional_precision():
+    args = clip_ffmpeg_args(ClipSpec(90.5, 100.0, False))
+    assert args[:4] == ["-ss", "90.5", "-to", "100"]
+
+
+def test_clip_ffmpeg_args_whole_second():
+    args = clip_ffmpeg_args(ClipSpec(90.0, None, True))
+    assert args[:2] == ["-ss", "90"]
+
+
 import os
 
 from core.download import _clip_name, download_one
@@ -140,6 +150,61 @@ def test_download_one_clip_falls_back_and_cuts(monkeypatch, tmp_path):
 
     def fake_run(cmd, *a, **k):
         # ffmpeg writes the cut file as the last argument
+        with open(cmd[-1], "wb") as fh:
+            fh.write(b"cut")
+        return Proc()
+
+    monkeypatch.setattr("core.download.subprocess.run", fake_run)
+    monkeypatch.setattr("core.download.os.path.getsize", lambda p: 3)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 1080,
+                           "container": "mp4"},
+    )
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        clip=ClipSpec(10.0, 20.0, False),
+    )
+    assert result.status == "ok"
+    assert result.path.endswith("_clip_10-20.mp4")
+    assert os.path.isfile(result.path)
+
+
+def test_download_one_clip_rename_failure_falls_through_to_cut(monkeypatch, tmp_path):
+    full = tmp_path / "T.mp4"
+    full.write_bytes(b"full")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True, **kw):
+            return {"id": "x", "title": "T", "height": 1080, "ext": "mp4"}
+
+        def prepare_filename(self, info):
+            return str(full)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+
+    def bad_replace(*a, **k):
+        raise OSError("locked")
+
+    monkeypatch.setattr("core.download.os.replace", bad_replace)
+
+    class Proc:
+        returncode = 0
+        stdout = b""
+        stderr = b""
+
+    def fake_run(cmd, *a, **k):
         with open(cmd[-1], "wb") as fh:
             fh.write(b"cut")
         return Proc()
