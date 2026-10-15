@@ -59,9 +59,18 @@ def default_cookie_dir() -> str:
 
 
 def _cookie_search_dirs() -> list:
-    """Directories to look in for cookie files, most specific first: the app
-    directory, then the working directory."""
-    dirs = [app_dir()]
+    """Directories to look in for cookie files, most specific first.
+
+    The per-user data directory is where cookies live now; the app directory is
+    kept as a fallback so cookies dropped beside the app still resolve before
+    the one-time migration has run.
+    """
+    from core.paths import data_dir
+
+    dirs = []
+    for directory in (data_dir(), app_dir()):
+        if directory and directory not in dirs:
+            dirs.append(directory)
     try:
         cwd = os.getcwd()
     except OSError:

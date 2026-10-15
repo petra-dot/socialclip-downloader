@@ -68,6 +68,7 @@ def test_cookie_path_finds_app_dir_cookie(tmp_path, monkeypatch):
     empty = tmp_path / "empty-cwd"
     empty.mkdir()
     monkeypatch.chdir(empty)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path))
     (tmp_path / "youtube_cookies.txt").write_text("c")
     expected = str(tmp_path / "youtube_cookies.txt")
@@ -79,6 +80,7 @@ def test_cookie_path_still_finds_cwd_cookie(tmp_path, monkeypatch):
     work.mkdir()
     (work / "youtube_cookies.txt").write_text("c")
     monkeypatch.chdir(work)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path / "elsewhere"))
     assert get_cookie_path("https://youtu.be/x") == str(work / "youtube_cookies.txt")
 

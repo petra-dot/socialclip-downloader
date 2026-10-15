@@ -141,3 +141,26 @@ def test_presets_path_honours_override(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
     import cli
     assert cli._presets_path() == str(override)
+
+
+def test_cookie_search_finds_data_dir_cookies(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "youtube_cookies.txt").write_text("# Netscape", encoding="utf-8")
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(data))
+    from sites.cookies import get_cookie_path
+    assert get_cookie_path("https://youtu.be/x") == str(
+        data / "youtube_cookies.txt"
+    )
+
+
+def test_cookie_search_still_finds_app_dir_cookies(tmp_path, monkeypatch):
+    legacy = tmp_path / "app"
+    legacy.mkdir()
+    (legacy / "youtube_cookies.txt").write_text("# Netscape", encoding="utf-8")
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    monkeypatch.setattr("sites.cookies.app_dir", lambda: str(legacy))
+    from sites.cookies import get_cookie_path
+    assert get_cookie_path("https://youtu.be/x") == str(
+        legacy / "youtube_cookies.txt"
+    )
