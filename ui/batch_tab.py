@@ -11,7 +11,13 @@ from sites.cookies import default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
-from utils.file_utils import default_download_folder, restore_or, OUTPUT_FORMATS, RESOLUTIONS
+from utils.file_utils import (
+    default_download_folder,
+    restore_or,
+    OUTPUT_FORMATS,
+    RESOLUTIONS,
+    output_index_for,
+)
 from utils.ui_helpers import looks_like_url
 from workers.expand_worker import ExpandWorker
 from workers.queue_worker import QueueWorker
@@ -162,7 +168,8 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_preset_combo.setAccessibleName("Queue preset")
         self.batch_preset_combo.setToolTip(
             "Applies format, resolution, folder, and cookies. "
-            "Filename options are Download-tab only."
+            "The Queue always converts MP4 to the chosen resolution; "
+            "convert and filename options are Download-tab only."
         )
         self.batch_preset_combo.currentIndexChanged.connect(self.on_preset_selected)
         preset_row.addWidget(self.batch_preset_combo)
@@ -246,6 +253,10 @@ class QueueTab(QtWidgets.QWidget):
             index if index >= 0 else self.batch_preset_combo.count() - 1
         )
         self._applying_preset = False
+        if index >= 0:
+            preset = self.preset_store.get(last)
+            if preset:
+                self._apply_preset(preset)
 
     def on_preset_selected(self, _index):
         if self._applying_preset:
@@ -254,15 +265,21 @@ class QueueTab(QtWidgets.QWidget):
         if not name:
             return
         preset = self.preset_store.get(name)
-        if not preset:
-            return
+        if preset:
+            self._apply_preset(preset)
+
+    def _apply_preset(self, preset):
         self._applying_preset = True
-        self.batch_output_combo.setCurrentText(preset.output)
+        index = output_index_for(preset.output)
+        if index >= 0:
+            self.batch_output_combo.setCurrentIndex(index)
         self.batch_resolution_combo.setCurrentText(preset.resolution)
         self.batch_save_dir_input.setText(preset.save_dir or default_download_folder())
         self.batch_cookies_input.setText(preset.cookies or "")
         self.cookies_file_ref["path"] = preset.cookies or ""
         self._applying_preset = False
+        self._on_batch_save_dir_changed()
+        self._on_batch_cookies_changed()
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)

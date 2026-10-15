@@ -86,6 +86,8 @@ class PresetStore:
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             return
         for raw in data.get("presets") or []:
+            if not isinstance(raw, dict):
+                continue
             preset = preset_from_dict(raw)
             if preset and preset.name not in _BUILTIN_NAMES:
                 self.presets.append(preset)

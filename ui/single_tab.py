@@ -13,6 +13,7 @@ from utils.file_utils import (
     restore_or,
     OUTPUT_FORMATS,
     RESOLUTIONS,
+    output_index_for,
 )
 from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
@@ -356,6 +357,10 @@ class SingleTab(QtWidgets.QWidget):
         index = self.preset_combo.findData(last) if last else -1
         self.preset_combo.setCurrentIndex(index if index >= 0 else self.preset_combo.count() - 1)
         self._applying_preset = False
+        if index >= 0:
+            preset = self.preset_store.get(last)
+            if preset:
+                self._apply_preset(preset)
 
     def on_preset_selected(self, _index):
         if self._applying_preset:
@@ -369,7 +374,9 @@ class SingleTab(QtWidgets.QWidget):
 
     def _apply_preset(self, preset):
         self._applying_preset = True
-        self.output_combo.setCurrentText(preset.output)
+        index = output_index_for(preset.output)
+        if index >= 0:
+            self.output_combo.setCurrentIndex(index)
         self.resolution_combo.setCurrentText(preset.resolution)
         self.convert_checkbox.setChecked(preset.convert)
         self.checkbox_channel.setChecked(preset.add_channel)
@@ -378,6 +385,8 @@ class SingleTab(QtWidgets.QWidget):
         self.cookies_input.setText(preset.cookies or "")
         self.cookies_file_ref["path"] = preset.cookies or ""
         self._applying_preset = False
+        self._on_save_dir_changed()
+        self._on_cookies_changed()
         self.settings.setValue("preset/last", preset.name)
 
     def _mark_custom(self, *_args):

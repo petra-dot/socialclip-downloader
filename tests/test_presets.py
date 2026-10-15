@@ -84,3 +84,11 @@ def test_store_load_ignores_bad_file(tmp_path):
     store = PresetStore(str(path))
     store.load()
     assert store.user() == []
+
+
+def test_store_load_skips_non_dict_entries(tmp_path):
+    path = tmp_path / "presets.json"
+    path.write_text('{"version": 1, "presets": [42]}')
+    store = PresetStore(str(path))
+    store.load()
+    assert store.user() == []

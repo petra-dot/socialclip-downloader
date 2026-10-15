@@ -5,6 +5,14 @@ OUTPUT_FORMATS = ["Video (MP4)", "Audio (MP3)"]
 RESOLUTIONS = ["720", "1080", "1440", "2160"]
 
 
+def output_index_for(value: str) -> int:
+    """Map a preset output code ("MP4"/"MP3") to its OUTPUT_FORMATS index."""
+    for index, text in enumerate(OUTPUT_FORMATS):
+        if text == value or (value and value in text):
+            return index
+    return -1
+
+
 def default_download_folder():
     home = os.path.expanduser("~")
     downloads = os.path.join(home, "Downloads")
