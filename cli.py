@@ -138,6 +138,12 @@ def _cmd_doctor(args) -> int:
     if args.json:
         print(json.dumps(report))
     else:
+        from core.maintenance import check_all
+        for component in check_all():
+            print("%-20s %-8s %s" % (
+                component.label, component.state,
+                component.version or component.detail,
+            ))
         ff = report["ffmpeg"]
         print(f"ffmpeg: {ff['path'] or 'NOT FOUND'}")
         if ff.get("version"):
@@ -152,11 +158,8 @@ def _cmd_doctor(args) -> int:
 
 
 def _queue_path() -> str:
-    from sites.cookies import default_cookie_dir
-    override = os.environ.get("SOCIALCLIP_QUEUE")
-    if override:
-        return override
-    return os.path.join(default_cookie_dir(), "queue.json")
+    from core.paths import queue_path
+    return queue_path()
 
 
 def _browsers():
@@ -165,17 +168,18 @@ def _browsers():
 
 
 def _archive_path() -> str:
-    """The archive file, beside the queue file.
+    """The archive file, via core.archive.default_archive_path().
 
-    Derived from `_queue_path` so a SOCIALCLIP_QUEUE override moves the archive
-    with the queue instead of leaving it in the app directory.
+    That helper derives it from the queue path, so a SOCIALCLIP_QUEUE override
+    moves the archive with the queue instead of leaving it in the app directory.
     """
-    return os.path.join(os.path.dirname(_queue_path()), "archive.txt")
+    from core.archive import default_archive_path
+    return default_archive_path()
 
 
 def _presets_path() -> str:
     from core.presets import default_presets_path
-    return os.environ.get("SOCIALCLIP_PRESETS") or default_presets_path()
+    return default_presets_path()
 
 
 def _preset_resolution(preset):
@@ -362,6 +366,38 @@ def _cmd_queue(args) -> int:
         return EXIT_OK
 
 
+def _cmd_repair(args) -> int:
+    from core.maintenance import check_all, plan_repairs
+
+    components = check_all()
+    keys = plan_repairs(components)
+    if args.dry_run:
+        if args.json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION,
+                              "would_repair": keys}))
+        elif keys:
+            print("would repair: %s" % ", ".join(keys))
+        else:
+            print("nothing to repair")
+        return EXIT_OK
+
+    if not keys:
+        print("nothing to repair")
+        return EXIT_OK
+    # Imported here, not above the dry-run return, so `--dry-run` stays Qt-free.
+    from workers.maintenance_worker import run_repairs
+    components = run_repairs(
+        keys, progress=lambda k, d: print("%s: %s" % (k, d), file=sys.stderr),
+    )
+    remaining = plan_repairs(components)
+    if args.json:
+        print(json.dumps({"schema_version": SCHEMA_VERSION,
+                          "repaired": keys, "remaining": remaining}))
+    elif remaining:
+        print("still needs attention: %s" % ", ".join(remaining))
+    return EXIT_OK if not remaining else EXIT_FAIL
+
+
 def _cmd_manifest_schema(args) -> int:
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -430,6 +466,12 @@ def build_parser() -> argparse.ArgumentParser:
     doc.add_argument("--json", action="store_true")
     doc.set_defaults(func=_cmd_doctor)
 
+    r = sub.add_parser("repair")
+    r.add_argument("--dry-run", action="store_true",
+                   help="show what would be repaired, then stop")
+    r.add_argument("--json", action="store_true")
+    r.set_defaults(func=_cmd_repair)
+
     ms = sub.add_parser("manifest-schema")
     ms.set_defaults(func=_cmd_manifest_schema)
 
@@ -472,6 +514,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    from core.paths import migrate_legacy_files
+    from utils.ytdlp import load
+    migrate_legacy_files()
+    load()
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

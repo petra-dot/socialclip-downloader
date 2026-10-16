@@ -16,9 +16,12 @@ local. No telemetry, no server.
 ## Layout
 
 ```
-socialclip_downloader.py   entry point + __version__
-cli.py                     `socialclip` CLI (download/convert/doctor/manifest-schema/queue)
-core/                      Qt-free logic shared by GUI and CLI (manifest, download, convert, formats, probe, queue, archive, collections, clip, presets, subtitles, pipeline)
+socialclip_downloader.py   entry point (re-exports __version__ from core/version.py)
+cli.py                     `socialclip` CLI (download/convert/doctor/repair/manifest-schema/queue)
+core/                      Qt-free logic shared by GUI and CLI (version, paths, maintenance, manifest, download, convert, formats, probe, queue, archive, collections, clip, presets, subtitles, pipeline)
+core/version.py            app version, importable without pulling in Qt
+core/paths.py              per-user data directory + one-time legacy migration (pure)
+core/maintenance.py        component checks + verified installers for yt-dlp/ffmpeg/deno
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
@@ -43,6 +46,7 @@ workers/download_worker.py single download + MP3/resolution post-process
 workers/queue_worker.py    drives a Queue: up to N jobs at a time, saves after each
 workers/expand_worker.py   expands a collection URL for the Queue tab
 workers/convert_worker.py  local file conversion
+workers/maintenance_worker.py  runs component checks and repairs off the UI thread
 workers/update_worker.py   update check + digest-verified asset download
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
@@ -151,6 +155,14 @@ helpers testable. CI lints and runs pytest.
 
 ## Gotchas
 
+- **Writable state lives in a per-user data directory** (`core/paths.py`):
+  cookies, `queue.json`, `presets.json`, `archive.txt`, and the managed
+  components (yt-dlp under `data_dir/yt-dlp/`, ffmpeg/ffprobe/deno under
+  `data_dir/bin/`). `SOCIALCLIP_DATA` moves the whole directory;
+  `SOCIALCLIP_QUEUE` still overrides the queue file only, `SOCIALCLIP_PRESETS`
+  the presets file only, and `SOCIALCLIP_FFMPEG` / `FFMPEG_LOCATION` still
+  override ffmpeg. `utils/ytdlp.find_js_runtime` looks on PATH, then in the
+  managed `bin/`, then in the bundle.
 - ffmpeg/ffprobe are located by `utils/ffmpeg.py` (`ffmpeg_path()` /
   `ffprobe_path()`): env override `SOCIALCLIP_FFMPEG` or `FFMPEG_LOCATION`,
   then PATH, then common install dirs. `_nle_ydl_opts` passes the path to

@@ -1,13 +1,13 @@
 import os
 
 from core.archive import clear_archive, default_archive_path
-from sites.cookies import app_dir
+from core.paths import queue_path
 
 
 def test_default_archive_path_is_beside_the_queue_file():
     path = default_archive_path()
     assert path.endswith("archive.txt")
-    assert os.path.dirname(path) == app_dir()
+    assert os.path.dirname(path) == os.path.dirname(queue_path())
 
 
 def test_clear_archive_removes_the_file(tmp_path):

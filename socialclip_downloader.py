@@ -1,7 +1,7 @@
 import os
 import sys
 
-__version__ = "0.9.3"
+from core.version import __version__  # noqa: F401 - re-exported
 
 try:
     from PyQt5 import QtWidgets, QtCore, QtGui
@@ -9,11 +9,6 @@ except Exception:
     QtWidgets = None
     QtCore = None
     QtGui = None
-
-try:
-    from yt_dlp import YoutubeDL
-except Exception:
-    YoutubeDL = None
 
 
 def _asset_path(name: str) -> str:
@@ -28,6 +23,11 @@ def _asset_path(name: str) -> str:
 
 
 def main():
+    from core.paths import migrate_legacy_files
+    from utils.ytdlp import load
+    migrate_legacy_files()
+    load()
+
     if "--apply-update" in sys.argv:
         from core.updater import apply_update
 
@@ -44,8 +44,12 @@ def main():
         return apply_update(target)
 
     missing = []
-    if YoutubeDL is None:
-        missing.append("yt-dlp (Python package 'yt-dlp') - install with: pip install yt-dlp")
+    try:
+        import yt_dlp  # noqa: F401 - presence check; load() already ran
+    except Exception:
+        missing.append(
+            "yt-dlp (Python package 'yt-dlp') - install with: pip install yt-dlp"
+        )
     if QtWidgets is None or QtCore is None:
         missing.append("PyQt5 - install with: pip install PyQt5")
     if missing:

@@ -5,6 +5,7 @@ from PyQt5 import QtCore, QtWidgets
 from core.doctor import run_checks
 from sites.collections import collection_note
 from utils.file_utils import default_download_folder
+from utils.ui_helpers import reveal_in_folder
 
 
 def _ffmpeg_line(report):
@@ -64,13 +65,19 @@ def show_welcome(parent=None):
     QtWidgets.QMessageBox.information(parent, "Welcome to SocialClip Downloader", text)
 
 
-def show_doctor(parent=None):
-    try:
-        report = run_checks()
-    except Exception as exc:
-        report = {"schema_version": "1.1", "error": str(exc)}
-
-    lines = ["Doctor report (schema %s)" % report.get("schema_version", "1.1"), ""]
+def doctor_lines(report, components=None) -> list:
+    """Human-readable Doctor/Health text. Pure, so it is testable."""
+    lines = ["Health report (schema %s)" % report.get("schema_version", "1.2"), ""]
+    if components:
+        lines.append("components:")
+        for component in components:
+            version = " %s" % component.version if component.version else ""
+            detail = " (%s)" % component.detail if component.detail else ""
+            lines.append(
+                "  %-20s %-8s%s%s"
+                % (component.label, component.state, version, detail)
+            )
+        lines.append("")
 
     ffmpeg = report.get("ffmpeg", {})
     lines.append("ffmpeg:")
@@ -98,16 +105,46 @@ def show_doctor(parent=None):
     lines.append("")
     lines.append(_js_runtime_line(report))
     lines.append(_ytdlp_line(report))
+    return lines
+
+
+def show_doctor(parent=None, on_repair=None):
+    """Health view: the report, the components, and a Repair action."""
+    from core.maintenance import check_all, plan_repairs
+    from core.paths import data_dir
+
+    try:
+        report = run_checks()
+    except Exception as exc:
+        report = {"schema_version": "1.2", "error": str(exc)}
+    try:
+        components = check_all()
+    except Exception:
+        components = []
 
     dialog = QtWidgets.QDialog(parent)
-    dialog.setWindowTitle("Doctor")
-    dialog.resize(560, 400)
+    dialog.setWindowTitle("Health")
+    dialog.resize(620, 460)
     layout = QtWidgets.QVBoxLayout(dialog)
     view = QtWidgets.QTextEdit()
     view.setReadOnly(True)
-    view.setPlainText("\n".join(lines))
+    view.setPlainText("\n".join(doctor_lines(report, components)))
     layout.addWidget(view)
+
     buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+    repair = buttons.addButton("Repair", QtWidgets.QDialogButtonBox.ActionRole)
+    open_dir = buttons.addButton(
+        "Open data folder", QtWidgets.QDialogButtonBox.ActionRole
+    )
+
+    def _repair(keys):
+        if on_repair is None or not keys:
+            return
+        dialog.accept()
+        on_repair(keys)
+
+    repair.clicked.connect(lambda: _repair(plan_repairs(components)))
+    open_dir.clicked.connect(lambda: reveal_in_folder(data_dir()))
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
     dialog.exec_()
@@ -255,8 +292,8 @@ class CookiesDialog(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from sites.cookies import BROWSERS, app_dir, cookie_status
-        from utils.ui_helpers import reveal_in_folder
+        from core.paths import data_dir
+        from sites.cookies import BROWSERS, cookie_status
 
         self.setWindowTitle("Cookies")
         self.resize(520, 360)
@@ -291,7 +328,7 @@ class CookiesDialog(QtWidgets.QDialog):
         open_btn = buttons.addButton(
             "Open cookie folder", QtWidgets.QDialogButtonBox.ActionRole
         )
-        open_btn.clicked.connect(lambda: reveal_in_folder(app_dir()))
+        open_btn.clicked.connect(lambda: reveal_in_folder(data_dir()))
         layout.addWidget(buttons)
 
     def chosen_browser(self) -> str:

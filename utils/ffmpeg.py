@@ -42,11 +42,27 @@ def _bundle_dir():
     return ""
 
 
+def _managed_bin_dir():
+    """The app's managed bin directory, or "" when there is none."""
+    try:
+        from core.paths import managed_dir
+    except Exception:
+        return ""
+    return managed_dir("bin")
+
+
 def find_ffmpeg(env=None, which=None, exists=None, candidate_dirs=None, bundle_dir=None):
-    """Locate ffmpeg: bundled copy first, then env override, PATH, install dirs."""
+    """Locate ffmpeg: managed copy, bundled copy, env override, PATH, dirs."""
     env = os.environ if env is None else env
     which = shutil.which if which is None else which
     exists = os.path.isfile if exists is None else exists
+
+    managed = _managed_bin_dir()
+    if managed:
+        for name in ("ffmpeg", "ffmpeg.exe"):
+            candidate = os.path.join(managed, name)
+            if exists(candidate):
+                return candidate
 
     if bundle_dir is None:
         bundle_dir = _bundle_dir()

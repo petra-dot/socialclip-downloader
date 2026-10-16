@@ -16,7 +16,7 @@
 - **Never commit a real social-media URL.** Tests and docs use placeholders only (`https://youtu.be/x`, `https://a.com/1`).
 - **Conventional Commits.** Commit per task; never commit to `main`; never push without an explicit yes.
 - **No new runtime dependency.** stdlib only.
-- Every download is **HTTPS**, host allow-listed (`github.com`, `objects.githubusercontent.com`), and **SHA-256 verified** before use.
+- Every download is **HTTPS**, host allow-listed (`github.com`, `api.github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`), and **SHA-256 verified** before use.
 - **Never delete a working component** before its replacement is verified.
 - `SOCIALCLIP_DATA` overrides the data directory. `SOCIALCLIP_QUEUE` keeps overriding the queue file only. `SOCIALCLIP_FFMPEG`/`FFMPEG_LOCATION` keep overriding ffmpeg.
 - Python 3.8 compatible: no `match`, no `X | Y` type unions, no `list[str]` in runtime annotations that get evaluated. Use `typing.List`/`Optional` where a module evaluates annotations.
@@ -541,12 +541,39 @@ git commit -m "feat: load a managed yt-dlp and prefer a managed JS runtime"
 ### Task 4: `core/maintenance.py` - component model, checks, repair plan
 
 **Files:**
+- Create: `core/version.py`
 - Create: `core/maintenance.py`
+- Modify: `socialclip_downloader.py` (import `__version__` from `core.version`)
 - Test: `tests/test_maintenance.py`
 
 **Interfaces:**
 - Consumes: `core.paths.data_dir`, `utils.ytdlp.*`, `utils.ffmpeg.find_ffmpeg`, `core.doctor.ffmpeg_version`
-- Produces: `STATES`, `REPAIRABLE`, `ALLOWED_HOSTS`, `Component`, `check_all(root=None, which=None, exists=None, runner=None) -> list`, `plan_repairs(components) -> list`, `latest_ytdlp(opener=None) -> tuple`
+- Produces: `core.version.__version__`, `STATES`, `REPAIRABLE`, `ALLOWED_HOSTS`, `Component`, `check_all(which=None, exists=None, runner=None) -> list`, `plan_repairs(components) -> list`, `latest_ytdlp(opener=None) -> tuple`
+
+**Controller ruling:** the app version must be readable **without importing the Qt entry
+point**. `core/maintenance.py` runs in the CLI too, and `import socialclip_downloader`
+pulls PyQt5. So the version moves to `core/version.py`; `socialclip_downloader.py`
+re-exports it so existing importers (`ui/main_window.py`) keep working.
+
+- [ ] **Step 0: Create `core/version.py` and re-export it**
+
+```python
+# core/version.py
+"""The app version, importable without pulling in Qt."""
+
+__version__ = "0.9.3"
+```
+
+In `socialclip_downloader.py`, replace the literal assignment with the import,
+keeping the `__version__` name so `from socialclip_downloader import __version__`
+still works:
+
+```python
+from core.version import __version__  # noqa: F401 - re-exported
+```
+
+Run: `python -m pytest -q`
+Expected: PASS (nothing else changes).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -565,6 +592,8 @@ def _by_key(components):
 
 def test_check_all_reports_missing_ytdlp(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    # yt-dlp is installed in this environment, so force the "missing" case.
+    monkeypatch.setattr(maintenance, "_ytdlp_version", lambda: "")
     comps = _by_key(maintenance.check_all(
         which=lambda _n: None, runner=lambda _c: None,
     ))
@@ -661,6 +690,7 @@ from typing import List, Optional
 
 from core.doctor import ffmpeg_version
 from core.paths import data_dir, managed_dir
+from core.version import __version__
 from utils.ffmpeg import find_ffmpeg
 from utils.ytdlp import find_js_runtime, is_stale, version_age_days
 
@@ -670,7 +700,8 @@ STATES = ("ok", "missing", "stale", "broken", "unknown")
 # "data-dir" is not a download at all.
 REPAIRABLE = ("yt-dlp", "ffmpeg", "js-runtime")
 
-ALLOWED_HOSTS = ("github.com", "objects.githubusercontent.com")
+ALLOWED_HOSTS = ("github.com", "api.github.com",
+                 "objects.githubusercontent.com")
 
 YTDLP_LATEST = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
 YTDLP_REPO = "https://github.com/yt-dlp/yt-dlp"
@@ -712,10 +743,6 @@ def check_all(which=None, exists=None, runner=None) -> List[Component]:
     """Every component's state from local information only. Never raises."""
     components = []
 
-    try:
-        from socialclip_downloader import __version__
-    except Exception:
-        __version__ = ""
     components.append(
         Component("app", "App", "ok", version=__version__)
     )
@@ -875,6 +902,9 @@ def _release_opener(wheel, wheel_name, good_digest=True):
 
         def read(self):
             return self._payload
+
+        def geturl(self):
+            return "https://github.com/x/x"
 
         def __enter__(self):
             return self
@@ -1091,6 +1121,9 @@ def test_install_deno_unpacks_and_verifies(tmp_path, monkeypatch):
         def read(self):
             return self._body
 
+        def geturl(self):
+            return "https://github.com/x/x"
+
         def __enter__(self):
             return self
 
@@ -1129,6 +1162,15 @@ Run: `python -m pytest tests/test_maintenance.py tests/test_ffmpeg.py -q -k "den
 Expected: FAIL with `AttributeError: module 'core.maintenance' has no attribute '_platform_tag'`
 
 - [ ] **Step 3: Write minimal implementation**
+
+**Controller ruling (verify before coding):** BtbN publishes per-asset `.sha256`
+files; confirm by fetching
+`https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip.sha256`
+(or the linux64/macos64 equivalent) and checking it returns 200. If BtbN does
+**not** publish one, use its `checksums.sha256` asset if the release has one; if
+neither exists, switch Windows ffmpeg to gyan.dev's
+`ffmpeg-release-essentials.zip` plus its `.sha256`, keep BtbN for
+linux64/macos64, and report the change. Never install an unverified ffmpeg.
 
 ```python
 # core/maintenance.py  (append)
@@ -1182,7 +1224,6 @@ def install_ffmpeg(dest=None, opener=None) -> str:
     )
     if not expected:
         raise ValueError("no checksum published for %s" % zip_name)
-
     data = _get(zip_url, opener=opener)
     if not _verify_bytes(data, expected):
         raise ValueError("checksum mismatch for %s" % zip_name)
@@ -1442,7 +1483,7 @@ git commit -m "feat: run component checks and repairs off the UI thread"
 ### Task 8: Health view and the startup check
 
 **Files:**
-- Modify: `ui/dialogs.py` (`DoctorDialog` gains component rows, Repair, Repair all, Open data folder)
+- Modify: `ui/dialogs.py` (`DoctorDialog` gains component rows, a single **Repair**, Open data folder)
 - Modify: `ui/main_window.py` (startup check, daily cache, Help menu item)
 - Modify: `ui/main_window.py` (the `File` menu gains **Open data folder**)
 - Test: `tests/test_ui_wiring.py` (append)
@@ -1555,9 +1596,6 @@ def show_doctor(parent, on_repair=None):
 
     buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
     repair = buttons.addButton("Repair", QtWidgets.QDialogButtonBox.ActionRole)
-    repair_all = buttons.addButton(
-        "Repair all", QtWidgets.QDialogButtonBox.ActionRole
-    )
     open_dir = buttons.addButton(
         "Open data folder", QtWidgets.QDialogButtonBox.ActionRole
     )
@@ -1569,7 +1607,6 @@ def show_doctor(parent, on_repair=None):
         on_repair(keys)
 
     repair.clicked.connect(lambda: _repair(plan_repairs(components)))
-    repair_all.clicked.connect(lambda: _repair(list(plan_repairs(components))))
     open_dir.clicked.connect(lambda: reveal_in_folder(data_dir()))
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
@@ -1775,7 +1812,7 @@ git commit -m "feat: socialclip repair and component states in doctor"
 - Modify: `README.md` (a Maintenance section; the cookie-folder instructions; the CLI table gains `repair`)
 - Modify: `CHANGELOG.md` (`## Unreleased` -> a new section)
 - Modify: `AGENTS.md` (the layout block gains `core/paths.py` and `core/maintenance.py`; the gotchas note the data directory)
-- Modify: `socialclip_downloader.py` (`__version__` bump)
+- Modify: `socialclip_downloader.py` (`__version__` moves to `core/version.py`)
 
 - [ ] **Step 1: README**
 
@@ -1820,8 +1857,8 @@ managed components live in the data directory; `SOCIALCLIP_DATA` moves it and
 
 - [ ] **Step 4: Bump the version and run everything**
 
-Set `__version__ = "0.10.0"` in `socialclip_downloader.py` (a new subsystem is a
-minor bump).
+Set `__version__ = "0.10.0"` in **`core/version.py`** (a new subsystem is a minor
+bump). `socialclip_downloader.py` re-exports it, so nothing else changes.
 
 Run: `python -m pytest -q`
 Run: `python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics`

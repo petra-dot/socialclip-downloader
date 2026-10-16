@@ -346,3 +346,46 @@ def test_download_rejects_unknown_subtitle_delivery(monkeypatch, capsys):
     rc = cli.main(["download", "https://youtu.be/x", "--subtitles", "burn"])
     assert rc == 2
     assert "invalid choice" in capsys.readouterr().err.lower()
+
+
+def test_cli_repair_dry_run(capsys):
+    from cli import main
+    code = main(["repair", "--dry-run"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "would repair" in out or "nothing to repair" in out
+
+
+def test_repair_json_stdout_is_one_object(monkeypatch, capsys):
+    """`repair --json` keeps stdout to one JSON object; progress goes to stderr."""
+    import cli
+
+    monkeypatch.setattr("core.maintenance.check_all", lambda *a, **k: [])
+    calls = {"n": 0}
+
+    def fake_plan(components):
+        calls["n"] += 1
+        return ["yt-dlp"] if calls["n"] == 1 else []
+
+    def fake_run(keys, progress=None):
+        if progress:
+            progress("yt-dlp", "installing")
+            progress("yt-dlp", "installed 2026.08.19")
+        return []
+
+    monkeypatch.setattr("core.maintenance.plan_repairs", fake_plan)
+    monkeypatch.setattr("workers.maintenance_worker.run_repairs", fake_run)
+
+    rc = cli.main(["repair", "--json"])
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    lines = [line for line in captured.out.splitlines() if line.strip()]
+    assert len(lines) == 1  # exactly one JSON object on stdout
+    data = json.loads(lines[0])
+    assert data["schema_version"] == "1.0"
+    assert data["repaired"] == ["yt-dlp"]
+    assert data["remaining"] == []
+    # The progress lines moved to stderr, not stdout.
+    assert "yt-dlp: installing" in captured.err
+    assert "yt-dlp: installed 2026.08.19" in captured.err

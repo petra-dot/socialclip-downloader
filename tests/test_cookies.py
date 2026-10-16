@@ -50,15 +50,17 @@ def test_cookie_path_unknown_platform(tmp_path):
     assert get_cookie_path("https://example.com/x", str(tmp_path)) == ""
 
 
-def test_default_cookie_dir_is_the_app_dir_not_cwd(tmp_path, monkeypatch):
+def test_default_cookie_dir_is_the_data_dir_not_cwd(tmp_path, monkeypatch):
     # Launching from a directory with a stray cookie file must not change where
-    # the app looks: the app directory is the stable location.
+    # the app looks: the per-user data directory is the stable location.
     workdir = tmp_path / "work"
     workdir.mkdir()
     (workdir / "youtube_cookies.txt").write_text("c")
     monkeypatch.chdir(workdir)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    assert default_cookie_dir() == str(tmp_path / "data")
+    assert default_cookie_dir() != str(workdir)
     expected = os.path.dirname(os.path.dirname(os.path.abspath(cookies.__file__)))
-    assert default_cookie_dir() == expected
     assert cookies.app_dir() == expected
 
 
@@ -66,6 +68,7 @@ def test_cookie_path_finds_app_dir_cookie(tmp_path, monkeypatch):
     empty = tmp_path / "empty-cwd"
     empty.mkdir()
     monkeypatch.chdir(empty)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path))
     (tmp_path / "youtube_cookies.txt").write_text("c")
     expected = str(tmp_path / "youtube_cookies.txt")
@@ -77,6 +80,7 @@ def test_cookie_path_still_finds_cwd_cookie(tmp_path, monkeypatch):
     work.mkdir()
     (work / "youtube_cookies.txt").write_text("c")
     monkeypatch.chdir(work)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path / "elsewhere"))
     assert get_cookie_path("https://youtu.be/x") == str(work / "youtube_cookies.txt")
 

@@ -1,11 +1,11 @@
 import os
 
-from sites.cookies import app_dir
+from core.paths import queue_path
 
 
 def default_archive_path() -> str:
-    """The archive file: archive.txt beside queue.json and presets.json."""
-    return os.path.join(app_dir(), "archive.txt")
+    """The archive file: archive.txt beside queue.json."""
+    return os.path.join(os.path.dirname(queue_path()), "archive.txt")
 
 
 def clear_archive(path: str) -> bool:

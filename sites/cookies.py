@@ -40,8 +40,8 @@ def app_dir() -> str:
     """The directory the app runs from.
 
     Next to the script in a source run, next to the executable in a frozen
-    build. Stable no matter which directory the app was launched from, which
-    is what makes it a reliable place for cookies and the queue file.
+    build. Used to locate bundled resources and as a legacy cookie fallback;
+    writable state lives in the per-user data directory instead.
     """
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
@@ -49,19 +49,28 @@ def app_dir() -> str:
 
 
 def default_cookie_dir() -> str:
-    """Where cookie files live by default: the app directory.
+    """Where cookie files live by default: the per-user data directory.
 
-    The app tells users to drop cookies "next to the app", so that is the
-    primary location. The working directory is still searched as a fallback
-    (see ``_cookie_search_dirs``), but it no longer decides the result.
+    Next to the executable is read-only in several real installs, so the app
+    keeps cookies (and the queue) in a writable per-user directory instead.
     """
-    return app_dir()
+    from core.paths import data_dir
+    return data_dir()
 
 
 def _cookie_search_dirs() -> list:
-    """Directories to look in for cookie files, most specific first: the app
-    directory, then the working directory."""
-    dirs = [app_dir()]
+    """Directories to look in for cookie files, most specific first.
+
+    The per-user data directory is where cookies live now; the app directory is
+    kept as a fallback so cookies dropped beside the app still resolve before
+    the one-time migration has run.
+    """
+    from core.paths import data_dir
+
+    dirs = []
+    for directory in (data_dir(), app_dir()):
+        if directory and directory not in dirs:
+            dirs.append(directory)
     try:
         cwd = os.getcwd()
     except OSError:

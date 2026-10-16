@@ -1,6 +1,17 @@
 # Changelog
 
-## v0.9.3 - 2026-10-16
+## v0.10.0 - 2026-10-16
+
+### Changed
+- **Writable state moved out of the app directory** into the per-user data
+  directory, so an install under `Program Files`, `/usr/local/bin`, or a
+  quarantined macOS download can still save cookies and the queue. Any legacy
+  files next to the app are copied into the data directory once on first run
+  (copied, never moved; an existing file is never overwritten).
+  `SOCIALCLIP_QUEUE` still overrides the queue file only.
+- **The app version moved to `core/version.py`** (`socialclip_downloader`
+  re-exports it), so the version is importable without pulling in Qt.
+
 ### Fixed
 - **YouTube downloads failing with HTTP 403.** yt-dlp's Python API does not read
   your yt-dlp config file and defaults to deno as its only JavaScript runtime,
@@ -37,6 +48,27 @@
   actions refuse to run while the queue is running.
 
 ### Added
+- **Maintenance and self-repair.** The app now checks its components (yt-dlp,
+  ffmpeg, and the JavaScript runtime YouTube needs) at most once a day and
+  repairs a missing, stale, or broken one from a verified download, so a frozen
+  build keeps working without a new release. New `core/maintenance.py` holds the
+  component model, the local checks, and the SHA-256-verified installers for
+  yt-dlp, ffmpeg, and deno; `workers/maintenance_worker.py` runs the checks and
+  repairs off the UI thread. A new **Health** view (**Help -> Health**) lists
+  every component with its version and state and offers **Repair** and **Open
+  data folder**, and the CLI gains `socialclip repair` (with `--dry-run`).
+  macOS has no verified automatic ffmpeg source, so `repair` refuses to install
+  ffmpeg there and points at Homebrew; yt-dlp and deno still repair
+  automatically.
+- **Per-user data directory.** New `core/paths.py` resolves one writable
+  location for cookies, `queue.json`, `presets.json`, `archive.txt`, and the
+  managed components (`%LOCALAPPDATA%\SocialClip Downloader`,
+  `~/Library/Application Support/SocialClip Downloader`, or
+  `~/.local/share/socialclip`), with **File -> Open data folder** to reveal it.
+  `SOCIALCLIP_DATA` moves the whole directory.
+- **A bundled JavaScript runtime.** The release builds now ship deno, so
+  YouTube works on a machine with no runtime of its own. `find_js_runtime`
+  looks on `PATH`, then in the managed data directory, then in the bundle.
 - **Browser cookie source:** open **File -> Cookies** and pick one installed
   browser (Chrome, Firefox, Edge, Brave, and others); the app passes it to
   yt-dlp as `cookiesfrombrowser`, and the one choice applies to every download.
