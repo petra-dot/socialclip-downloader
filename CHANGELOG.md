@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.9.3 - 2026-10-16
 ### Fixed
 - **YouTube downloads failing with HTTP 403.** yt-dlp's Python API does not read
   your yt-dlp config file and defaults to deno as its only JavaScript runtime,
@@ -11,6 +11,30 @@
   installed yt-dlp version with its age, flagging it when it is over 90 days
   old (doctor schema `1.2`). A stale yt-dlp is also noted once in the activity
   log at startup.
+- **MP3 audio with a stream copy always failed.** The conversion plan read a
+  global audio codec instead of the target format's, so it built `-c:a copy
+  -f mp3` for an MP3 target and ffmpeg refused it; the plan now consults the
+  target's own remux allow-list.
+- **A GUI-saved "Audio (MP3)" preset made the CLI download video.** The GUI
+  stored the human label and the CLI compared it to `mp3`; both sides now map
+  through one helper.
+- **The queue silently dropped jobs it could not read.** An unknown option key,
+  or a job from an older schema, was discarded on load; unknown keys are now
+  ignored while the job is kept.
+- **Thumbnail decoding ran on the worker thread.** `QPixmap` may only be built
+  on the GUI thread; the worker now decodes to a `QImage` and the slot turns it
+  into the pixmap.
+- **A failed ffmpeg run left its partial output behind.** The half-written file
+  could be mistaken for a good download; it is now removed on failure, matching
+  the converter.
+- **`--convert` could not be turned off for a preset.** The CLI gains
+  `--no-convert`, so an explicit flag beats the preset, which beats the default.
+- **A preset rename allowed a duplicate name, and a clip time like `1:90` was
+  accepted.** Renaming onto an existing name is rejected, and a non-leading time
+  component over 59 is now invalid.
+- The CLI archive follows `SOCIALCLIP_QUEUE` so it moves with the queue, the
+  updater refuses a non-HTTPS asset URL, and the Queue's option, retry, and edit
+  actions refuse to run while the queue is running.
 
 ### Added
 - **Browser cookie source:** open **File -> Cookies** and pick one installed

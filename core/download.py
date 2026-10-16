@@ -41,6 +41,15 @@ class DownloadCancelled(Exception):
     """Raised from the progress hook when the caller requests cancellation."""
 
 
+def _discard(path):
+    """Remove a failed ffmpeg output so it is never mistaken for a good file."""
+    try:
+        if path and os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
 def _cleanup_partial(created_paths):
     """Remove only the files this run wrote.
 
@@ -74,6 +83,7 @@ def _cut_file(path, clip):
     cmd = [ffmpeg_path(), "-i", path] + clip_ffmpeg_args(clip) + ["-y", out]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
+        _discard(out)
         return None
     return out
 
@@ -153,6 +163,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 downloaded_file = ydl.prepare_filename(info) if info else None
 
         if not info:
+            # With the archive on, an already-recorded video can come back as no
+            # info at all. Report it as skipped rather than an error: a genuine
+            # extraction failure raises above, so this branch only sees the
+            # archive's own no-op.
             if archive and clip is None:
                 return error_result(
                     "skipped", "Already downloaded; skipped.", url
@@ -208,6 +222,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                    "-y", mp3_path]
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if result.returncode != 0:
+                _discard(mp3_path)
                 return error_result(
                     "ffmpeg",
                     result.stderr.decode(errors="ignore"),
@@ -220,6 +235,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             out_file = f"{base}_{target_resolution}p.mp4"
             result = _ffmpeg_to_nle_mp4(downloaded_file, out_file, target_resolution)
             if result.returncode != 0:
+                _discard(out_file)
                 return error_result("ffmpeg", result.stderr.decode(errors="ignore"), url)
             os.remove(downloaded_file)
             final_path = out_file
@@ -239,6 +255,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                 out_file = f"{base}_h264.mp4"
                 result = _ffmpeg_to_nle_mp4(final_path, out_file, None)
                 if result.returncode != 0:
+                    _discard(out_file)
                     return error_result(
                         "ffmpeg", result.stderr.decode(errors="ignore"), url
                     )

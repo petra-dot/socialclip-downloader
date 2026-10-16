@@ -123,14 +123,26 @@ def test_store_jobs_dict_loads_empty(tmp_path):
     assert store.to_dict()["jobs"] == []
 
 
-def test_store_skips_bad_job_keeps_good(tmp_path):
+def test_store_drops_unknown_keys_but_keeps_the_job(tmp_path):
+    """An unknown key must not cost the user the entry."""
     path = tmp_path / "queue.json"
     path.write_text(json.dumps({
         "version": 1,
         "jobs": [
             {"id": "good", "url": "https://a.com/1"},
-            {"id": "bad", "bogus_key": 1},
+            {"id": "extra", "url": "https://b.com/2", "bogus_key": 1},
         ],
+    }))
+    store = QueueStore(str(path))
+    store.load()
+    assert [j.url for j in store.jobs] == ["https://a.com/1", "https://b.com/2"]
+
+
+def test_store_skips_a_job_that_is_not_a_mapping(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text(json.dumps({
+        "version": 1,
+        "jobs": [{"id": "good", "url": "https://a.com/1"}, "not-a-dict"],
     }))
     store = QueueStore(str(path))
     store.load()

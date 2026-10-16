@@ -92,3 +92,13 @@ def test_store_load_skips_non_dict_entries(tmp_path):
     store = PresetStore(str(path))
     store.load()
     assert store.user() == []
+
+
+def test_rename_rejects_a_duplicate_name(tmp_path):
+    from core.presets import Preset, PresetStore
+    store = PresetStore(str(tmp_path / "presets.json"))
+    store.presets = [Preset(name="A"), Preset(name="B")]
+    assert store.rename("A", "B") is False
+    assert [p.name for p in store.presets] == ["A", "B"]
+    assert store.rename("A", "C") is True
+    assert [p.name for p in store.presets] == ["C", "B"]

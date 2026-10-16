@@ -19,17 +19,17 @@ VIDEO_PATTERNS = (
     r"douyin\.com/video/",
 )
 
-# A URL that points at many videos, and the platform key it belongs to.
+# A URL that points at many videos.
 COLLECTION_PATTERNS = (
-    (r"youtube\.com/playlist", "youtube"),
-    (r"youtube\.com/(?:@[^/]+|channel/|c/|user/)", "youtube"),
-    (r"instagram\.com/[^/]+/?$", "instagram"),
-    (r"tiktok\.com/@[^/]+/?$", "tiktok"),
-    (r"(?:twitter|x)\.com/[^/]+/?$", "twitter"),
-    (r"facebook\.com/[^/]+/?$", "facebook"),
-    (r"space\.bilibili\.com/\d+", "bilibili"),
-    (r"bilibili\.com/space/", "bilibili"),
-    (r"douyin\.com/user/", "douyin"),
+    r"youtube\.com/playlist",
+    r"youtube\.com/(?:@[^/]+|channel/|c/|user/)",
+    r"instagram\.com/[^/]+/?$",
+    r"tiktok\.com/@[^/]+/?$",
+    r"(?:twitter|x)\.com/[^/]+/?$",
+    r"facebook\.com/[^/]+/?$",
+    r"space\.bilibili\.com/\d+",
+    r"bilibili\.com/space/",
+    r"douyin\.com/user/",
 )
 
 # A bare YouTube channel URL (no trailing tab path). yt-dlp flat-extracts such
@@ -88,7 +88,7 @@ def classify_url(url: str) -> str:
     for pattern in VIDEO_PATTERNS:
         if re.search(pattern, target):
             return "video"
-    for pattern, _platform in COLLECTION_PATTERNS:
+    for pattern in COLLECTION_PATTERNS:
         if re.search(pattern, target):
             return "collection"
     return "unknown"

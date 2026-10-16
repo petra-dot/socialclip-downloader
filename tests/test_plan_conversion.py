@@ -42,8 +42,15 @@ def test_audio_target_transcodes_when_audio_mismatched():
     assert plan.acodec == "mp3"
 
 
-def test_audio_force_copy_wins_over_mismatch():
+def test_audio_force_copy_transcodes_when_the_target_cannot_hold_it():
+    """MP3 cannot hold an AAC stream: a forced copy must still transcode."""
     plan = plan_conversion(_src("h264", "aac"), get("mp3"), copy_streams=True)
+    assert plan.mode == "transcode"
+    assert plan.acodec == "mp3"
+
+
+def test_audio_force_copy_remuxes_when_the_target_can_hold_it():
+    plan = plan_conversion(_src("h264", "mp3"), get("mp3"), copy_streams=True)
     assert plan.mode == "remux"
     assert plan.vcodec == ""
     assert plan.acodec == "copy"

@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/petra-dot/socialclip-downloader/actions/workflows/python-package.yml/badge.svg)](https://github.com/petra-dot/socialclip-downloader/actions/workflows/python-package.yml)
 [![Release](https://img.shields.io/github/v/release/petra-dot/socialclip-downloader)](https://github.com/petra-dot/socialclip-downloader/releases)
+[![Downloads](https://img.shields.io/github/downloads/petra-dot/socialclip-downloader/total)](https://github.com/petra-dot/socialclip-downloader/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -167,7 +168,7 @@ scripts, servers, and AI agents. From a source checkout, run
 `python cli.py <command>`.
 
 ```bash
-socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE] [--preset NAME] [--start TIME] [--end TIME] [--duration TIME] [--exact-cut] [--subtitles off|sidecar|embed|both]
+socialclip download URL [--format mp4|mp3] [--resolution 1080] [--output DIR] [--cookies FILE] [--preset NAME] [--convert|--no-convert] [--start TIME] [--end TIME] [--duration TIME] [--exact-cut] [--subtitles off|sidecar|embed|both]
 socialclip convert FILE [--to KEY] [--copy|--no-copy] [--resolution 1080]
 socialclip queue add URL [URL ...] [--expand]
 socialclip queue list
@@ -181,10 +182,10 @@ socialclip manifest-schema
 
 | Command | What it does |
 |---------|--------------|
-| `download` | Fetch one URL and save it as MP4 or MP3. `--preset NAME` fills unset options from a saved download preset (built-in or your own); an explicit flag wins over the preset. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. `--subtitles off|sidecar|embed|both` saves subtitle sidecars, muxes them into the video, or does both (default `off`). |
+| `download` | Fetch one URL and save it as MP4 or MP3. `--preset NAME` fills unset options from a saved download preset (built-in or your own); an explicit flag wins over the preset, so `--no-convert` overrides a preset that converts. Add `--start` with `--end` or `--duration` to save only a time range (times accept `90`, `1:30`, or `00:01:30`); `--exact-cut` re-encodes at the precise frame instead of a lossless stream copy. `--subtitles off\|sidecar\|embed\|both` saves subtitle sidecars, muxes them into the video, or does both (default `off`). |
 | `convert` | Convert a local file to a format key: `mp4`, `mkv`, `mov`, `avi`, `gif`, `mp3`, `m4a`, `wav`, `aac`. Streams auto-remux when they already fit; `--copy` forces a stream copy, `--no-copy` forces a re-encode. Every output is H.264 video with AAC/MP3/PCM audio, so it imports into CapCut, Premiere Pro, After Effects, and DaVinci Resolve. |
 | `queue add\|list\|run\|retry\|clear\|archive` | Manage a persistent download queue that the GUI shares. `add --expand` expands a playlist, channel, or profile URL into its videos (best-effort off YouTube) and enqueues them. `run --jobs N` downloads up to `N` (1-8, default 3) at once. `run --archive` skips videos already recorded in the archive, and `queue archive --clear` resets it. `retry` re-queues every failed job. |
-| `doctor` | Report ffmpeg version, cookie files found, and network reachability. Exits `0` if ffmpeg is present, `3` otherwise. |
+| `doctor` | Report ffmpeg version, cookie files found, network reachability, the JavaScript runtime YouTube needs, and how old the installed yt-dlp is. Exits `0` if ffmpeg is present, `3` otherwise. |
 | `manifest-schema` | Print the JSON Schema for structured results. |
 
 ### Machine-readable output
@@ -195,7 +196,7 @@ results can be parsed directly by a script or an agent:
 
 ```console
 $ socialclip doctor --json
-{"schema_version": "1.1", "ffmpeg": {"found": true, "path": "/usr/bin/ffmpeg", "version": "ffmpeg version 6.1"}, "cookies": [{"platform": "youtube", "found": false, "path": null}], "network": {"ok": true, "detail": "reachable"}}
+{"schema_version": "1.2", "ffmpeg": {"found": true, "path": "/usr/bin/ffmpeg", "version": "ffmpeg version 6.1"}, "cookies": [{"platform": "youtube", "found": false, "path": null}], "network": {"ok": true, "detail": "reachable"}, "js_runtime": {"found": true, "name": "node", "path": "/usr/bin/node", "candidates": ["deno", "node", "bun", "quickjs"]}, "ytdlp": {"version": "2026.08.19", "age_days": 58, "stale": false}}
 ```
 
 Exit codes are stable: `0` success, `1` download failure, `2` usage error,

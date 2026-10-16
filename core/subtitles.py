@@ -13,6 +13,15 @@ from utils.ffmpeg import ffmpeg_path
 
 DELIVERIES = ("off", "sidecar", "embed", "both")
 
+# (value, label) pairs for every delivery combo, so the three UI combos and the
+# CLI cannot drift apart.
+DELIVERY_CHOICES = (
+    ("off", "Off"),
+    ("sidecar", "Sidecar (.srt)"),
+    ("embed", "Embed"),
+    ("both", "Both"),
+)
+
 # A track is usable only if it offers one of these; an srt is written as-is, a
 # vtt is converted. json3/srv sources would need their own parser.
 _FORMAT_ORDER = ("srt", "vtt")
