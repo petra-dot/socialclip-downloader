@@ -191,8 +191,35 @@ def test_entry_point_does_not_import_ytdlp_at_module_scope():
 import pytest
 
 
-def test_is_supported_url_accepts_known_sites():
-    pytest.importorskip("yt_dlp.extractor")
+class _FakeExtractor:
+    """A tiny stand-in for a yt-dlp extractor, driven by explicit substrings."""
+
+    def __init__(self, key, patterns):
+        self._key = key
+        self._patterns = patterns
+
+    def ie_key(self):
+        return self._key
+
+    def suitable(self, url):
+        return any(pattern in url for pattern in self._patterns)
+
+
+def _fake_extractors():
+    return [
+        _FakeExtractor("Youtube", ("youtu.be/", "youtube.com/shorts/")),
+        _FakeExtractor("Facebook", ("facebook.com/reel/",)),
+        _FakeExtractor("TikTok", ("tiktok.com/@a/video/",)),
+        _FakeExtractor("Generic", ("http",)),
+    ]
+
+
+def test_is_supported_url_accepts_known_sites(monkeypatch):
+    # Drive is_supported_url against a controlled extractor list so an
+    # upstream extractor-regex change cannot flip this assertion.
+    from utils import ytdlp
+
+    monkeypatch.setattr(ytdlp, "_EXTRACTOR_CACHE", _fake_extractors())
     from utils.ytdlp import is_supported_url
 
     for url in (
@@ -204,8 +231,10 @@ def test_is_supported_url_accepts_known_sites():
         assert is_supported_url(url) is True, url
 
 
-def test_is_supported_url_rejects_unsupported_and_non_urls():
-    pytest.importorskip("yt_dlp.extractor")
+def test_is_supported_url_rejects_unsupported_and_non_urls(monkeypatch):
+    from utils import ytdlp
+
+    monkeypatch.setattr(ytdlp, "_EXTRACTOR_CACHE", _fake_extractors())
     from utils.ytdlp import is_supported_url
 
     # https://a.com/1 is matched only by the generic extractor, which is
@@ -215,3 +244,17 @@ def test_is_supported_url_rejects_unsupported_and_non_urls():
     assert is_supported_url("") is False
     assert is_supported_url("not a url") is False
     assert is_supported_url("example") is False
+
+
+@pytest.mark.integration
+def test_is_supported_url_against_the_real_extractor_db():
+    """Kept only to see the real DB at all; brittle by design, expect edits.
+
+    This depends on the host's installed yt-dlp, so an upstream extractor
+    regex change can flip it with no app change. The mechanism is covered
+    above against a controlled list; do not add more cases here.
+    """
+    pytest.importorskip("yt_dlp.extractor")
+    from utils.ytdlp import is_supported_url
+
+    assert is_supported_url("https://youtu.be/aaaaaaaaaaa") is True
