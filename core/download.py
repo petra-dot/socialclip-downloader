@@ -461,6 +461,9 @@ def _run_download(url, outtmpl, output_type, convert, target_resolution,
 
         manifest = result_from_info(info, final_path, url)
         manifest.message = message
+        # The name on disk is what the user will look for later, so record it
+        # rather than the site's raw title (Facebook reports a bare "Facebook").
+        manifest.title = os.path.splitext(os.path.basename(final_path))[0]
         # Extension must describe the artifact we actually hand back, not the
         # container yt-dlp extracted (e.g. MP3 output keeps info["ext"] == "mp4").
         manifest.extension = os.path.splitext(final_path)[1].lstrip(".")

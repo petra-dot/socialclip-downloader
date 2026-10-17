@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from core.paths import history_path
+from sites.cookies import PLATFORM_NAMES
 
 STORE_VERSION = 1
 
@@ -63,6 +64,50 @@ def status_of(entry, exists=None) -> str:
         return STATUS_DELETED
     check = exists if exists is not None else os.path.isfile
     return STATUS_OK if entry.path and check(entry.path) else STATUS_MISSING
+
+
+def platform_label(platform: str) -> str:
+    """Human name for a stored platform key: 'facebook' -> 'Facebook'.
+
+    The raw key stays in the entry (matching and filtering use it); only the
+    display uses this. An unknown key passes through unchanged rather than
+    being blanked.
+    """
+    key = (platform or "").strip().lower()
+    return PLATFORM_NAMES.get(key, platform or "")
+
+
+def _ago(count: int, unit: str) -> str:
+    count = max(1, int(count))
+    return "%d %s%s ago" % (count, unit, "" if count == 1 else "s")
+
+
+def format_date(stamp: str, now=None) -> str:
+    """A relative date inside the last week, an absolute date beyond it.
+
+    `now` is injectable so this stays pure. Unparseable input falls back to
+    its own first ten characters, so a row always shows something.
+    """
+    try:
+        when = datetime.fromisoformat(stamp)
+    except (TypeError, ValueError):
+        return (stamp or "")[:10]
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    reference = now or datetime.now(timezone.utc)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=timezone.utc)
+    seconds = (reference - when).total_seconds()
+    if seconds < 60:
+        return "just now"
+    if seconds < 3600:
+        return _ago(seconds // 60, "minute")
+    if seconds < 86400:
+        return _ago(seconds // 3600, "hour")
+    if seconds < 7 * 86400:
+        return _ago(seconds // 86400, "day")
+    return (stamp or "")[:10]
+
 
 
 def search(entries, text: str) -> List[HistoryEntry]:

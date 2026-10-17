@@ -1,8 +1,8 @@
 import json
 
 from core.history import (
-    HistoryEntry, HistoryStore, entry_from_result, filter_entries, record,
-    search, sort_entries, status_of,
+    HistoryEntry, HistoryStore, entry_from_result, filter_entries, format_date,
+    platform_label, record, search, sort_entries, status_of,
 )
 from core.manifest import DownloadResult
 
@@ -52,6 +52,43 @@ def test_status_of_reports_present_absent_and_deleted():
     assert status_of(_entry(), exists=lambda p: False) == "missing"
     assert status_of(_entry(removed_at="2026-01-02")) == "deleted"
     assert status_of(_entry(path="")) == "missing"
+
+
+def test_platform_label_maps_a_known_key_and_passes_unknown_through():
+    assert platform_label("facebook") == "Facebook"
+    assert platform_label("youtube") == "YouTube"
+    # An unknown key is shown as-is, never blanked or invented.
+    assert platform_label("mystery") == "mystery"
+    assert platform_label("") == ""
+    assert platform_label(None) == ""
+
+
+def test_format_date_is_relative_inside_a_week():
+    import datetime
+
+    now = datetime.datetime(2026, 10, 18, 12, 0,
+                            tzinfo=datetime.timezone.utc)
+    assert format_date("2026-10-18T11:59:30+00:00", now=now) == "just now"
+    assert format_date("2026-10-18T11:59:00+00:00", now=now) == "1 minute ago"
+    assert format_date("2026-10-18T11:30:00+00:00", now=now) == "30 minutes ago"
+    assert format_date("2026-10-18T09:00:00+00:00", now=now) == "3 hours ago"
+    assert format_date("2026-10-16T12:00:00+00:00", now=now) == "2 days ago"
+
+
+def test_format_date_is_absolute_beyond_a_week():
+    import datetime
+
+    now = datetime.datetime(2026, 10, 18, 12, 0,
+                            tzinfo=datetime.timezone.utc)
+    assert format_date("2026-10-01T12:00:00+00:00", now=now) == "2026-10-01"
+    # Exactly seven days is "beyond the week", not inside it.
+    assert format_date("2026-10-11T12:00:00+00:00", now=now) == "2026-10-11"
+
+
+def test_format_date_tolerates_unparseable_input():
+    assert format_date("") == ""
+    assert format_date("not a date") == "not a date"
+
 
 
 def test_search_matches_the_title_case_insensitively():

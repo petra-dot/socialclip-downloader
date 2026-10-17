@@ -49,3 +49,49 @@ def test_download_one_works_with_no_store(monkeypatch, tmp_path):
     result = download_one("https://a.com/1", str(tmp_path / "%(title)s.%(ext)s"),
                           "MP4", False, None)
     assert result.status == "ok"
+
+
+def test_records_the_renamed_file_not_the_raw_title(monkeypatch, tmp_path):
+    """A generic site title is renamed on disk; the history names the artifact.
+
+    Facebook reports a bare "Facebook" when cookies are sent, but the file is
+    saved under the real title. The recorded entry must name the file that
+    exists, or every Facebook row reads "Facebook" and matches nothing on disk.
+    """
+    site_named = tmp_path / "Facebook.mp4"
+    site_named.write_text("data")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            if not download:
+                return {"title": "My Holiday Video 2026"}
+            return {"id": "123", "title": "Facebook", "ext": "mp4", "height": 720}
+
+        def prepare_filename(self, info):
+            return str(site_named)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 720,
+                           "container": "mp4"},
+    )
+    store = FakeStore()
+    result = download_one(
+        "https://a.com/1", str(tmp_path / "%(title)s.%(ext)s"),
+        "MP4", False, None, history=store, source="single",
+    )
+    assert result.status == "ok"
+    assert result.path == str(tmp_path / "My Holiday Video 2026.mp4")
+    assert store.entries[0].title == "My Holiday Video 2026"
+    assert store.entries[0].title != "Facebook"
+

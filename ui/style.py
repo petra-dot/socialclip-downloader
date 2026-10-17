@@ -52,6 +52,18 @@ def state_style(kind: str) -> str:
     return "color: %s;" % color if color else ""
 
 
+def danger_text_style() -> str:
+    """Red text for a destructive action on a native button.
+
+    Only the colour is set, so the button keeps the platform's own chrome and
+    height and stays aligned with the buttons beside it. A drawn border on a
+    native button renders as a crude box and changes its size.
+    """
+    return "QPushButton { color: %s; } QPushButton:disabled { color: %s; }" % (
+        state_color("error"), state_color("muted"),
+    )
+
+
 def make_heading(label):
     """Style a QLabel as a section heading, scaled from the app font."""
     font = label.font()
