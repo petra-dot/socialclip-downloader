@@ -3,6 +3,8 @@ import re
 import subprocess
 import sys
 
+from utils.proc import no_window_kwargs
+
 _SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _HOSTISH = re.compile(r"^[\w-]+(\.[\w-]+)+(/\S*)?$")
 
@@ -70,9 +72,11 @@ def reveal_in_folder(path: str) -> None:
         shell_string = reveal_shell_string(path)
         if shell_string is not None:
             # Windows: one command string, or explorer opens the default folder.
-            subprocess.run(shell_string, shell=True, check=False)
+            subprocess.run(shell_string, shell=True, check=False,
+                           **no_window_kwargs())
         else:
-            subprocess.run(reveal_command(path), check=False)
+            subprocess.run(reveal_command(path), check=False,
+                           **no_window_kwargs())
     except Exception:
         pass
 
@@ -101,7 +105,7 @@ def open_file(path: str) -> bool:
         if sys.platform == "win32":
             os.startfile(path)          # noqa: S606  (Windows-only API)
         else:
-            subprocess.Popen(open_command(path))
+            subprocess.Popen(open_command(path), **no_window_kwargs())
         return True
     except Exception:
         return False

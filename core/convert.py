@@ -7,6 +7,7 @@ from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
 from utils.ffmpeg import ffmpeg_path
+from utils.proc import no_window_kwargs
 from utils.ydl_opts import _ffmpeg_to_nle_mp4, ffprobe_get_height
 
 
@@ -86,8 +87,13 @@ def _convert_to_format(input_path, fmt, copy_streams, target_resolution=None,
             cmd += ["-c:a", plan.acodec]
         cmd += ["-f", plan.container, "-y", out_path]
 
-    run = subprocess.run if runner is None else runner
-    result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if runner is None:
+        result = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            **no_window_kwargs(),
+        )
+    else:
+        result = runner(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
         # ffmpeg may have written a partial output before failing; never leave
         # a corrupt file behind under the target extension.
@@ -149,7 +155,8 @@ def convert_file(input_path: str, output_type: str = None,
                     "-ar", "44100", "-ac", "2",
                     "-y", out_path,
                 ]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, **no_window_kwargs())
             if result.returncode != 0:
                 return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
             return DownloadResult(status="ok", path=out_path, extension=output_type.lower())

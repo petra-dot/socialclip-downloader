@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from utils.ffmpeg import ffmpeg_path
+from utils.proc import no_window_kwargs
 
 DELIVERIES = ("off", "sidecar", "embed", "both")
 
@@ -88,6 +89,7 @@ def write_subtitle(track, base_path, opener=None) -> Optional[str]:
             result = subprocess.run(
                 [ffmpeg_path(), "-y", "-i", tmp, dest],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                **no_window_kwargs(),
             )
         finally:
             try:
@@ -122,7 +124,7 @@ def embed_subtitles(video_path, subtitles) -> bool:
     out = base + ".subs" + ext
     result = subprocess.run(
         embed_command(video_path, subtitles, out, ffmpeg=ffmpeg_path()),
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, **no_window_kwargs(),
     )
     if result.returncode != 0:
         try:

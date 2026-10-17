@@ -50,6 +50,7 @@ workers/probe_worker.py    probes one file for container/codecs off the UI threa
 workers/maintenance_worker.py  runs component checks and repairs off the UI thread
 workers/update_worker.py   update check + digest-verified asset download
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
+utils/proc.py              console-child spawn flags (no console window on Windows)
 utils/ydl_opts.py          yt-dlp opts, ffmpeg helpers, ANSI strip
 utils/file_utils.py        filename sanitizing, unique paths, shared combos
 utils/ui_helpers.py        looks_like_url, reveal_in_folder (Qt-free)
@@ -137,6 +138,9 @@ helpers testable. CI lints and runs pytest.
   best-effort elsewhere.
 - Route any new user-facing error copy through
   `sites.errors.classify_error`; do not re-add keyword lists to the workers.
+- Spawn every console child (ffmpeg, ffprobe, `cmd.exe`) through
+  `utils.proc.no_window_kwargs()`; a frozen `--windowed` build otherwise flashes
+  a console window. `tests/test_proc.py` enforces this.
 - Cancel is a callable checked in the yt-dlp progress hook
   (`core.download.download_one(cancel=...)`), not a Qt signal; a cancelled run
   returns `error_category == "cancelled"`, a distinct category from the six in

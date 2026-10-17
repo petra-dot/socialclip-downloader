@@ -3,6 +3,7 @@ import re
 import subprocess
 
 from utils.ffmpeg import ffmpeg_path, ffprobe_path
+from utils.proc import no_window_kwargs
 from utils.ytdlp import js_runtimes
 
 
@@ -32,7 +33,9 @@ def _ffprobe_height(path: str) -> int:
         "-of", "csv=p=0",
         path,
     ]
-    out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
+    out = subprocess.check_output(
+        cmd, stderr=subprocess.STDOUT, **no_window_kwargs()
+    ).decode().strip()
     if out:
         return int(out.splitlines()[0].strip())
     return 0
@@ -41,7 +44,8 @@ def _ffprobe_height(path: str) -> int:
 def _ffmpeg_height(path: str) -> int:
     # Fallback for when ffprobe is unavailable (bundled builds ship only ffmpeg).
     cmd = [ffmpeg_path(), "-i", path]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, **no_window_kwargs())
     match = re.search(rb"Video:.*?(\d{2,5})x(\d{2,5})", proc.stderr)
     if match:
         return int(match.group(2))
@@ -123,7 +127,8 @@ def _ffmpeg_to_nle_mp4(input_path: str, output_path: str, scale_height: int = No
         "-movflags", "+faststart",
         "-y", output_path,
     ]
-    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return subprocess.run(cmd, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, **no_window_kwargs())
 
 
 def strip_ansi(text: str) -> str:

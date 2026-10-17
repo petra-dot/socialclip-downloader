@@ -17,6 +17,7 @@ from utils.file_utils import (
     is_generic_title,
     make_unique_filepath,
 )
+from utils.proc import no_window_kwargs
 from utils.ydl_opts import (
     _ffmpeg_to_nle_mp4,
     _nle_ydl_opts,
@@ -146,7 +147,8 @@ def _cut_file(path, clip):
     """Cut `path` to `clip`. Returns the new path, or None on failure."""
     out = _clip_name(path, clip)
     cmd = [ffmpeg_path(), "-i", path] + clip_ffmpeg_args(clip) + ["-y", out]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, **no_window_kwargs())
     if result.returncode != 0:
         _discard(out)
         return None
@@ -376,7 +378,8 @@ def _run_download(url, outtmpl, output_type, convert, target_resolution,
             mp3_path = os.path.splitext(downloaded_file)[0] + ".mp3"
             cmd = [ffmpeg_path(), "-i", downloaded_file, "-q:a", "0", "-map", "a",
                    "-y", mp3_path]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, **no_window_kwargs())
             if result.returncode != 0:
                 _discard(mp3_path)
                 return error_result(

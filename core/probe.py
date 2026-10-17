@@ -2,13 +2,15 @@ import json
 import subprocess
 
 from utils.ffmpeg import ffprobe_path
+from utils.proc import no_window_kwargs
 
 _EMPTY = {"vcodec": "", "acodec": "", "height": 0, "container": ""}
 
 
 def _default_runner(cmd):
     return subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+        **no_window_kwargs(),
     )
 
 

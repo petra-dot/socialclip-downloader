@@ -3,6 +3,7 @@ import subprocess
 
 from sites.cookies import PLATFORM_NAMES, cookie_file_for, default_cookie_dir
 from utils.ffmpeg import find_ffmpeg
+from utils.proc import no_window_kwargs
 from utils.ytdlp import (
     RUNTIMES,
     find_js_runtime,
@@ -29,7 +30,8 @@ def ffmpeg_version(path, runner=None):
     run = runner
     if run is None:
         def run(cmd):
-            return subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+            return subprocess.run(cmd, stdout=subprocess.PIPE, text=True,
+                                  **no_window_kwargs())
     try:
         proc = run([path, "-version"])
         if getattr(proc, "returncode", 0) != 0:
