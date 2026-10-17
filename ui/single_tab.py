@@ -18,7 +18,6 @@ from utils.file_utils import (
 )
 from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
-from utils.ytdlp import is_supported_url
 from core.clip import resolve_range
 from core.presets import Preset, PresetStore, default_presets_path
 from ui.dialogs import manage_presets
@@ -766,8 +765,8 @@ class SingleTab(QtWidgets.QWidget):
             self.show_hint("This is a playlist or channel; opening the Queue.")
             self.collection_requested.emit(url)
             return
-        if not looks_like_url(url) or not is_supported_url(url):
-            self.show_hint("That link is not a site yt-dlp can download from.")
+        if not looks_like_url(url):
+            self.show_hint("That does not look like a URL.")
             return
         self.show_hint("")
         self._url_timer.stop()

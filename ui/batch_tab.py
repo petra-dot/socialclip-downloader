@@ -19,7 +19,6 @@ from utils.file_utils import (
     output_index_for,
 )
 from utils.ui_helpers import looks_like_url
-from utils.ytdlp import is_supported_url
 from workers.expand_worker import ExpandWorker
 from workers.queue_worker import QueueWorker
 
@@ -533,15 +532,9 @@ class QueueTab(QtWidgets.QWidget):
         collections = []
         accepted = []
         skipped = 0
-        unsupported = 0
         for url in urls:
             if not looks_like_url(url):
                 skipped += 1
-            elif not is_supported_url(url):
-                # Not a site yt-dlp has an extractor for (the generic extractor
-                # does not count): queueing it would only fail with
-                # "Unsupported URL".
-                unsupported += 1
             elif classify_url(url) == "collection":
                 collections.append(url)
                 accepted.append(url)
@@ -555,12 +548,10 @@ class QueueTab(QtWidgets.QWidget):
             self.refresh_table()
         if skipped:
             self.batch_log("Skipped %d line(s) that did not look like a URL." % skipped)
-        if unsupported:
-            self.batch_log("Skipped %d link(s) yt-dlp cannot download." % unsupported)
-        if not singles and not collections and (skipped or unsupported):
-            self.show_hint("No links yt-dlp can download were added.")
-        # The last *accepted* URL, not the last raw line: a trailing junk or
-        # unsupported line resolves to "" and would wrongly clear the box.
+        if not singles and not collections and skipped:
+            self.show_hint("No links that look like URLs were added.")
+        # The last *accepted* URL, not the last raw line: a trailing junk line
+        # resolves to "" and would wrongly clear the box.
         if accepted:
             self._show_cookie_for_url(accepted[-1])
         self._expand_queue.extend(collections)

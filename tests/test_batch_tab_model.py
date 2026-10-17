@@ -14,7 +14,6 @@ def test_add_jobs_reflects_last_accepted_url_not_the_last_raw_line(monkeypatch):
     from ui import batch_tab
     from ui.batch_tab import QueueTab
 
-    monkeypatch.setattr(batch_tab, "is_supported_url", lambda url: True)
     monkeypatch.setattr(batch_tab, "classify_url", lambda url: "single")
 
     added = []
