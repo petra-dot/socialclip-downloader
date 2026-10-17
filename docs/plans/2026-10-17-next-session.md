@@ -1,7 +1,7 @@
 # Next Session - 2026-10-17
 
-Status: items 1 and 3 DONE; item 2 (UI design) still to do
-Written: 2026-10-16, after the v0.10.0 release. Updated: items 1 and 3 fixed.
+Status: ALL ITEMS DONE (items 1, 2, 3 and the follow-ups)
+Written: 2026-10-16, after the v0.10.0 release. Updated: everything below is done.
 
 **Remaining work is item 2 only: redesign the Doctor / Health interface.**
 Start it with the brainstorming skill.
@@ -157,3 +157,16 @@ have been deleted). The notable ones:
   frozen build; the maintenance installer supplies both.
 - `_managed_runtime` has no executability check, so on POSIX a stray
   non-executable file named `deno` is returned as the runtime.
+
+- **Item 2 - the Doctor/Health redesign: DONE** (`5aa5ce1`). The dialog was a
+  monospaced text blob in a `QTextEdit`, and it ran `run_checks()` (a 3 s
+  socket probe) plus `check_all()` (spawns `ffmpeg -version`) synchronously, so
+  opening it froze the window. Rebuilt as a **status dashboard**: a tone-coloured
+  headline, one row per component with a state chip, version/detail, and a Repair
+  button only where one is needed; `doctor_lines` kept pure and moved into a
+  collapsed **Details** pane; footer **Repair all (N)** (only when >1 needs it),
+  **Open data folder**, **Close**. A new `DoctorCheckWorker` moves the probe off
+  the GUI thread, so the dialog opens instantly in a `Checking…` state.
+  `MaintenanceCheckWorker` untouched. Verified offscreen on the real machine:
+  `Everything is working` with five OK rows and no Repair button.
+
