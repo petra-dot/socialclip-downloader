@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.12.1 - 2026-10-18
+
+### Fixed
+- **The History detail pane froze the window on the first click of a row.** The
+  container and codec probe ran `ffprobe` on the UI thread, so the first click on
+  each downloaded file stalled while the process started — worst in the frozen
+  Windows build, whose bundle ships `ffmpeg` but no `ffprobe` and so falls back
+  to `PATH`. The probe now runs on a worker thread: the pane paints at once, the
+  codec rows read `…`, and they fill in when the probe answers. Results are
+  cached per file, so every later click is instant.
+
 ## v0.12.0 - 2026-10-18
 
 ### Added
