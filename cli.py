@@ -7,6 +7,7 @@ import sys
 from core.history import HistoryStore
 from core.manifest import SCHEMA_VERSION, error_result
 from core.subtitles import DELIVERIES
+from utils.file_utils import OUTPUT_TEMPLATE
 
 EXIT_OK = 0
 EXIT_FAIL = 1
@@ -88,7 +89,7 @@ def _cmd_download(args) -> int:
         convert = args.convert
     out_dir = args.output or (preset.save_dir if preset and preset.save_dir else None) \
         or default_download_folder()
-    outtmpl = f"{out_dir}/%(title)s.%(ext)s"
+    outtmpl = f"{out_dir}/{OUTPUT_TEMPLATE}"
     output_type = output_code_for(fmt)
     result = download_one(
         args.url, outtmpl=outtmpl, output_type=output_type,

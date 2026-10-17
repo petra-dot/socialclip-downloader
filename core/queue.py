@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Callable, List, Optional
 
 from core.manifest import DownloadResult
-from utils.file_utils import default_download_folder
+from utils.file_utils import OUTPUT_TEMPLATE, default_download_folder
 
 STATES = ("pending", "running", "done", "failed", "cancelled", "paused",
           "skipped")
@@ -46,7 +46,7 @@ def resolve_outtmpl(options: Optional[dict]) -> str:
     opts = options or {}
     return opts.get("outtmpl") or os.path.join(
         opts.get("output_dir") or default_download_folder(),
-        "%(title)s.%(ext)s",
+        OUTPUT_TEMPLATE,
     )
 
 

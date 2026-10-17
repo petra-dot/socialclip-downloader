@@ -62,7 +62,7 @@ def test_queue_executor_resolves_outtmpl_precedence(monkeypatch):
     import core.download
     from core.manifest import DownloadResult
     from core.queue import QueueJob
-    from utils.file_utils import default_download_folder
+    from utils.file_utils import OUTPUT_TEMPLATE, default_download_folder
 
     captured = []
 
@@ -77,9 +77,9 @@ def test_queue_executor_resolves_outtmpl_precedence(monkeypatch):
     cli._queue_executor(QueueJob(url="u", options={}))
 
     assert captured[0] == "C:/chosen/t.%(ext)s"
-    assert captured[1] == os.path.join("C:/dir", "%(title)s.%(ext)s")
+    assert captured[1] == os.path.join("C:/dir", OUTPUT_TEMPLATE)
     assert captured[2] == os.path.join(
-        default_download_folder(), "%(title)s.%(ext)s"
+        default_download_folder(), OUTPUT_TEMPLATE
     )
 
 

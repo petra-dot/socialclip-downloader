@@ -79,6 +79,28 @@ def get_uploader(info: dict) -> str:
     return ""
 
 
+# Two videos can share a title (Facebook returns a generic "Facebook" when a
+# cookie file is sent), and two concurrent downloads of such videos would then
+# share one output path and fail inside yt-dlp's converter. The id makes every
+# path unique per video. Single-tab downloads build their own unique base
+# instead and do not use this template.
+OUTPUT_TEMPLATE = "%(title)s [%(id)s].%(ext)s"
+
+
+def clean_download_base(base: str, video_id: str = "") -> str:
+    """Drop the " [<id>]" uniqueness token OUTPUT_TEMPLATE writes.
+
+    Only the exact token for a known id is removed, so a title that genuinely
+    ends in brackets is left alone.
+    """
+    if not base or not video_id:
+        return base
+    suffix = " [%s]" % video_id
+    if base.endswith(suffix):
+        return base[: -len(suffix)]
+    return base
+
+
 def make_unique_filepath(
     save_dir: str, base_filename: str, ext: str, fallback_id: str = None
 ) -> str:

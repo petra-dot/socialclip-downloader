@@ -11,6 +11,7 @@ from core.progress import Progress
 from sites.errors import classify_error, looks_like_auth_error
 from utils.ffmpeg import ffmpeg_path
 from utils.file_utils import (
+    clean_download_base,
     clean_title,
     get_uploader,
     is_generic_title,
@@ -309,30 +310,34 @@ def _run_download(url, outtmpl, output_type, convert, target_resolution,
                 "skipped", "Already downloaded; skipped.", url
             )
 
-        # A site can hand back a title that is just its own name (Facebook does
-        # this when cookies are sent), which would name the file after the site.
         if downloaded_file and os.path.isfile(downloaded_file):
             current_base = os.path.splitext(os.path.basename(downloaded_file))[0]
-            if is_generic_title(current_base, info):
-                better = better_base_name(
+            # The output template carries a " [<id>]" token so two videos with
+            # the same title never share a path; strip it for the name on disk.
+            base = clean_download_base(current_base, info.get("id"))
+            # A site can hand back a title that is just its own name (Facebook
+            # does this when cookies are sent), which would name the file after
+            # the site.
+            if is_generic_title(base, info):
+                base = better_base_name(
                     info, url=url, cookies_file=cookies_file,
                     cookies_from_browser=cookies_from_browser,
+                ) or base
+            if base and base != current_base:
+                _, current_ext = os.path.splitext(downloaded_file)
+                target = make_unique_filepath(
+                    os.path.dirname(downloaded_file), base,
+                    current_ext.lstrip("."), fallback_id=info.get("id"),
                 )
-                if better and better != current_base:
-                    _, current_ext = os.path.splitext(downloaded_file)
-                    target = make_unique_filepath(
-                        os.path.dirname(downloaded_file), better,
-                        current_ext.lstrip("."), fallback_id=info.get("id"),
-                    )
-                    try:
-                        os.replace(downloaded_file, target)
-                        # Register the new name too so a later cancel or failure
-                        # cleans up the file that is actually on disk; the old
-                        # path is gone and removing it again is harmless.
-                        in_flight["created"].add(target)
-                        downloaded_file = target
-                    except OSError:
-                        pass
+                try:
+                    os.replace(downloaded_file, target)
+                    # Register the new name too so a later cancel or failure
+                    # cleans up the file that is actually on disk; the old
+                    # path is gone and removing it again is harmless.
+                    in_flight["created"].add(target)
+                    downloaded_file = target
+                except OSError:
+                    pass
 
         if clip is not None and os.path.isfile(downloaded_file):
             moved = False

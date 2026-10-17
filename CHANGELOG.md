@@ -16,6 +16,16 @@
   **Deleted by you**; Remove from history drops the entry and leaves the file
   alone. Both confirm first, and only paths the app recorded are ever touched.
 
+### Fixed
+- **Two downloads with the same title could collide and one failed.** Facebook
+  returns the generic title `Facebook` when a cookie file is sent, so two such
+  videos downloaded at the same time shared one output path and the second died
+  inside yt-dlp's converter with `[WinError 183] Cannot create a file when that
+  file already exists`. The Queue and the CLI now put the video id in the output
+  template (`%(title)s [%(id)s].%(ext)s`), so every path is unique per video, and
+  the id is stripped back out for the name on disk. The Download tab already
+  built a unique base and was not affected.
+
 ## v0.10.1 - 2026-10-18
 
 ### Fixed
