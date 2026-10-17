@@ -1,10 +1,35 @@
 # Next Session - 2026-10-17
 
-Status: planned
-Written: 2026-10-16, after the v0.10.0 release.
+Status: items 1 and 3 DONE; item 2 (UI design) still to do
+Written: 2026-10-16, after the v0.10.0 release. Updated: items 1 and 3 fixed.
 
-Two items, in this order. Item 1 is small and self-contained; item 2 is a
-design task and should start with the brainstorming skill.
+**Remaining work is item 2 only: redesign the Doctor / Health interface.**
+Start it with the brainstorming skill.
+
+## Done in this pass
+
+- **Item 1 - cookie resolution: FIXED** (`ef6a2da`).
+  Root cause: the download core never resolved cookies per-URL (only the CLI
+  did), the Queue tab never auto-detected at all, and the shared path was one
+  global string, so a mixed-platform queue reused the first URL's file.
+  Fix: `sites.cookies.resolve_cookie_file(url, override)` (override wins, else
+  the platform's own file) called at the top of `core.download.download_one`,
+  so both tabs are fixed in one place; the tabs now show the detection as
+  placeholder text instead of a sticky fill. Verified live: a YouTube URL
+  resolves `www.youtube.com_cookies.txt` and a Douyin URL
+  `www.douyin.com_cookies.txt` with no manual step.
+- **Item 3 - queue downloads named after the site: FIXED** (`69430e8`).
+  Root cause (counter-intuitive, proven live): **Facebook returns the generic
+  title `Facebook` when a cookie file is sent**, and the real title only
+  without cookies. `%(title)s` was therefore literally `Facebook`, and the app
+  accepted it. The Download tab had the same bug - it looked fine only because
+  the user tested YouTube URLs there.
+  Fix: `utils.file_utils.is_generic_title` plus
+  `core.download.better_base_name`, applied in the shared download core so both
+  tabs benefit. Order: the real title (re-fetched without cookies when the site
+  degraded it) -> `uploader_id` -> `id`. Verified live: the same URL now yields
+  `13K views ... Can Touching Your Partner Reduce Stress ... #psychologyfacts`.
+- Baseline now: `python -m pytest -q` -> **536 passing**; lint gate -> **0**.
 
 ## Context to resume from
 
@@ -30,44 +55,17 @@ design task and should start with the brainstorming skill.
 
 ---
 
-## Item 1 - Fix the cookie resolution bug
+## Item 1 - Fix the cookie resolution bug  [DONE - `ef6a2da`, `69430e8` was item 3]
 
-**Reported by the user, still open.** The Cookies dialog (`File -> Cookies`)
-lists the cookie files it found, but the **Cookies file** field on the Download
-and Queue tabs does not show the detection, so the user has to set it by hand.
+**Resolved.** See "Done in this pass" above for the root cause and the fix.
+Kept here for the record of what the three defects were:
 
-Three real defects, diagnosed:
-
-1. **The Queue tab never auto-detects.** `ui/batch_tab.py` has no
-   `get_cookie_path` call at all. Its field starts from the shared
-   `cookies_file_ref` or `settings("batch/cookies")`.
-2. **The download core never resolves cookies itself.** `core/download.py`
-   does not call `get_cookie_path`; only `cli.py` does
-   (`cookies or get_cookie_path(url)`). So in the GUI a per-platform cookie file
-   is used **only if the field already holds the path**. A Queue job with an
-   empty field gets no cookies even though `youtube_cookies.txt` sits in the
-   data directory.
-3. **The shared path is one global string.** Queue a YouTube URL, then a Douyin
-   URL: the second reuses YouTube's file, because the auto-set only fires when
-   the path is empty.
-
-**Intended fix (root cause):** resolve cookies **per-URL inside
-`core.download.download_one`**, the way `cli.py` does, so the field becomes an
-*override* rather than the only source. Then both tabs get correct cookies, the
-mixed-platform case is fixed, and the UI can show what was resolved.
-
-Also worth doing while there:
-- Show the resolved file in both tabs when the field is empty (e.g. as
-  placeholder/hint text), so the detection is visible instead of manual.
-- A pure helper for "which cookie file applies to this URL, given an optional
-  override" so it can be unit-tested (the repo's tests cover pure logic only).
-
-**Tests:** the repo's suite is pure-logic only. Add tests for the override-vs-
-detected precedence helper. `tests/test_cookies.py` and
-`tests/test_core_download.py` are the natural homes.
-
-**Do not** re-add keyword lists to workers; route error copy through
-`sites.errors.classify_error` per `AGENTS.md`.
+1. **The Queue tab never auto-detected.** `ui/batch_tab.py` had no
+   `get_cookie_path` call at all.
+2. **The download core never resolved cookies itself.** Only `cli.py` did, so a
+   per-platform cookie file was used only if the UI field already held the path.
+3. **The shared path was one global string**, so a YouTube job followed by a
+   Douyin job reused YouTube's file.
 
 ---
 
