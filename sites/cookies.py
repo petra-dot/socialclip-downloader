@@ -163,6 +163,16 @@ def resolve_cookie_file(url: str, override: str = "") -> str:
     return get_cookie_path(url)
 
 
+def cookie_box_value(url: str, current: str = "") -> str:
+    """The cookie file a URL should show in the Cookies file box.
+
+    This is exactly the file `download_one` will use for `url`: the box's own
+    value when it applies to this URL's platform, otherwise the detected
+    per-URL file (or ""). Pure apart from the filesystem.
+    """
+    return resolve_cookie_file(url, current)
+
+
 PLATFORM_NAMES = {
     "youtube": "YouTube",
     "douyin": "Douyin",

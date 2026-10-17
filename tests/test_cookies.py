@@ -4,6 +4,7 @@ import pytest
 
 import sites.cookies as cookies
 from sites.cookies import (
+    cookie_box_value,
     cookie_file_for,
     cookie_file_platform,
     default_cookie_dir,
@@ -251,3 +252,38 @@ def test_resolve_cookie_file_foreign_override_unknown_platform_is_empty():
     assert resolve_cookie_file(
         "https://example.com/x", "C:/c/www.youtube.com_cookies.txt"
     ) == ""
+
+
+def test_cookie_box_value_empty_url_is_blank():
+    assert cookie_box_value("") == ""
+
+
+def test_cookie_box_value_shows_the_url_platform_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    expected = str(tmp_path / "youtube_cookies.txt")
+    assert cookie_box_value("https://youtu.be/x") == expected
+
+
+def test_cookie_box_value_blank_when_no_platform_file(tmp_path, monkeypatch):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.chdir(empty)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(empty))
+    monkeypatch.setattr(cookies, "app_dir", lambda: str(empty))
+    assert cookie_box_value("https://a.com/1") == ""
+
+
+def test_cookie_box_value_keeps_an_applicable_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    override = "C:/c/www.youtube.com_cookies.txt"
+    assert cookie_box_value("https://youtu.be/x", override) == override
+
+
+def test_cookie_box_value_replaces_a_foreign_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "douyin_cookies.txt").write_text("c")
+    expected = str(tmp_path / "douyin_cookies.txt")
+    assert cookie_box_value(
+        "https://www.douyin.com/x", "C:/c/www.youtube.com_cookies.txt"
+    ) == expected

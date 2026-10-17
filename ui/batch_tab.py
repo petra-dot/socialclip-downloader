@@ -7,7 +7,7 @@ from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
-from sites.cookies import default_cookie_dir
+from sites.cookies import cookie_box_value, default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
@@ -524,6 +524,8 @@ class QueueTab(QtWidgets.QWidget):
         self.refresh_table()
         self._finish_expand()
         self.batch_log("Added %d video(s) to the queue." % len(kept))
+        if kept:
+            self._show_cookie_for_url(kept[-1].url)
 
     def _add_jobs(self, urls):
         singles = []
@@ -536,14 +538,28 @@ class QueueTab(QtWidgets.QWidget):
                 collections.append(url)
             else:
                 singles.append(url)
+        options = self._job_options()
         if singles:
-            self.queue.add_many(singles, self._job_options())
+            self.queue.add_many(singles, options)
             self.queue.store.save()
             self.refresh_table()
         if skipped:
             self.batch_log("Skipped %d line(s) that did not look like a URL." % skipped)
+        if urls:
+            self._show_cookie_for_url(urls[-1])
         self._expand_queue.extend(collections)
         self._expand_next()
+
+    def _show_cookie_for_url(self, url):
+        """Reflect the file this URL will use, so the box is not a stale path.
+
+        With several platforms in one batch the box shows the most recently
+        added URL's file; each queued job already keeps its own baked value.
+        """
+        value = cookie_box_value(url, self.batch_cookies_input.text().strip())
+        if self.batch_cookies_input.text() != value:
+            self.batch_cookies_input.setText(value)
+            self._on_batch_cookies_changed()
 
     def on_add_urls(self):
         dialog = BulkPasteDialog(self)

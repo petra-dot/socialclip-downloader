@@ -22,7 +22,12 @@ from core.clip import resolve_range
 from core.presets import Preset, PresetStore, default_presets_path
 from ui.dialogs import manage_presets
 from workers.download_worker import DownloadWorker
-from sites.cookies import get_cookie_path, detect_platform, get_cookie_message
+from sites.cookies import (
+    cookie_box_value,
+    get_cookie_path,
+    detect_platform,
+    get_cookie_message,
+)
 from sites.collections import classify_url
 from sites.errors import classify_error
 from ui.style import make_heading
@@ -139,6 +144,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_seq = 0
         self._thumb_seq = 0
         self._last_path = ""
+        self._last_cookie_url = ""
         self._result_kind = "ok"
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
@@ -373,7 +379,7 @@ class SingleTab(QtWidgets.QWidget):
             self.settings.value("single/cookies", "") or ""
         )
         self.cookies_input.setAccessibleName("Cookies file path")
-        self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
+        self.cookies_input.setPlaceholderText("Optional: auto-detected per platform")
         self.cookies_input.editingFinished.connect(self._on_cookies_changed)
         cookies_row.addWidget(self.cookies_input)
         cookies_label.setBuddy(self.cookies_input)
@@ -570,11 +576,27 @@ class SingleTab(QtWidgets.QWidget):
         self.fetch_meta_btn.setEnabled(True)
         self.fetch_meta_btn.setText("Fetch")
 
-    def _on_url_text_changed(self, _text):
+    def _on_url_text_changed(self, text):
         self.open_folder_btn.setVisible(False)
         self.result_label.setVisible(False)
         self._last_path = ""
+        self._sync_cookies_for_url(text)
         self._url_timer.start()
+
+    def _sync_cookies_for_url(self, url):
+        """Show the cookie file this URL will use, when the URL changes.
+
+        Guarded on the URL so a manual Browse/typed choice is not clobbered
+        mid-URL: only a change of URL re-fills the box.
+        """
+        url = (url or "").strip()
+        if url == self._last_cookie_url:
+            return
+        self._last_cookie_url = url
+        value = cookie_box_value(url, self.cookies_input.text().strip())
+        if self.cookies_input.text() != value:
+            self.cookies_input.setText(value)
+            self._on_cookies_changed()
 
     def _maybe_autofetch(self):
         if not looks_like_url(self.url_input.text()):
@@ -648,21 +670,6 @@ class SingleTab(QtWidgets.QWidget):
         if cf and os.path.isfile(cf):
             return cf
         return None
-
-    def _show_detected_cookie(self, url):
-        """Hint at the auto-detected file without making it stick.
-
-        Filling the field made the first URL's file apply to every later URL
-        (a Douyin download reused the YouTube file); the download core resolves
-        cookies per URL now, so this is a placeholder hint, not a value.
-        """
-        if self.cookies_input.text().strip():
-            return
-        detected = get_cookie_path(url)
-        self.cookies_input.setPlaceholderText(
-            "Auto: %s" % detected if detected
-            else "Optional: path to cookies.txt for auth"
-        )
 
     def on_browse(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
@@ -765,7 +772,7 @@ class SingleTab(QtWidgets.QWidget):
             return
         self._fetch_seq += 1
         self._fetch_url = url
-        self._show_detected_cookie(url)
+        self._sync_cookies_for_url(url)
         self.log("Fetching metadata...")
         self.fetch_meta_btn.setEnabled(False)
         self.fetch_meta_btn.setText("Fetching...")
