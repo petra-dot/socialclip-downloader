@@ -29,7 +29,29 @@ Start it with the brainstorming skill.
   tabs benefit. Order: the real title (re-fetched without cookies when the site
   degraded it) -> `uploader_id` -> `id`. Verified live: the same URL now yields
   `13K views ... Can Touching Your Partner Reduce Stress ... #psychologyfacts`.
-- Baseline now: `python -m pytest -q` -> **536 passing**; lint gate -> **0**.
+- Baseline now: `python -m pytest -q` -> **552 passing**; lint gate -> **0**.
+
+- **Smart cookie policy: DONE** (`4803a4c`). Follow-up to item 1, after the user
+  reported that a YouTube cookie file blocked other platforms and asked for a
+  system that sends cookies only when needed. Researched yt-dlp first: it has
+  **no per-site cookies and no lazy retry** (cookies are global; a maintainer's
+  answer on the bot check is "use cookies or change IP, there is nothing else").
+  So the policy is app-level:
+  1. **A manual override is scoped to its own platform.** `cookie_file_platform`
+     infers the platform from the filename, so `www.youtube.com_cookies.txt` is
+     used for YouTube only; a Douyin URL now gets the Douyin file. An
+     unnameable file (`cookies.txt`) still applies to every URL.
+  2. **The browser choice is lazy.** The first download attempt sends **no**
+     `cookiesfrombrowser`; only if it fails with the `blocked` category
+     ("Sign in to confirm you're not a bot") and no platform file applied, does
+     it retry **once** with the browser's cookies. `DownloadCancelled` is never
+     retried.
+  Verified live: a YouTube override plus a Douyin URL resolves the Douyin file,
+  and unknown sites resolve none.
+  Rationale for "only when needed": sending unnecessary cookies is harmful, not
+  just noise — cookies to Facebook degraded its title to the literal string
+  `Facebook` (item 3), and there is a documented case of cookies-plus-rotation
+  making failures worse.
 
 ## Context to resume from
 
