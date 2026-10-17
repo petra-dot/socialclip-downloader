@@ -5,6 +5,7 @@ import pytest
 import sites.cookies as cookies
 from sites.cookies import (
     cookie_file_for,
+    cookie_file_platform,
     default_cookie_dir,
     detect_platform,
     get_cookie_message,
@@ -188,3 +189,65 @@ def test_resolve_cookie_file_empty_for_unknown_platform(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
     (tmp_path / "youtube_cookies.txt").write_text("c")
     assert resolve_cookie_file("https://example.com/x") == ""
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("C:\\Users\\x\\www.youtube.com_cookies.txt", "youtube"),
+        ("/home/x/www.youtube.com_cookies.txt", "youtube"),
+        ("youtube_cookies.txt", "youtube"),
+        ("cookies.txt", ""),
+        ("", ""),
+    ],
+)
+def test_cookie_file_platform(path, expected):
+    assert cookie_file_platform(path) == expected
+
+
+def test_resolve_cookie_file_override_scoped_to_its_platform(tmp_path, monkeypatch):
+    # A YouTube cookie file must not be sent to Douyin: the Douyin URL uses
+    # Douyin's own file, found here, not the override the user typed.
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    monkeypatch.setattr(cookies, "_cookie_search_dirs", lambda: [str(tmp_path)])
+    (tmp_path / "www.douyin.com_cookies.txt").write_text("c")
+    expected = str(tmp_path / "www.douyin.com_cookies.txt")
+    assert resolve_cookie_file(
+        "https://www.douyin.com/x", "C:/c/www.youtube.com_cookies.txt"
+    ) == expected
+
+
+def test_resolve_cookie_file_override_skipped_when_no_platform_file(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    monkeypatch.setattr(cookies, "_cookie_search_dirs", lambda: [str(tmp_path)])
+    assert resolve_cookie_file(
+        "https://www.douyin.com/x", "C:/c/www.youtube.com_cookies.txt"
+    ) == ""
+
+
+def test_resolve_cookie_file_override_used_for_its_own_platform(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    override = "C:/c/www.youtube.com_cookies.txt"
+    assert resolve_cookie_file("https://youtu.be/x", override) == override
+
+
+def test_resolve_cookie_file_generic_override_wins_everywhere(tmp_path, monkeypatch):
+    # A file the name tells us nothing about is deliberately generic; it must
+    # still apply to every URL (back-compat).
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    assert resolve_cookie_file(
+        "https://www.douyin.com/x", "C:/c/cookies.txt"
+    ) == "C:/c/cookies.txt"
+    assert resolve_cookie_file(
+        "https://example.com/x", "C:/c/cookies.txt"
+    ) == "C:/c/cookies.txt"
+
+
+def test_resolve_cookie_file_foreign_override_unknown_platform_is_empty():
+    # Owner (youtube) differs from an unknown URL platform: send nothing rather
+    # than leak the wrong platform's cookies to a site we cannot identify.
+    assert resolve_cookie_file(
+        "https://example.com/x", "C:/c/www.youtube.com_cookies.txt"
+    ) == ""

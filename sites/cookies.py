@@ -124,16 +124,42 @@ def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     return cookie_file_for(platform, cookie_dir)
 
 
+def cookie_file_platform(path) -> str:
+    """The platform a cookie file belongs to, or "" when the name tells us nothing.
+
+    'www.youtube.com_cookies.txt' -> 'youtube'. Pure apart from os.path.
+    """
+    name = os.path.basename(path or "").lower()
+    for suffix in ("_cookies.txt", ".txt"):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    if not name:
+        return ""
+    platform = detect_platform(name)
+    if platform:
+        return platform
+    for key in PLATFORM_NAMES:
+        if key in name:
+            return key
+    return ""
+
+
 def resolve_cookie_file(url: str, override: str = "") -> str:
     """The cookie file to use for `url`. Pure apart from the filesystem.
 
-    An explicit override always wins; otherwise this platform's own file is
-    used, so a per-URL lookup replaces the one global path the UI used to
-    carry.
+    A manual override is used only for the platform its own filename names, so
+    a YouTube cookie file is never sent to Douyin. When the filename tells us
+    nothing, the override is used for every URL, so a deliberately generic file
+    still works. Otherwise the URL's own platform file applies, or none.
     """
     override = (override or "").strip()
+    platform = detect_platform(url)
     if override:
-        return override
+        owner = cookie_file_platform(override)
+        if not owner or (platform and owner == platform):
+            return override
+        return get_cookie_path(url) if platform else ""
     return get_cookie_path(url)
 
 

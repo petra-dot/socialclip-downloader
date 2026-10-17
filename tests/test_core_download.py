@@ -549,6 +549,9 @@ def test_none_info_without_archive_is_not_found(monkeypatch, tmp_path):
 
 
 def test_download_one_forwards_browser_cookies(monkeypatch, tmp_path):
+    # The browser choice is now held back: it is offered only on the retry a
+    # blocked site triggers (see test_blocked_error_retries_once_*), never on
+    # the first attempt, so a site that needs no cookies never receives any.
     seen = {}
 
     class YDL:
@@ -578,7 +581,7 @@ def test_download_one_forwards_browser_cookies(monkeypatch, tmp_path):
         output_type="MP4", convert=False, target_resolution=1080,
         cookies_from_browser="chrome",
     )
-    assert seen.get("cookiesfrombrowser") == ("chrome", None, None, None)
+    assert "cookiesfrombrowser" not in seen
 
 
 def test_download_one_prefers_platform_cookie_file_over_browser(monkeypatch, tmp_path):
@@ -744,3 +747,144 @@ def test_download_one_renames_a_generic_title(monkeypatch, tmp_path):
     assert result.status == "ok"
     assert result.path == str(tmp_path / "My Holiday Video 2026.mp4")
     assert not site_named.exists()
+
+
+BOT_MSG = "Sign in to confirm you're not a bot"
+
+
+def _reference_media(path, **kwargs):
+    return {"vcodec": "h264", "acodec": "aac", "height": 720, "container": "mp4"}
+
+
+def _isolate_cookie_dirs(monkeypatch, tmp_path):
+    """Point the cookie search at an empty dir: no platform file applies."""
+    monkeypatch.setattr(
+        "sites.cookies._cookie_search_dirs", lambda: [str(tmp_path / "none")]
+    )
+
+
+def _recording_fake(monkeypatch, plan):
+    """A fake YoutubeDL whose extract_info follows `plan`.
+
+    Each element is None (return a minimal successful info) or an Exception
+    instance to raise. Every construction records its options; the final entry
+    repeats for any extra attempt, so a wrong extra retry is visible in the
+    recorded options rather than crashing. Returns the recorded options list.
+    """
+    attempts = []
+
+    class YDL:
+        def __init__(self, opts):
+            attempts.append(opts)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            step = plan[min(len(attempts) - 1, len(plan) - 1)]
+            if step is None:
+                return {"id": "x", "title": "T", "ext": "mp4", "height": 720}
+            raise step
+
+        def prepare_filename(self, info):
+            return "D:/a.mp4"
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    return attempts
+
+
+def test_blocked_error_retries_once_with_browser_cookies(monkeypatch, tmp_path):
+    attempts = _recording_fake(monkeypatch, [Exception(BOT_MSG), None])
+    _isolate_cookie_dirs(monkeypatch, tmp_path)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.download.probe_media", _reference_media)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert result.status == "ok"
+    assert len(attempts) == 2
+    assert "cookiesfrombrowser" not in attempts[0]
+    assert attempts[1].get("cookiesfrombrowser") == ("chrome", None, None, None)
+
+
+def test_blocked_error_without_browser_cookies_is_not_retried(monkeypatch, tmp_path):
+    attempts = _recording_fake(monkeypatch, [Exception(BOT_MSG)])
+    _isolate_cookie_dirs(monkeypatch, tmp_path)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "error"
+    assert result.error_category == "blocked"
+    assert len(attempts) == 1
+
+
+def test_blocked_error_with_platform_cookie_is_not_retried(monkeypatch, tmp_path):
+    cookie_dir = tmp_path / "cookies"
+    cookie_dir.mkdir()
+    (cookie_dir / "youtube_cookies.txt").write_text("c")
+    monkeypatch.setattr(
+        "sites.cookies._cookie_search_dirs", lambda: [str(cookie_dir)]
+    )
+    attempts = _recording_fake(monkeypatch, [Exception(BOT_MSG)])
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert result.error_category == "blocked"
+    assert len(attempts) == 1
+    assert attempts[0].get("cookiefile") == str(cookie_dir / "youtube_cookies.txt")
+
+
+def test_non_blocked_error_is_not_retried(monkeypatch, tmp_path):
+    attempts = _recording_fake(monkeypatch, [Exception("Video unavailable")])
+    _isolate_cookie_dirs(monkeypatch, tmp_path)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert result.status == "error"
+    assert result.error_category == "not_found"
+    assert len(attempts) == 1
+
+
+def test_cancelled_error_is_not_retried(monkeypatch, tmp_path):
+    attempts = _recording_fake(monkeypatch, [DownloadCancelled()])
+    _isolate_cookie_dirs(monkeypatch, tmp_path)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert result.status == "error"
+    assert result.error_category == "cancelled"
+    assert len(attempts) == 1
+
+
+def test_retry_that_also_fails_reports_one_retry(monkeypatch, tmp_path):
+    attempts = _recording_fake(
+        monkeypatch, [Exception(BOT_MSG), Exception(BOT_MSG)]
+    )
+    _isolate_cookie_dirs(monkeypatch, tmp_path)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert result.status == "error"
+    assert result.error_category == "blocked"
+    assert len(attempts) == 2
+    assert "retried with browser cookies" in result.message

@@ -164,6 +164,7 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                  clip=None, archive=None, cookies_from_browser=None):
     in_flight = {"created": set()}
     saw_download = {"value": False}
+    retried = False
     try:
         from sites.cookies import resolve_cookie_file
         # An explicit path is an override; otherwise find this URL's platform
@@ -201,34 +202,54 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
 
         hooks = [hook]
 
-        ydl_opts = _nle_ydl_opts(
-            outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
-            archive_file=archive if clip is None else None,
-            cookies_from_browser=cookies_from_browser,
-        )
-        section_ok = False
-        if clip is not None:
-            ydl_opts["download_ranges"] = _section_range(clip)
-            if clip.exact:
-                ydl_opts["force_keyframes_at_cuts"] = True
-        try:
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                downloaded_file = ydl.prepare_filename(info) if info else None
-            section_ok = clip is not None
-        except DownloadCancelled:
-            raise
-        except Exception:
-            if clip is None:
-                raise
-            full_opts = _nle_ydl_opts(
+        def _attempt(attempt_browser_cookies):
+            """One download attempt. Returns (info, path, section_ok)."""
+            ydl_opts = _nle_ydl_opts(
                 outtmpl=outtmpl, progress_hooks=hooks, cookies_file=cookies_file,
                 archive_file=archive if clip is None else None,
-                cookies_from_browser=cookies_from_browser,
+                cookies_from_browser=attempt_browser_cookies,
             )
-            with YoutubeDL(full_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                downloaded_file = ydl.prepare_filename(info) if info else None
+            if clip is not None:
+                ydl_opts["download_ranges"] = _section_range(clip)
+                if clip.exact:
+                    ydl_opts["force_keyframes_at_cuts"] = True
+            try:
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    downloaded = ydl.prepare_filename(info) if info else None
+                return info, downloaded, clip is not None
+            except DownloadCancelled:
+                raise
+            except Exception:
+                if clip is None:
+                    raise
+                full_opts = _nle_ydl_opts(
+                    outtmpl=outtmpl, progress_hooks=hooks,
+                    cookies_file=cookies_file,
+                    archive_file=archive if clip is None else None,
+                    cookies_from_browser=attempt_browser_cookies,
+                )
+                with YoutubeDL(full_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    downloaded = ydl.prepare_filename(info) if info else None
+                return info, downloaded, False
+
+        # Try without browser cookies first: sending cookies a site does not
+        # need is harmful (Facebook degrades its title to "Facebook"; cookie
+        # rotation can make failures worse). Only a blocked site, with no
+        # per-platform file to blame, earns one retry with the browser's.
+        try:
+            info, downloaded_file, section_ok = _attempt(None)
+        except DownloadCancelled:
+            raise
+        except Exception as e:
+            category, _ = classify_error(strip_ansi(str(e)), url)
+            may_retry = (cookies_from_browser and not cookies_file
+                         and category == "blocked")
+            if not may_retry:
+                raise
+            retried = True
+            info, downloaded_file, section_ok = _attempt(cookies_from_browser)
 
         if not info:
             # With the archive on, an already-recorded video can come back as no
@@ -407,4 +428,6 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
     except Exception as e:
         _cleanup_partial(in_flight["created"])
         category, message = classify_error(strip_ansi(str(e)), url)
+        if retried:
+            message = "%s (retried with browser cookies)" % message
         return error_result(category, message, url)
