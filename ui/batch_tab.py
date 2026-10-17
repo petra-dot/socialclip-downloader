@@ -531,6 +531,7 @@ class QueueTab(QtWidgets.QWidget):
     def _add_jobs(self, urls):
         singles = []
         collections = []
+        accepted = []
         skipped = 0
         unsupported = 0
         for url in urls:
@@ -543,8 +544,10 @@ class QueueTab(QtWidgets.QWidget):
                 unsupported += 1
             elif classify_url(url) == "collection":
                 collections.append(url)
+                accepted.append(url)
             else:
                 singles.append(url)
+                accepted.append(url)
         options = self._job_options()
         if singles:
             self.queue.add_many(singles, options)
@@ -556,8 +559,10 @@ class QueueTab(QtWidgets.QWidget):
             self.batch_log("Skipped %d link(s) yt-dlp cannot download." % unsupported)
         if not singles and not collections and (skipped or unsupported):
             self.show_hint("No links yt-dlp can download were added.")
-        if urls:
-            self._show_cookie_for_url(urls[-1])
+        # The last *accepted* URL, not the last raw line: a trailing junk or
+        # unsupported line resolves to "" and would wrongly clear the box.
+        if accepted:
+            self._show_cookie_for_url(accepted[-1])
         self._expand_queue.extend(collections)
         self._expand_next()
 
