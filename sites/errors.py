@@ -31,8 +31,8 @@ def classify_error(message: str, url: str = ""):
     """Map a raw yt-dlp/ffmpeg error to (category, user-facing message).
 
     Returns one of: "blocked", "format", "ffmpeg", "network", "not_found",
-    "other". A "cancelled" category also exists but is produced by
-    ``core.download`` when the user cancels; it is never returned here.
+    "unsupported", "other". A "cancelled" category also exists but is produced
+    by ``core.download`` when the user cancels; it is never returned here.
     """
     text = message or ""
     if any(keyword in text for keyword in BLOCKED_KEYWORDS):
@@ -50,4 +50,6 @@ def classify_error(message: str, url: str = ""):
         return "network", "Network error reaching the site. Check your connection and retry."
     if any(k in text for k in NOT_FOUND_KEYWORDS):
         return "not_found", "The video was not found. It may be deleted, private, or region-locked."
+    if "unsupported url" in text.lower():
+        return "unsupported", "That link is not a video yt-dlp can download from."
     return "other", text

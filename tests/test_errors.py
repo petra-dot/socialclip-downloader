@@ -68,3 +68,21 @@ def test_looks_like_auth_error_false_for_genuinely_unavailable():
 
 def test_looks_like_auth_error_tolerates_none():
     assert looks_like_auth_error(None) is False
+
+
+def test_unsupported_url_is_classified_friendly():
+    category, message = classify_error(
+        "ERROR: Unsupported URL: https://a.com/1", "https://a.com/1"
+    )
+    assert category == "unsupported"
+    assert message == "That link is not a video yt-dlp can download from."
+
+
+def test_generic_fallback_is_not_unsupported():
+    # The generic extractor's own message mentions "generic", not a missing
+    # extractor, so it must fall through rather than be mislabelled.
+    category, _ = classify_error(
+        "ERROR: [generic] Falling back on generic information extractor",
+        "https://a.com/1",
+    )
+    assert category != "unsupported"
