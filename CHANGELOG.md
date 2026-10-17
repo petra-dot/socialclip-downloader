@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.10.1 - 2026-10-18
+
+### Fixed
+- **Downloads were named after the site instead of the video.** Facebook returns
+  the generic title `Facebook` when a cookie file is sent, and the real title
+  only without cookies, so files landed as `Facebook.mp3`. A title that is
+  empty or is just the site's own name is now treated as unusable: the real
+  title is re-fetched without cookies, and failing that the uploader and video
+  id are used. This affected the Download tab too, not only the Queue.
+- **Cookies are now resolved per URL in the download core.** Previously only the
+  CLI resolved a per-platform cookie file, so a GUI download used one only if
+  the field already held the path, and the Queue never auto-detected at all. A
+  YouTube job followed by a Douyin job also reused the first URL's file.
+- **A manual cookie file is scoped to the platform its own filename names**, so
+  a YouTube cookie file is never sent to Douyin or to an unrelated site. A file
+  whose name says nothing about a platform is still applied to every download.
+- **The browser cookie choice is lazy.** The first download attempt sends no
+  browser cookies; only a failure that looks like an authentication demand
+  retries **once** with them. Sending unnecessary cookies is harmful, not just
+  noise: cookies to Facebook degraded the title (see above).
+- **The cookie box now shows and follows the per-URL file**, updating when the
+  URL changes. **Clear** now forgets the stored path as well as the visible
+  text, **Browse** opens the folder the cookie files live in, and the Queue tab
+  gained the **Clear** button the Download tab already had.
+- **A static "is this URL supported?" check was removed.** It accepted a URL
+  only when a site-specific extractor claimed it and excluded yt-dlp's generic
+  extractor, which wrongly rejected real, downloadable links (for example a
+  Facebook `share/v/` URL, which only the generic extractor claims before
+  following a redirect). Support cannot be decided without trying, so any
+  URL-shaped input is accepted again and yt-dlp decides.
+- **An unsupported link now reports a friendly message** ("That link is not a
+  video yt-dlp can download from.") instead of the raw
+  `ERROR: Unsupported URL: ...` text.
+
+### Changed
+- **The Health view is a status dashboard.** It was a wall of monospaced text
+  that also froze the window for up to three seconds, because it ran the network
+  probe and `ffmpeg -version` on the GUI thread. It now shows a tone-coloured
+  headline, one row per component with a state chip, version, and a **Repair**
+  button where one is needed, with the raw report behind a collapsed
+  **Details** pane. A worker does the probing, so the dialog opens instantly.
+
 ## v0.10.0 - 2026-10-16
 
 ### Changed
