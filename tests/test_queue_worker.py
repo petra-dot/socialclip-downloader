@@ -92,7 +92,8 @@ def test_gui_options_match_real_download_one_signature(monkeypatch):
     def real_download_one(url, outtmpl, output_type, convert, target_resolution,
                           cookies_file=None, progress=None, cancel=None,
                           subtitles=False, embed_thumbnail=False, format_id=None,
-                          archive=None, cookies_from_browser=None):
+                          archive=None, cookies_from_browser=None,
+                          history=None, source=""):
         return DownloadResult(status="ok", url=url, path="C:/out/clip.mp4",
                               message="ok")
 

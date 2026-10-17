@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 
+from core.history import HistoryStore
 from core.manifest import SCHEMA_VERSION, error_result
 from core.subtitles import DELIVERIES
 
@@ -94,6 +95,7 @@ def _cmd_download(args) -> int:
         convert=convert, target_resolution=resolution,
         cookies_file=cookies, clip=clip, subtitles=args.subtitles,
         cookies_from_browser=args.cookies_from_browser,
+        history=HistoryStore(), source="cli",
     )
     return _emit(result, args.json)
 
@@ -216,6 +218,7 @@ def _queue_executor(job, archive=None):
         subtitles=opts.get("subtitles", "off"),
         cookies_from_browser=opts.get("cookies_from_browser"),
         archive=archive,
+        history=HistoryStore(), source="queue",
     )
 
 

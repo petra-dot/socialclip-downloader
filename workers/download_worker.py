@@ -29,6 +29,7 @@ class DownloadWorker(QtCore.QThread):
 
     def run(self):
         from core.download import download_one
+        from core.history import HistoryStore
 
         self.status_signal.emit("Starting download and checking URL...")
         result = download_one(
@@ -43,6 +44,8 @@ class DownloadWorker(QtCore.QThread):
             subtitles=self.subtitles,
             cookies_from_browser=self.cookies_from_browser,
             cancel=self._cancel.is_set,
+            history=HistoryStore(),
+            source="single",
         )
         self.cancelled = result.error_category == "cancelled"
         self.path_signal.emit((result.path or "") if result.status == "ok" else "")

@@ -153,6 +153,16 @@ def test_record_swallows_a_failing_store():
     assert record(None, HistoryEntry()) is None
 
 
+def test_two_stores_appending_do_not_clobber(tmp_path):
+    """Each download makes its own store; appending must not lose earlier rows."""
+    path = str(tmp_path / "history.json")
+    HistoryStore(path).add(HistoryEntry(title="One"))
+    HistoryStore(path).add(HistoryEntry(title="Two"))
+    store = HistoryStore(path)
+    store.load()
+    assert [e.title for e in store.entries()] == ["One", "Two"]
+
+
 def test_default_store_uses_the_data_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCIALCLIP_HISTORY", str(tmp_path / "history.json"))
     store = HistoryStore()

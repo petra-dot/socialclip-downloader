@@ -5,6 +5,7 @@ from dataclasses import replace
 from PyQt5 import QtCore
 
 from core.download import download_one
+from core.history import HistoryStore
 from core.queue import resolve_outtmpl
 
 DEFAULT_JOBS = 3
@@ -40,6 +41,8 @@ class QueueWorker(QtCore.QThread):
             progress=lambda p: self.progress_signal.emit(job.id, p),
             subtitles=opts.get("subtitles", "off"),
             archive=self.archive,
+            history=HistoryStore(),
+            source="queue",
         )
 
     def _emit_running(self, job):

@@ -161,6 +161,9 @@ class HistoryStore:
         os.replace(tmp, self.path)
 
     def add(self, entry: HistoryEntry) -> HistoryEntry:
+        # Load first: each download creates its own store, and appending to an
+        # empty one would save a single-entry file over the whole history.
+        self.load()
         self._entries.append(entry)
         self.save()
         return entry

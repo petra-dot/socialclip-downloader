@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.11.0 - 2026-10-18
+
+### Added
+- **Download History.** A fourth tab lists every completed download, from the
+  Download tab, the Queue, and the CLI, recorded in `history.json` in the data
+  directory. Sort by any column, search by title, filter by platform or format.
+- **Play and Details.** Play hands the file to the operating system's default
+  application; the app bundles no media player. Details shows what was recorded
+  at download time and probes the file on demand for its real container and
+  codecs.
+- **Honest status.** The status is checked against the disk whenever the tab is
+  opened, so a file you moved or deleted reads as **Not found**.
+- **Delete or forget.** Delete file removes the file and keeps the entry marked
+  **Deleted by you**; Remove from history drops the entry and leaves the file
+  alone. Both confirm first, and only paths the app recorded are ever touched.
+
 ## v0.10.1 - 2026-10-18
 
 ### Fixed

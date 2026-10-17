@@ -247,6 +247,23 @@ The GUI and the CLI share one queue file, stored as JSON in the app's data
 directory (next to the auto-detected cookie files; see
 [Maintenance](#maintenance)). Set `SOCIALCLIP_QUEUE` to override the location.
 
+## History
+
+Every completed download is recorded, from the Download tab, the Queue, and the
+CLI, in `history.json` in your data directory. The **History** tab lists them in
+a sortable table with a search box and platform/format filters.
+
+- **Play** hands the file to your operating system's default application. The
+  app never bundles a media player.
+- **Details** shows what was recorded at download time (title, URL, platform,
+  format, resolution, duration, size, source) and probes the file on demand for
+  its real container and codecs.
+- **Status is checked against the disk every time you open the tab**, so a file
+  you moved or deleted reads as **Not found** instead of silently looking fine.
+- **Delete file** removes the file and keeps the entry, marked **Deleted by
+  you**. **Remove from history** drops the entry and leaves the file alone. Both
+  ask first, and only paths this app recorded are ever touched.
+
 ## Maintenance
 
 SocialClip checks the components it depends on — yt-dlp, ffmpeg, and the
