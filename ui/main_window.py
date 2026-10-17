@@ -8,6 +8,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from ui.single_tab import SingleTab
 from ui.batch_tab import QueueTab
 from ui.convert_tab import ConvertTab
+from ui.history_tab import HistoryTab
 from ui.dialogs import show_welcome, show_doctor
 from ui.style import THEMES, THEME_LABELS, apply_theme
 from ui.update_indicator import UpdateButton
@@ -82,14 +83,17 @@ class MainWindow(QtWidgets.QWidget):
         self.single_tab = SingleTab(self.cookies_file)
         self.batch_tab = QueueTab(self.cookies_file)
         self.convert_tab = ConvertTab()
+        self.history_tab = HistoryTab()
         self.tabs.addTab(self.single_tab, "Download")
         self.tabs.addTab(self.batch_tab, "Queue")
         self.tabs.addTab(self.convert_tab, "Convert")
+        self.tabs.addTab(self.history_tab, "History")
         self.tabs.setAccessibleName("Main sections")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(self.tabs)
 
-        # Ctrl+1/2/3 switch tabs, the desktop convention.
-        for index in range(3):
+        # Ctrl+1/2/3/4 switch tabs, the desktop convention.
+        for index in range(4):
             shortcut = QtWidgets.QShortcut(
                 QtGui.QKeySequence("Ctrl+%d" % (index + 1)), self
             )
@@ -102,6 +106,11 @@ class MainWindow(QtWidgets.QWidget):
     def _route_collection(self, url):
         self.tabs.setCurrentWidget(self.batch_tab)
         self.batch_tab.expand_collection_url(url)
+
+    def _on_tab_changed(self, index):
+        """Refresh History when it is shown, so its status is never stale."""
+        if self.tabs.widget(index) is self.history_tab:
+            self.history_tab.refresh()
 
     def _build_menubar(self):
         menubar = QtWidgets.QMenuBar(self)
