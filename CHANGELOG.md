@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.12.0 - 2026-10-18
+
+### Added
+- **History detail pane.** The selected row's full record — title, URL, path,
+  format, resolution, duration, size, source, status, and the file's real
+  container and codecs, probed on demand — is shown in a pane below the table,
+  replacing the **Details** dialog. It updates as you move the selection and
+  clears when nothing is selected.
+- **Summary bar.** The top of the tab now reads `12 downloads · 3.4 GB · 2 not
+  found`, so the audit and disk-space picture is one glance, with the action
+  buttons beside it.
+- **Multi-select and bulk delete.** Select several rows and the summary shows
+  their combined size; **Delete file** acts on the whole selection after a single
+  confirmation that names the count and total size. Only recorded paths are ever
+  touched.
+- **Relative dates.** A row inside the last week reads `2 days ago`; older rows
+  show the exact date, and the detail pane always shows the full timestamp.
+- **Empty states.** No history shows what will appear here; a filter that
+  matches nothing shows `No downloads match` with a **Clear filters** action.
+
+### Changed
+- **History rows carry the same visual language as the Queue.** Each row has the
+  platform badge, the platform's display name (`Facebook`, not `facebook`), a
+  format chip (`MP4` / `MP3`), a right-aligned size, and a colour status chip
+  (`OK` green, `Not found` amber, `Deleted by you` grey), with taller rows.
+- **Destructive actions are grouped and marked.** `Delete file` and `Remove from
+  history` are separated from the primary actions and shown in the error colour;
+  `Clear history` moved into a **More** overflow menu. The right-click menu keeps
+  the same set.
+
+### Fixed
+- **The history named the site, not the file.** Every Facebook row read
+  `Facebook`, because that is the title the site returns when cookies are sent;
+  the file on disk is named after the real title. The recorded name is now the
+  base name of the file that was actually saved, so the row matches the artifact.
+  Entries already on disk keep their stored title; there is no migration.
+- **The platform showed its internal key** (`facebook`) instead of its display
+  name. The table and the platform filter now show the display name while the raw
+  key is still used for matching and filtering, so stored entries keep working.
+
 ## v0.11.0 - 2026-10-18
 
 ### Added
