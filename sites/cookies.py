@@ -58,6 +58,20 @@ def default_cookie_dir() -> str:
     return data_dir()
 
 
+def cookie_dialog_dir(current_path: str = "") -> str:
+    """The folder the cookie file dialog should open in.
+
+    The folder of `current_path` when it names an existing file, else the
+    directory the app's cookie files live in. Pure apart from the filesystem.
+    """
+    current_path = (current_path or "").strip()
+    if current_path:
+        directory = os.path.dirname(current_path)
+        if directory and os.path.isdir(directory):
+            return directory
+    return default_cookie_dir()
+
+
 def _cookie_search_dirs() -> list:
     """Directories to look in for cookie files, most specific first.
 

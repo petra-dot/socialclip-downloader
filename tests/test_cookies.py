@@ -5,6 +5,7 @@ import pytest
 import sites.cookies as cookies
 from sites.cookies import (
     cookie_box_value,
+    cookie_dialog_dir,
     cookie_file_for,
     cookie_file_platform,
     default_cookie_dir,
@@ -287,3 +288,28 @@ def test_cookie_box_value_replaces_a_foreign_override(tmp_path, monkeypatch):
     assert cookie_box_value(
         "https://www.douyin.com/x", "C:/c/www.youtube.com_cookies.txt"
     ) == expected
+
+
+def test_cookie_dialog_dir_empty_falls_back_to_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    assert cookie_dialog_dir("") == default_cookie_dir()
+
+
+def test_cookie_dialog_dir_uses_the_files_folder(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    cookie = tmp_path / "picked" / "youtube_cookies.txt"
+    cookie.parent.mkdir()
+    cookie.write_text("c")
+    assert cookie_dialog_dir(str(cookie)) == str(cookie.parent)
+
+
+def test_cookie_dialog_dir_missing_dir_falls_back_to_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path / "data"))
+    assert cookie_dialog_dir(
+        str(tmp_path / "gone" / "youtube_cookies.txt")
+    ) == default_cookie_dir()
+
+
+def test_cookie_dialog_dir_whitespace_falls_back_to_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    assert cookie_dialog_dir("   ") == default_cookie_dir()

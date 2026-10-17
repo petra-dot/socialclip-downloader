@@ -24,6 +24,7 @@ from ui.dialogs import manage_presets
 from workers.download_worker import DownloadWorker
 from sites.cookies import (
     cookie_box_value,
+    cookie_dialog_dir,
     get_cookie_path,
     detect_platform,
     get_cookie_message,
@@ -657,7 +658,7 @@ class SingleTab(QtWidgets.QWidget):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Select cookies.txt",
-            os.path.expanduser("~"),
+            cookie_dialog_dir(self.cookies_input.text()),
             "Text files (*.txt);;All files (*)",
         )
         if file:

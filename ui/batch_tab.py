@@ -7,7 +7,7 @@ from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
-from sites.cookies import cookie_box_value, default_cookie_dir
+from sites.cookies import cookie_box_value, cookie_dialog_dir, default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
@@ -275,6 +275,11 @@ class QueueTab(QtWidgets.QWidget):
         browse_cookies_btn = QtWidgets.QPushButton("Browse")
         browse_cookies_btn.clicked.connect(self.on_batch_browse_cookies)
         cookies_row.addWidget(browse_cookies_btn)
+        clear_cookies_btn = QtWidgets.QPushButton("Clear")
+        clear_cookies_btn.setMinimumWidth(50)
+        clear_cookies_btn.setAccessibleName("Clear queue cookies file")
+        clear_cookies_btn.clicked.connect(self.on_batch_clear_cookies)
+        cookies_row.addWidget(clear_cookies_btn)
         queue_layout.addLayout(cookies_row)
 
         sub_row = QtWidgets.QHBoxLayout()
@@ -410,12 +415,19 @@ class QueueTab(QtWidgets.QWidget):
 
     def on_batch_browse_cookies(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select cookies.txt", "", "Text files (*.txt);;All files (*)"
+            self, "Select cookies.txt",
+            cookie_dialog_dir(self.batch_cookies_input.text()),
+            "Text files (*.txt);;All files (*)"
         )
         if file:
             self.batch_cookies_input.setText(file)
             self._on_batch_cookies_changed()
             self.batch_log(f"Cookies file set: {file}")
+
+    def on_batch_clear_cookies(self):
+        self.batch_cookies_input.clear()
+        self._on_batch_cookies_changed()
+        self.batch_log("Cookies cleared; the platform file is used automatically.")
 
     def on_batch_browse(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
