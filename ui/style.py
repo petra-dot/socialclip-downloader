@@ -208,54 +208,49 @@ def make_heading(label):
     return label
 
 
-def _dark_palette():
+def _palette(colors: dict):
     p = QtGui.QPalette()
-    window = QtGui.QColor(37, 38, 40)
-    base = QtGui.QColor(28, 29, 31)
-    text = QtGui.QColor(232, 234, 237)
-    # 154,164,178 clears 4.5:1 on the #252628 window; 130,135,143 did not.
-    disabled = QtGui.QColor(154, 164, 178)
-    p.setColor(QtGui.QPalette.Window, window)
-    p.setColor(QtGui.QPalette.WindowText, text)
-    p.setColor(QtGui.QPalette.Base, base)
-    p.setColor(QtGui.QPalette.AlternateBase, window)
-    p.setColor(QtGui.QPalette.Text, text)
-    p.setColor(QtGui.QPalette.Button, window)
-    p.setColor(QtGui.QPalette.ButtonText, text)
-    p.setColor(QtGui.QPalette.BrightText, QtGui.QColor(255, 255, 255))
-    p.setColor(QtGui.QPalette.ToolTipBase, base)
-    p.setColor(QtGui.QPalette.ToolTipText, text)
-    p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(45, 137, 239))
-    p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(255, 255, 255))
-    p.setColor(QtGui.QPalette.PlaceholderText, QtGui.QColor(150, 155, 163))
+    p.setColor(QtGui.QPalette.Window, QtGui.QColor(colors["window"]))
+    p.setColor(QtGui.QPalette.WindowText, QtGui.QColor(colors["text"]))
+    p.setColor(QtGui.QPalette.Base, QtGui.QColor(colors["base"]))
+    p.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(colors["panel"]))
+    p.setColor(QtGui.QPalette.Text, QtGui.QColor(colors["text"]))
+    p.setColor(QtGui.QPalette.Button, QtGui.QColor(colors["window"]))
+    p.setColor(QtGui.QPalette.ButtonText, QtGui.QColor(colors["text"]))
+    p.setColor(QtGui.QPalette.BrightText, QtGui.QColor(colors["on_accent"]))
+    p.setColor(QtGui.QPalette.ToolTipBase, QtGui.QColor(colors["base"]))
+    p.setColor(QtGui.QPalette.ToolTipText, QtGui.QColor(colors["text"]))
+    p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(colors["accent"]))
+    p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(colors["on_accent"]))
+    p.setColor(QtGui.QPalette.PlaceholderText, QtGui.QColor(colors["text_muted"]))
     for role in (QtGui.QPalette.Text, QtGui.QPalette.ButtonText,
                  QtGui.QPalette.WindowText):
-        p.setColor(QtGui.QPalette.Disabled, role, disabled)
-    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, window)
-    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, window)
+        p.setColor(QtGui.QPalette.Disabled, role,
+                   QtGui.QColor(colors["text_muted"]))
+    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base,
+               QtGui.QColor(colors["window"]))
+    p.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button,
+               QtGui.QColor(colors["window"]))
     return p
 
 
-# The platform's default style, captured before we ever switch away from it, so
-# "Default"/"Light" can restore the native look after a spell in dark.
-_native_style = None
+def tab_bar_style() -> str:
+    """The active tab carries the accent, so it recolors with the theme."""
+    return (
+        "QTabBar::tab:selected { color: %(a)s; border-bottom: 2px solid %(a)s; }"
+        "QTabBar::tab { border-bottom: 2px solid transparent; padding: 5px 12px; }"
+        % {"a": token("accent")}
+    )
 
 
 def apply_theme(app, mode: str):
-    """Apply a theme.
-
-    The palette is only honored under a non-native style, so dark runs on
-    Fusion. Without this, Windows' native style keeps drawing light widget
-    backgrounds while the palette paints the text light: unreadable.
-    """
-    global _native_style, _current_mode
-    _current_mode = mode
-    if _native_style is None:
-        _native_style = app.style().objectName() or None
-    if mode == THEME_DARK:
-        app.setStyle("Fusion")
-        app.setPalette(_dark_palette())
-    else:
-        if _native_style:
-            app.setStyle(_native_style)
-        app.setPalette(app.style().standardPalette())
+    """Apply a theme. Fusion for every mode so widget shapes never change."""
+    global _current_mode
+    resolved = mode
+    if mode == THEME_SYSTEM:
+        from utils.system_theme import detect
+        resolved = detect()
+    _current_mode = THEME_DARK if resolved == THEME_DARK else THEME_LIGHT
+    app.setStyle("Fusion")
+    app.setPalette(_palette(_DARK if resolved == THEME_DARK else _LIGHT))
+    app.setStyleSheet(tab_bar_style())
