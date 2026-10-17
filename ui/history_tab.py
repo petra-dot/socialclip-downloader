@@ -14,11 +14,11 @@ from core.history import (
     HistoryStore, STATUS_DELETED, STATUS_MISSING, STATUS_OK,
     filter_entries, format_date, platform_label, search, sort_entries, status_of,
 )
-from core.probe import probe_media
 from core.progress import format_bytes
 from ui.platform_icons import icon_for_url, platform_icon
 from ui.style import danger_text_style, make_heading, state_color
 from utils.ui_helpers import open_file, reveal_in_folder
+from workers.probe_worker import ProbeWorker
 
 _COLUMNS = ("Title", "Platform", "Format", "Size", "Date", "Status")
 _SORT_FOR_COLUMN = ("title", "platform", "extension", "bytes", "created_at",
@@ -72,6 +72,8 @@ class HistoryTab(QtWidgets.QWidget):
         self._entries = []
         self._statuses = {}
         self._probe_cache = {}
+        self._probe_tasks = {}
+        self._probe_pool = QtCore.QThreadPool.globalInstance()
         self._sort_key = "created_at"
         self._sort_desc = True
         self._build()
@@ -381,16 +383,21 @@ class HistoryTab(QtWidgets.QWidget):
         self.refresh()
 
     # -- detail pane -------------------------------------------------------
-    def _probe(self, entry):
-        path = entry.path
-        if not path:
-            return {}
-        if path not in self._probe_cache:
-            try:
-                self._probe_cache[path] = probe_media(path) or {}
-            except Exception:
-                self._probe_cache[path] = {}
-        return self._probe_cache[path]
+    def _start_probe(self, path):
+        """Probe `path` on the thread pool; one in flight per path."""
+        if not path or path in self._probe_tasks:
+            return
+        task = ProbeWorker(path)
+        task.signals.done.connect(self._on_probed)
+        self._probe_tasks[path] = task
+        self._probe_pool.start(task)
+
+    def _on_probed(self, path, info):
+        self._probe_tasks.pop(path, None)
+        self._probe_cache[path] = info or {}
+        entry = self._current_entry()
+        if entry is not None and entry.path == path:
+            self._show_details(entry)
 
     def _show_details(self, entry):
         if entry is None:
@@ -411,14 +418,23 @@ class HistoryTab(QtWidgets.QWidget):
             "Source": entry.source or "-",
             "Status": _STATUS_LABELS.get(status, status) or "-",
         }
-        probed = self._probe(entry) if status == STATUS_OK else {}
-        fields["Container"] = probed.get("container") or "-"
-        fields["Video codec"] = probed.get("vcodec") or "-"
-        fields["Audio codec"] = probed.get("acodec") or "-"
+        probe = status == STATUS_OK
+        if probe:
+            probed = self._probe_cache.get(entry.path)
+            if probed is None:
+                # ffprobe is a subprocess with a cold-start cost, so probe it
+                # off the UI thread and fill the codecs in when it answers.
+                for name in _CODEC_FIELDS:
+                    fields[name] = "…"
+                self._start_probe(entry.path)
+            else:
+                fields["Container"] = probed.get("container") or "-"
+                fields["Video codec"] = probed.get("vcodec") or "-"
+                fields["Audio codec"] = probed.get("acodec") or "-"
         for name, (key, value) in self._detail_values.items():
             if name in _CODEC_FIELDS:
-                key.setVisible(status == STATUS_OK)
-                value.setVisible(status == STATUS_OK)
+                key.setVisible(probe)
+                value.setVisible(probe)
             value.setText(fields.get(name, "-"))
         self._detail_placeholder.setVisible(False)
         self._detail_grid.setVisible(True)

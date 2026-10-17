@@ -12,3 +12,9 @@ def test_convert_worker_uses_core():
     src = pathlib.Path(__file__).resolve().parent.parent / "workers" / "convert_worker.py"
     text = src.read_text(encoding="utf-8")
     assert "core.convert" in text
+
+
+def test_probe_worker_uses_core():
+    src = pathlib.Path(__file__).resolve().parent.parent / "workers" / "probe_worker.py"
+    text = src.read_text(encoding="utf-8")
+    assert "core.probe" in text

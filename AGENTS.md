@@ -46,6 +46,7 @@ workers/download_worker.py single download + MP3/resolution post-process
 workers/queue_worker.py    drives a Queue: up to N jobs at a time, saves after each
 workers/expand_worker.py   expands a collection URL for the Queue tab
 workers/convert_worker.py  local file conversion
+workers/probe_worker.py    probes one file for container/codecs off the UI thread
 workers/maintenance_worker.py  runs component checks and repairs off the UI thread
 workers/update_worker.py   update check + digest-verified asset download
 utils/ffmpeg.py            ffmpeg/ffprobe discovery (env, PATH, common dirs)
