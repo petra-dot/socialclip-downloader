@@ -7,6 +7,7 @@ from core.collections import new_entries
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
+from sites.cookies import default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
 from ui.style import make_heading
@@ -260,7 +261,11 @@ class QueueTab(QtWidgets.QWidget):
         cookies_row.addWidget(cookies_label)
         self.batch_cookies_input = QtWidgets.QLineEdit()
         self.batch_cookies_input.setAccessibleName("Queue cookies file path")
-        self.batch_cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
+        # The core resolves a per-platform file for each URL, so an empty field
+        # is not a failure. Name where those files live so the hint is honest.
+        self.batch_cookies_input.setPlaceholderText(
+            "Optional override; auto: %s" % default_cookie_dir()
+        )
         self.batch_cookies_input.setText(
             self.cookies_file_ref.get("path", "") or self.settings.value("batch/cookies", "") or ""
         )

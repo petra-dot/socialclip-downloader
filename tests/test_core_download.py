@@ -568,12 +568,52 @@ def test_download_one_forwards_browser_cookies(monkeypatch, tmp_path):
             return ""
 
     monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    # A per-platform file would (correctly) beat the browser choice, so isolate
+    # the search dirs: this test is about browser forwarding when none applies.
+    monkeypatch.setattr(
+        "sites.cookies._cookie_search_dirs", lambda: [str(tmp_path / "none")]
+    )
     download_one(
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
         cookies_from_browser="chrome",
     )
     assert seen.get("cookiesfrombrowser") == ("chrome", None, None, None)
+
+
+def test_download_one_prefers_platform_cookie_file_over_browser(monkeypatch, tmp_path):
+    seen = {}
+
+    class YDL:
+        def __init__(self, opts):
+            seen.update(opts)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            return None
+
+        def prepare_filename(self, info):
+            return ""
+
+    cookie_dir = tmp_path / "cookies"
+    cookie_dir.mkdir()
+    (cookie_dir / "youtube_cookies.txt").write_text("c")
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "sites.cookies._cookie_search_dirs", lambda: [str(cookie_dir)]
+    )
+    download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+        cookies_from_browser="chrome",
+    )
+    assert seen.get("cookiefile") == str(cookie_dir / "youtube_cookies.txt")
+    assert "cookiesfrombrowser" not in seen
 
 
 def test_progress_carries_speed_eta_and_size(monkeypatch, tmp_path):

@@ -124,6 +124,19 @@ def get_cookie_path(url: str, cookie_dir: str = None) -> str:
     return cookie_file_for(platform, cookie_dir)
 
 
+def resolve_cookie_file(url: str, override: str = "") -> str:
+    """The cookie file to use for `url`. Pure apart from the filesystem.
+
+    An explicit override always wins; otherwise this platform's own file is
+    used, so a per-URL lookup replaces the one global path the UI used to
+    carry.
+    """
+    override = (override or "").strip()
+    if override:
+        return override
+    return get_cookie_path(url)
+
+
 PLATFORM_NAMES = {
     "youtube": "YouTube",
     "douyin": "Douyin",

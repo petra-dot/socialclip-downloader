@@ -649,6 +649,21 @@ class SingleTab(QtWidgets.QWidget):
             return cf
         return None
 
+    def _show_detected_cookie(self, url):
+        """Hint at the auto-detected file without making it stick.
+
+        Filling the field made the first URL's file apply to every later URL
+        (a Douyin download reused the YouTube file); the download core resolves
+        cookies per URL now, so this is a placeholder hint, not a value.
+        """
+        if self.cookies_input.text().strip():
+            return
+        detected = get_cookie_path(url)
+        self.cookies_input.setPlaceholderText(
+            "Auto: %s" % detected if detected
+            else "Optional: path to cookies.txt for auth"
+        )
+
     def on_browse(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Choose folder", self.save_dir_input.text()
@@ -750,10 +765,7 @@ class SingleTab(QtWidgets.QWidget):
             return
         self._fetch_seq += 1
         self._fetch_url = url
-        auto_cookie = get_cookie_path(url)
-        if auto_cookie and not self.cookies_file_ref.get("path", ""):
-            self.cookies_input.setText(auto_cookie)
-            self.cookies_file_ref["path"] = auto_cookie
+        self._show_detected_cookie(url)
         self.log("Fetching metadata...")
         self.fetch_meta_btn.setEnabled(False)
         self.fetch_meta_btn.setText("Fetching...")
@@ -847,10 +859,10 @@ class SingleTab(QtWidgets.QWidget):
         convert = self.convert_checkbox.isChecked() and (output_type == "MP4")
         target_resolution = int(self.resolution_combo.currentText())
 
-        auto_cookie = get_cookie_path(url)
-        if auto_cookie and not self.cookies_file_ref.get("path", ""):
-            self.cookies_file_ref["path"] = auto_cookie
-            self.log(f"Auto-detected cookies: {auto_cookie}")
+        if not self.cookies_input.text().strip():
+            auto_cookie = get_cookie_path(url)
+            if auto_cookie:
+                self.log(f"Auto-detected cookies: {auto_cookie}")
 
         # The button doubles as Cancel while a download runs.
         self.download_btn.setText("Cancel")

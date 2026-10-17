@@ -165,6 +165,11 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
     in_flight = {"created": set()}
     saw_download = {"value": False}
     try:
+        from sites.cookies import resolve_cookie_file
+        # An explicit path is an override; otherwise find this URL's platform
+        # cookie file. This is what makes the Queue and an empty field work.
+        cookies_file = resolve_cookie_file(url, cookies_file)
+
         from yt_dlp import YoutubeDL
 
         def hook(d):

@@ -10,6 +10,7 @@ from sites.cookies import (
     get_cookie_message,
     get_cookie_path,
     get_platform_display_name,
+    resolve_cookie_file,
 )
 
 
@@ -155,3 +156,35 @@ def test_dialog_and_download_path_resolve_the_same_file(tmp_path, monkeypatch):
     assert c.get_cookie_path("https://youtu.be/x").endswith(
         "www.youtube.com_cookies.txt"
     )
+
+
+def test_resolve_cookie_file_prefers_the_override(tmp_path, monkeypatch):
+    # An explicit choice the user made must beat an auto-detected platform file.
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    assert resolve_cookie_file(
+        "https://youtu.be/x", "C:/custom/mine.txt"
+    ) == "C:/custom/mine.txt"
+
+
+def test_resolve_cookie_file_finds_the_platform_file(tmp_path, monkeypatch):
+    # No override: this platform's own file wins, so a per-URL lookup replaces
+    # the one global path the UI used to carry.
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    expected = str(tmp_path / "youtube_cookies.txt")
+    assert resolve_cookie_file("https://youtu.be/x") == expected
+
+
+def test_resolve_cookie_file_empty_when_no_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "no-app").mkdir()
+    monkeypatch.setattr(cookies, "app_dir", lambda: str(tmp_path / "no-app"))
+    monkeypatch.chdir(tmp_path)
+    assert resolve_cookie_file("https://youtu.be/x") == ""
+
+
+def test_resolve_cookie_file_empty_for_unknown_platform(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    (tmp_path / "youtube_cookies.txt").write_text("c")
+    assert resolve_cookie_file("https://example.com/x") == ""
