@@ -9,6 +9,12 @@ from core.probe import probe_media
 from core.progress import Progress
 from sites.errors import classify_error
 from utils.ffmpeg import ffmpeg_path
+from utils.file_utils import (
+    clean_title,
+    get_uploader,
+    is_generic_title,
+    make_unique_filepath,
+)
 from utils.ydl_opts import (
     _ffmpeg_to_nle_mp4,
     _nle_ydl_opts,
@@ -39,6 +45,63 @@ def needs_universal_reencode(src_info: dict) -> bool:
 
 class DownloadCancelled(Exception):
     """Raised from the progress hook when the caller requests cancellation."""
+
+
+def _title_without_cookies(url, cookies_file, cookies_from_browser):
+    """The video's title when fetched without cookies, or "".
+
+    Facebook hands back a generic title when cookies are sent, but the real one
+    when they are not. Returns "" on any failure - the caller falls back.
+    """
+    try:
+        from yt_dlp import YoutubeDL
+    except Exception:
+        return ""
+    opts = {"skip_download": True, "noplaylist": True, "quiet": True,
+            "no_warnings": True, "noprogress": True, "no_color": True}
+    try:
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception:
+        return ""
+    if not isinstance(info, dict):
+        return ""
+    return info.get("title") or ""
+
+
+def better_base_name(info, url=None, cookies_file=None,
+                     cookies_from_browser=None, title_lookup=None):
+    """A usable file base name for `info`, never the site's own name.
+
+    Order: the real title (re-fetched without cookies when the site gave a
+    generic one) -> uploader plus the video id -> the id -> whatever is left.
+    `title_lookup(url, cookies_file, cookies_from_browser) -> str` is
+    injectable for tests.
+    """
+    title = (info or {}).get("title")
+    if not is_generic_title(title, info):
+        return clean_title(title)
+
+    if url is not None:
+        lookup = title_lookup or _title_without_cookies
+        try:
+            alt = lookup(url, cookies_file, cookies_from_browser)
+        except Exception:
+            alt = ""
+        if alt and not is_generic_title(alt, info):
+            return clean_title(alt)
+
+    # clean_title("") is "video", so an absent uploader must not take that value
+    # or the uploader/id branch would fire with a bogus "video" prefix.
+    raw_uploader = get_uploader(info) or ""
+    uploader = clean_title(raw_uploader) if raw_uploader else ""
+    vid = ((info or {}).get("id") or "").strip()
+    if uploader and vid:
+        return clean_title("%s_%s" % (uploader, vid))
+    if vid or uploader:
+        return clean_title(vid or uploader)
+    # Nothing usable at all: "video" beats naming the file after the site.
+    return "video"
 
 
 def _discard(path):
@@ -182,6 +245,27 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
             return error_result(
                 "skipped", "Already downloaded; skipped.", url
             )
+
+        # A site can hand back a title that is just its own name (Facebook does
+        # this when cookies are sent), which would name the file after the site.
+        if downloaded_file and os.path.isfile(downloaded_file):
+            current_base = os.path.splitext(os.path.basename(downloaded_file))[0]
+            if is_generic_title(current_base, info):
+                better = better_base_name(
+                    info, url=url, cookies_file=cookies_file,
+                    cookies_from_browser=cookies_from_browser,
+                )
+                if better and better != current_base:
+                    _, current_ext = os.path.splitext(downloaded_file)
+                    target = make_unique_filepath(
+                        os.path.dirname(downloaded_file), better,
+                        current_ext.lstrip("."), fallback_id=info.get("id"),
+                    )
+                    try:
+                        os.replace(downloaded_file, target)
+                        downloaded_file = target
+                    except OSError:
+                        pass
 
         if clip is not None and os.path.isfile(downloaded_file):
             moved = False

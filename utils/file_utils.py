@@ -36,6 +36,33 @@ def restore_or(default: str, value) -> str:
     return value or default
 
 
+# A title that is just the site's own name tells us nothing, and naming a file
+# after it is worse than useless. Facebook returns exactly this when a cookie
+# file is supplied.
+GENERIC_TITLES = frozenset((
+    "facebook", "youtube", "instagram", "tiktok", "twitter", "x", "douyin",
+    "bilibili", "video", "untitled", "unknown",
+))
+
+
+def is_generic_title(title, info=None) -> bool:
+    """True when `title` carries no information about the video. Pure.
+
+    Empty, a known site name, or the extractor's own name all count.
+    """
+    text = (title or "").strip()
+    if not text:
+        return True
+    lowered = text.lower()
+    if lowered in GENERIC_TITLES:
+        return True
+    if info:
+        site = (info.get("extractor_key") or info.get("extractor") or "")
+        if site and lowered == site.lower():
+            return True
+    return False
+
+
 def clean_title(title: str) -> str:
     if not title:
         return "video"

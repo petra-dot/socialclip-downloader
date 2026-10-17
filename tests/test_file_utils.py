@@ -1,4 +1,10 @@
-from utils.file_utils import clean_title, get_uploader, make_unique_filepath, restore_or
+from utils.file_utils import (
+    clean_title,
+    get_uploader,
+    is_generic_title,
+    make_unique_filepath,
+    restore_or,
+)
 
 
 def test_restore_or_returns_saved_value():
@@ -76,3 +82,28 @@ def test_output_code_for_accepts_a_label_or_a_code():
     assert output_code_for("mp3") == "MP3"
     assert output_code_for("Video (MP4)") == "MP4"
     assert output_code_for("") == "MP4"
+
+
+def test_is_generic_title_empty_and_whitespace():
+    assert is_generic_title("") is True
+    assert is_generic_title("  ") is True
+    assert is_generic_title(None) is True
+
+
+def test_is_generic_title_site_names_case_insensitively():
+    assert is_generic_title("Facebook") is True
+    assert is_generic_title("facebook") is True
+    assert is_generic_title("YouTube") is True
+
+
+def test_is_generic_title_real_title_is_not_generic():
+    # Synthetic stand-in for the real extracted title: a full sentence, not a
+    # bare site name.
+    assert is_generic_title("My Holiday Video 2026") is False
+    assert is_generic_title("Facebook Ads Tutorial") is False
+
+
+def test_is_generic_title_matches_the_extractor_name():
+    assert is_generic_title("facebook", {"extractor_key": "Facebook"}) is True
+    # A real title that merely resembles the site name stays usable.
+    assert is_generic_title("Facebook Ads Tutorial", {"extractor_key": "Facebook"}) is False

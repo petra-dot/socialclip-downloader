@@ -1,5 +1,5 @@
 from core.clip import ClipSpec
-from core.download import DownloadCancelled, download_one
+from core.download import DownloadCancelled, better_base_name, download_one
 
 
 class FakeYDL:
@@ -614,3 +614,93 @@ def test_progress_carries_speed_eta_and_size(monkeypatch, tmp_path):
     assert p.eta == 3
     assert p.downloaded == 1024 * 1024
     assert p.total == 1024 * 1024 * 4
+
+
+def test_better_base_name_uses_lookup_when_title_is_generic():
+    info = {"id": "123", "title": "Facebook", "uploader": "somechannel"}
+    result = better_base_name(
+        info, url="https://a.com/1",
+        title_lookup=lambda url, cf, cfb: "My Holiday Video 2026",
+    )
+    assert result == "My Holiday Video 2026"
+
+
+def test_better_base_name_falls_back_to_uploader_and_id():
+    info = {"id": "123", "title": "Facebook", "uploader": "somechannel"}
+    result = better_base_name(
+        info, url="https://a.com/1",
+        title_lookup=lambda url, cf, cfb: "",
+    )
+    assert result == "somechannel_123"
+
+
+def test_better_base_name_falls_back_to_id_without_uploader():
+    info = {"id": "123", "title": "Facebook"}
+    result = better_base_name(
+        info, url="https://a.com/1",
+        title_lookup=lambda url, cf, cfb: "",
+    )
+    assert result == "123"
+
+
+def test_better_base_name_keeps_a_good_title_without_lookup():
+    calls = {"n": 0}
+
+    def lookup(url, cf, cfb):
+        calls["n"] += 1
+        return "should not be used"
+
+    info = {"id": "123", "title": "My Holiday Video 2026", "uploader": "somechannel"}
+    result = better_base_name(info, url="https://a.com/1", title_lookup=lookup)
+    assert result == "My Holiday Video 2026"
+    assert calls["n"] == 0
+
+
+def test_better_base_name_survives_a_raising_lookup():
+    def boom(url, cf, cfb):
+        raise RuntimeError("network died")
+
+    info = {"id": "123", "title": "Facebook", "uploader": "somechannel"}
+    result = better_base_name(info, url="https://a.com/1", title_lookup=boom)
+    assert result == "somechannel_123"
+
+
+def test_download_one_renames_a_generic_title(monkeypatch, tmp_path):
+    """A site-generic on-disk name is replaced by the real title.
+
+    The cookie-less re-fetch (download=False) reports the real title, so the
+    file named after the site is renamed before it is handed back.
+    """
+    site_named = tmp_path / "Facebook.mp4"
+    site_named.write_text("data")
+
+    class YDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            if not download:
+                return {"title": "My Holiday Video 2026"}
+            return {"id": "123", "title": "Facebook", "ext": "mp4", "height": 720}
+
+        def prepare_filename(self, info):
+            return str(site_named)
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", YDL)
+    monkeypatch.setattr(
+        "core.download.probe_media",
+        lambda path, **k: {"vcodec": "h264", "acodec": "aac", "height": 720, "container": "mp4"},
+    )
+    result = download_one(
+        "https://a.com/1", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP4", convert=False, target_resolution=1080,
+    )
+    assert result.status == "ok"
+    assert result.path == str(tmp_path / "My Holiday Video 2026.mp4")
+    assert not site_named.exists()
