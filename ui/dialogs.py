@@ -1,6 +1,6 @@
 import os
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from core.doctor import run_checks
 from sites.collections import collection_note
@@ -108,34 +108,95 @@ def doctor_lines(report, components=None) -> list:
     return lines
 
 
-def show_doctor(parent=None, on_repair=None):
-    """Health view: the report, the components, and a Repair action."""
-    from core.maintenance import check_all, plan_repairs
-    from core.paths import data_dir
+def health_summary(components) -> tuple:
+    """(headline, tone) for the component list. Pure.
 
-    try:
-        report = run_checks()
-    except Exception as exc:
-        report = {"schema_version": "1.2", "error": str(exc)}
-    try:
-        components = check_all()
-    except Exception:
-        components = []
+    tone is "ok" when nothing needs attention, "bad" when something is
+    "broken", otherwise "warn".
+    """
+    needing = [c for c in components or [] if c.state in ("missing", "stale", "broken")]
+    if not needing:
+        return "Everything is working", "ok"
+    count = len(needing)
+    headline = "%d thing%s need attention" % (count, "" if count == 1 else "s")
+    tone = "bad" if any(c.state == "broken" for c in needing) else "warn"
+    return headline, tone
+
+
+def state_chip(state) -> tuple:
+    """(text, tone) for one component state. Pure; unknown states are shown."""
+    return {
+        "ok": ("OK", "ok"),
+        "missing": ("MISSING", "bad"),
+        "stale": ("STALE", "warn"),
+        "broken": ("BROKEN", "bad"),
+        "unknown": ("UNKNOWN", "unknown"),
+    }.get((state or "").lower(), ((state or "?").upper(), "unknown"))
+
+
+def show_doctor(parent=None, on_repair=None):
+    """Health view: a status dashboard with inline repair. Never blocks."""
+    from core.paths import data_dir
+    from ui import style
+    from workers.maintenance_worker import DoctorCheckWorker
 
     dialog = QtWidgets.QDialog(parent)
     dialog.setWindowTitle("Health")
-    dialog.resize(620, 460)
+    dialog.resize(640, 480)
     layout = QtWidgets.QVBoxLayout(dialog)
-    view = QtWidgets.QTextEdit()
-    view.setReadOnly(True)
-    view.setPlainText("\n".join(doctor_lines(report, components)))
-    layout.addWidget(view)
 
-    buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-    repair = buttons.addButton("Repair", QtWidgets.QDialogButtonBox.ActionRole)
-    open_dir = buttons.addButton(
-        "Open data folder", QtWidgets.QDialogButtonBox.ActionRole
+    headline = QtWidgets.QLabel("")
+    headline.setAccessibleName("Health summary")
+    heading_font = headline.font()
+    heading_font.setBold(True)
+    base = QtWidgets.QApplication.font().pointSizeF()
+    if base and base > 0:
+        heading_font.setPointSizeF(base + 3.0)
+    headline.setFont(heading_font)
+    layout.addWidget(headline)
+
+    subtitle = QtWidgets.QLabel("Checking…")
+    subtitle.setAccessibleName("Health check status")
+    layout.addWidget(subtitle)
+
+    rows_container = QtWidgets.QWidget()
+    rows = QtWidgets.QVBoxLayout(rows_container)
+    rows.setContentsMargins(0, 8, 0, 8)
+    layout.addWidget(rows_container)
+
+    details_toggle = QtWidgets.QToolButton()
+    details_toggle.setText("Details")
+    details_toggle.setCheckable(True)
+    details_toggle.setArrowType(QtCore.Qt.RightArrow)
+    details_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+    details_toggle.setAccessibleName("Show health report details")
+    details_row = QtWidgets.QHBoxLayout()
+    details_row.addWidget(details_toggle)
+    details_row.addStretch(1)
+    layout.addLayout(details_row)
+
+    details_view = QtWidgets.QTextEdit()
+    details_view.setReadOnly(True)
+    details_view.setAccessibleName("Health report details")
+    details_view.setFont(
+        QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
     )
+    details_view.setVisible(False)
+    layout.addWidget(details_view)
+
+    footer = QtWidgets.QHBoxLayout()
+    repair_all = QtWidgets.QPushButton("")
+    repair_all.setAccessibleName("Repair all components")
+    repair_all.setVisible(False)
+    footer.addWidget(repair_all)
+    footer.addStretch(1)
+    open_btn = QtWidgets.QPushButton("Open data folder")
+    close_btn = QtWidgets.QPushButton("Close")
+    footer.addWidget(open_btn)
+    footer.addWidget(close_btn)
+    layout.addLayout(footer)
+
+    repair_keys = []
 
     def _repair(keys):
         if on_repair is None or not keys:
@@ -143,10 +204,83 @@ def show_doctor(parent=None, on_repair=None):
         dialog.accept()
         on_repair(keys)
 
-    repair.clicked.connect(lambda: _repair(plan_repairs(components)))
-    open_dir.clicked.connect(lambda: reveal_in_folder(data_dir()))
-    buttons.rejected.connect(dialog.reject)
-    layout.addWidget(buttons)
+    def _toggle_details(checked):
+        details_view.setVisible(checked)
+        details_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
+        )
+
+    def _clear_rows():
+        while rows.count():
+            item = rows.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def _add_row(component):
+        row = QtWidgets.QWidget()
+        row_layout = QtWidgets.QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        chip_text, tone = state_chip(component.state)
+        chip = QtWidgets.QLabel(chip_text)
+        chip.setAccessibleName("%s: %s" % (component.label, chip_text))
+        color = style.state_color(tone)
+        if color:
+            chip.setStyleSheet(
+                "color: %s; border: 1px solid %s; border-radius: 4px; "
+                "padding: 1px 6px; font-weight: bold;" % (color, color)
+            )
+        row_layout.addWidget(chip)
+        name = QtWidgets.QLabel(component.label)
+        name.setMinimumWidth(150)
+        name.setStyleSheet("font-weight: bold;")
+        row_layout.addWidget(name)
+        value = QtWidgets.QLabel(component.version or component.detail or "")
+        value.setStyleSheet("color: %s;" % style.state_color("muted"))
+        row_layout.addWidget(value, 1)
+        if component.action in ("install", "update"):
+            repair = QtWidgets.QPushButton("Repair")
+            repair.setAccessibleName("Repair %s" % component.label)
+            repair.clicked.connect(
+                lambda _checked=False, key=component.key: _repair([key])
+            )
+            row_layout.addWidget(repair)
+        rows.addWidget(row)
+
+    def _on_done(payload):
+        components, report = payload
+        headline_text, tone = health_summary(components)
+        headline.setText(headline_text)
+        head_color = style.state_color(tone)
+        if head_color:
+            headline.setStyleSheet("color: %s;" % head_color)
+        subtitle.setText("Checked just now")
+        _clear_rows()
+        for component in components:
+            _add_row(component)
+        details_view.setPlainText("\n".join(doctor_lines(report, components)))
+        keys = [
+            c.key for c in components if c.action in ("install", "update")
+        ]
+        repair_keys[:] = keys
+        if len(keys) > 1:
+            repair_all.setText("Repair all (%d)" % len(keys))
+            repair_all.setVisible(True)
+
+    def _on_error(message):
+        subtitle.setText(message or "The check failed.")
+        subtitle.setStyleSheet("color: %s;" % style.state_color("muted"))
+
+    details_toggle.toggled.connect(_toggle_details)
+    open_btn.clicked.connect(lambda: reveal_in_folder(data_dir()))
+    close_btn.clicked.connect(dialog.reject)
+    repair_all.clicked.connect(lambda: _repair(repair_keys))
+
+    worker = DoctorCheckWorker()
+    worker.done_signal.connect(_on_done)
+    worker.error_signal.connect(_on_error)
+    dialog._doctor_worker = worker
+    worker.start()
     dialog.exec_()
 
 

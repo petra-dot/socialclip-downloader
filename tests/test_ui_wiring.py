@@ -222,3 +222,81 @@ def test_within_a_day_treats_bad_stamps_as_stale():
     # so a fresh check runs instead of raising out of the daily-cache guard.
     aware = datetime.datetime.now(datetime.timezone.utc).isoformat()
     assert _within_a_day(aware) is False
+
+
+def _component(key, state, action="none", label=None, version="", detail=""):
+    from core.maintenance import Component
+
+    return Component(
+        key, label or key, state,
+        version=version, detail=detail, action=action,
+    )
+
+
+def test_health_summary_all_ok_is_working():
+    from ui.dialogs import health_summary
+
+    comps = [_component("yt-dlp", "ok"), _component("ffmpeg", "ok")]
+    assert health_summary(comps) == ("Everything is working", "ok")
+
+
+def test_health_summary_empty_is_working():
+    from ui.dialogs import health_summary
+
+    assert health_summary([]) == ("Everything is working", "ok")
+    assert health_summary(None) == ("Everything is working", "ok")
+
+
+def test_health_summary_one_stale_is_warn():
+    from ui.dialogs import health_summary
+
+    headline, tone = health_summary([_component("yt-dlp", "stale")])
+    assert "1 thing" in headline
+    assert "things" not in headline
+    assert tone == "warn"
+
+
+def test_health_summary_two_needing_is_plural_warn():
+    from ui.dialogs import health_summary
+
+    comps = [_component("yt-dlp", "stale"), _component("deno", "missing")]
+    headline, tone = health_summary(comps)
+    assert "2 things" in headline
+    assert tone == "warn"
+
+
+def test_health_summary_broken_is_bad():
+    from ui.dialogs import health_summary
+
+    comps = [_component("yt-dlp", "missing"), _component("data-dir", "broken")]
+    _headline, tone = health_summary(comps)
+    assert tone == "bad"
+    assert health_summary([_component("data-dir", "broken")])[1] == "bad"
+
+
+def test_state_chip_known_states():
+    from ui.dialogs import state_chip
+
+    assert state_chip("ok") == ("OK", "ok")
+    assert state_chip("missing") == ("MISSING", "bad")
+    assert state_chip("stale") == ("STALE", "warn")
+    assert state_chip("broken") == ("BROKEN", "bad")
+    assert state_chip("unknown") == ("UNKNOWN", "unknown")
+
+
+def test_state_chip_is_case_insensitive_for_known_states():
+    from ui.dialogs import state_chip
+
+    assert state_chip("OK") == ("OK", "ok")
+
+
+def test_state_chip_shows_an_unexpected_state():
+    from ui.dialogs import state_chip
+
+    assert state_chip("weird") == ("WEIRD", "unknown")
+
+
+def test_state_chip_shows_none():
+    from ui.dialogs import state_chip
+
+    assert state_chip(None) == ("?", "unknown")

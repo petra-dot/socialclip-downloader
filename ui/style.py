@@ -20,10 +20,14 @@ THEME_LABELS = {
 }
 
 
+# "warn"/"bad"/"unknown" are the Health view's tone names; they reuse the same
+# per-theme table as "error"/"muted" rather than adding a second colour system.
 _STATE_LIGHT = {"ok": "#1a7f37", "error": "#b42318",
-                "busy": "#0b6bcb", "muted": "#57606a"}
+                "busy": "#0b6bcb", "muted": "#57606a",
+                "warn": "#9a6700", "bad": "#b42318", "unknown": "#57606a"}
 _STATE_DARK = {"ok": "#3fb950", "error": "#f85149",
-               "busy": "#4c9aff", "muted": "#9aa4b2"}
+               "busy": "#4c9aff", "muted": "#9aa4b2",
+               "warn": "#d29922", "bad": "#f85149", "unknown": "#9aa4b2"}
 
 _current_mode = THEME_SYSTEM
 
@@ -33,7 +37,11 @@ def is_dark() -> bool:
 
 
 def state_color(kind: str) -> str:
-    """A hex color for a UI state: ok / error / busy / muted."""
+    """A hex color for a UI state.
+
+    Job states use ok / error / busy / muted; the Health view's tones are
+    ok / warn / bad / unknown. Both resolve from the same per-theme table.
+    """
     table = _STATE_DARK if is_dark() else _STATE_LIGHT
     return table.get(kind, "")
 

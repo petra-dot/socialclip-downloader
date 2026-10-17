@@ -59,6 +59,26 @@ class MaintenanceCheckWorker(QtCore.QThread):
         self.done_signal.emit(components)
 
 
+class DoctorCheckWorker(QtCore.QThread):
+    """The Health view's data: component states plus the raw doctor report."""
+
+    done_signal = QtCore.pyqtSignal(object)
+    error_signal = QtCore.pyqtSignal(str)
+
+    def run(self):
+        from core.doctor import run_checks
+        try:
+            report = run_checks()
+        except Exception as exc:  # noqa: BLE001 - report, never crash the thread
+            self.error_signal.emit(str(exc))
+            return
+        try:
+            components = check_all()
+        except Exception:
+            components = []
+        self.done_signal.emit((components, report))
+
+
 class MaintenanceRepairWorker(QtCore.QThread):
     progress_signal = QtCore.pyqtSignal(str, str)
     done_signal = QtCore.pyqtSignal(object)
