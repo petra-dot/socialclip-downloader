@@ -1,6 +1,8 @@
 import os
 
-from utils.ui_helpers import looks_like_url, reveal_command, reveal_shell_string
+from utils.ui_helpers import (
+    looks_like_url, open_command, open_file, reveal_command, reveal_shell_string,
+)
 
 
 def test_looks_like_url_accepts():
@@ -83,3 +85,18 @@ def test_reveal_in_folder_opens_parent_when_file_missing(tmp_path, monkeypatch):
     # cmd is a shell string on Windows, a list elsewhere; both must name the dir.
     arg = ran[0] if isinstance(ran[0], str) else " ".join(ran[0])
     assert str(tmp_path) in arg, (ran, str(tmp_path))
+
+
+def test_open_command_per_platform():
+    assert open_command("C:/v/a.mp4", "win32")[:3] == ["cmd", "/c", "start"]
+    assert open_command("/v/a.mp4", "darwin") == ["open", "/v/a.mp4"]
+    assert open_command("/v/a.mp4", "linux") == ["xdg-open", "/v/a.mp4"]
+
+
+def test_open_file_is_false_for_a_missing_path(tmp_path):
+    assert open_file(str(tmp_path / "nope.mp4")) is False
+    assert open_file("") is False
+
+
+def test_open_file_is_false_for_a_directory(tmp_path):
+    assert open_file(str(tmp_path)) is False

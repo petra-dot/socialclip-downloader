@@ -75,3 +75,33 @@ def reveal_in_folder(path: str) -> None:
             subprocess.run(reveal_command(path), check=False)
     except Exception:
         pass
+
+
+def open_command(path: str, platform: str = None) -> list:
+    """The command that opens `path` in the OS default application."""
+    platform = platform or sys.platform
+    if platform.startswith("win"):
+        # `start` is a cmd builtin; the empty "" is the window-title slot, or a
+        # quoted path would be swallowed as the title.
+        return ["cmd", "/c", "start", "", path]
+    if platform == "darwin":
+        return ["open", path]
+    return ["xdg-open", path]
+
+
+def open_file(path: str) -> bool:
+    """Open a file with the OS default application. False on any failure.
+
+    A directory or a missing path is refused: this is for playing a download,
+    not for browsing.
+    """
+    if not path or not os.path.isfile(path):
+        return False
+    try:
+        if sys.platform == "win32":
+            os.startfile(path)          # noqa: S606  (Windows-only API)
+        else:
+            subprocess.Popen(open_command(path))
+        return True
+    except Exception:
+        return False
