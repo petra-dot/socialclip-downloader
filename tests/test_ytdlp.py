@@ -186,3 +186,32 @@ def test_entry_point_does_not_import_ytdlp_at_module_scope():
     source = pathlib.Path("socialclip_downloader.py").read_text(encoding="utf-8")
     module_scope = source.split("def main(", 1)[0]
     assert not re.search(r"^\s*(from|import)\s+yt_dlp", module_scope, re.M)
+
+
+import pytest
+
+
+def test_is_supported_url_accepts_known_sites():
+    pytest.importorskip("yt_dlp.extractor")
+    from utils.ytdlp import is_supported_url
+
+    for url in (
+        "https://youtu.be/aaaaaaaaaaa",
+        "https://youtube.com/shorts/bbbbbbbbbbb",
+        "https://www.facebook.com/reel/1",
+        "https://www.tiktok.com/@a/video/1",
+    ):
+        assert is_supported_url(url) is True, url
+
+
+def test_is_supported_url_rejects_unsupported_and_non_urls():
+    pytest.importorskip("yt_dlp.extractor")
+    from utils.ytdlp import is_supported_url
+
+    # https://a.com/1 is matched only by the generic extractor, which is
+    # excluded, so it must be reported unsupported.
+    assert is_supported_url("https://github.com/yt-dlp/yt-dlp") is False
+    assert is_supported_url("https://a.com/1") is False
+    assert is_supported_url("") is False
+    assert is_supported_url("not a url") is False
+    assert is_supported_url("example") is False
