@@ -74,6 +74,14 @@ def queue_path() -> str:
     return os.path.join(data_dir(), "queue.json")
 
 
+def history_path() -> str:
+    """The history file: the SOCIALCLIP_HISTORY override, else the data dir."""
+    override = os.environ.get("SOCIALCLIP_HISTORY")
+    if override:
+        return override
+    return os.path.join(data_dir(), "history.json")
+
+
 def managed_dir(kind: str) -> str:
     """A subdirectory for a managed component: "yt-dlp" or "bin"."""
     return os.path.join(data_dir(), kind)
