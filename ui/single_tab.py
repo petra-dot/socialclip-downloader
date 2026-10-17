@@ -389,7 +389,7 @@ class SingleTab(QtWidgets.QWidget):
         cookies_row.addWidget(browse_cookies_btn)
         clear_cookies_btn = QtWidgets.QPushButton("Clear")
         clear_cookies_btn.setMinimumWidth(50)
-        clear_cookies_btn.clicked.connect(lambda: self.cookies_input.clear())
+        clear_cookies_btn.clicked.connect(self._clear_cookies)
         cookies_row.addWidget(clear_cookies_btn)
         advanced_layout.addLayout(cookies_row)
 
@@ -553,6 +553,11 @@ class SingleTab(QtWidgets.QWidget):
         path = self.cookies_input.text().strip()
         self.cookies_file_ref["path"] = path
         self.settings.setValue("single/cookies", path)
+
+    def _clear_cookies(self):
+        """Clear the field and the stored path, not just the visible text."""
+        self.cookies_input.clear()
+        self._on_cookies_changed()
 
     def _on_save_dir_changed(self):
         text = self.save_dir_input.text().strip()
