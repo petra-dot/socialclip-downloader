@@ -11,6 +11,21 @@ NOT_FOUND_KEYWORDS = (
     "This video is unavailable", "does not exist",
 )
 
+# Signals that a site wanted authentication rather than that the media is
+# genuinely unavailable. Wider than BLOCKED_KEYWORDS, which exists to pick the
+# friendly message, not to decide whether cookies are worth trying.
+AUTH_KEYWORDS = (
+    "sign in", "log in", "login", "logged in", "not a bot", "cookies",
+    "account", "private", "members only", "age", "confirm your age",
+    "authorization", "unauthorized", "forbidden", "http error 403",
+)
+
+
+def looks_like_auth_error(message: str) -> bool:
+    """True when `message` suggests the site wanted authentication. Pure."""
+    text = (message or "").lower()
+    return any(word in text for word in AUTH_KEYWORDS)
+
 
 def classify_error(message: str, url: str = ""):
     """Map a raw yt-dlp/ffmpeg error to (category, user-facing message).

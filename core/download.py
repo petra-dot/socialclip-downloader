@@ -7,7 +7,7 @@ from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
 from core.progress import Progress
-from sites.errors import classify_error
+from sites.errors import classify_error, looks_like_auth_error
 from utils.ffmpeg import ffmpeg_path
 from utils.file_utils import (
     clean_title,
@@ -170,6 +170,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         # An explicit path is an override; otherwise find this URL's platform
         # cookie file. This is what makes the Queue and an empty field work.
         cookies_file = resolve_cookie_file(url, cookies_file)
+        # A cookie file counts as "in use" only when it is really on disk:
+        # _nle_ydl_opts sends one only when os.path.isfile is true, so a stale
+        # override path sends no cookies and must not suppress the retry.
+        cookie_file_used = bool(cookies_file) and os.path.isfile(cookies_file)
 
         from yt_dlp import YoutubeDL
 
@@ -236,20 +240,30 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
 
         # Try without browser cookies first: sending cookies a site does not
         # need is harmful (Facebook degrades its title to "Facebook"; cookie
-        # rotation can make failures worse). Only a blocked site, with no
-        # per-platform file to blame, earns one retry with the browser's.
+        # rotation can make failures worse). Only a site that wanted
+        # authentication, with no per-platform file actually in use, earns one
+        # retry with the browser's cookies.
         try:
             info, downloaded_file, section_ok = _attempt(None)
         except DownloadCancelled:
             raise
         except Exception as e:
-            category, _ = classify_error(strip_ansi(str(e)), url)
-            may_retry = (cookies_from_browser and not cookies_file
-                         and category == "blocked")
+            stripped = strip_ansi(str(e))
+            category, _ = classify_error(stripped, url)
+            may_retry = (cookies_from_browser and not cookie_file_used
+                         and (category == "blocked"
+                              or looks_like_auth_error(stripped)))
             if not may_retry:
                 raise
-            retried = True
-            info, downloaded_file, section_ok = _attempt(cookies_from_browser)
+            try:
+                info, downloaded_file, section_ok = _attempt(cookies_from_browser)
+            except DownloadCancelled:
+                raise
+            except Exception:
+                # Only the retry's own failure earns the note; a later step
+                # (ffmpeg, subtitles) failing must not blame cookies.
+                retried = True
+                raise
 
         if not info:
             # With the archive on, an already-recorded video can come back as no
@@ -289,6 +303,10 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
                     )
                     try:
                         os.replace(downloaded_file, target)
+                        # Register the new name too so a later cancel or failure
+                        # cleans up the file that is actually on disk; the old
+                        # path is gone and removing it again is harmless.
+                        in_flight["created"].add(target)
                         downloaded_file = target
                     except OSError:
                         pass

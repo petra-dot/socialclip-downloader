@@ -1,4 +1,4 @@
-from sites.errors import classify_error
+from sites.errors import classify_error, looks_like_auth_error
 
 
 def test_blocked_uses_platform_display_name():
@@ -49,3 +49,22 @@ def test_not_found_error_is_classified():
     )
     assert category == "not_found"
     assert "not found" in message.lower() or "unavailable" in message.lower()
+
+
+def test_looks_like_auth_error_true_for_authentication_signals():
+    for message in (
+        "Login required",
+        "Sign in to confirm you're not a bot",
+        "HTTP Error 403: Forbidden",
+        "This video is private",
+    ):
+        assert looks_like_auth_error(message) is True, message
+
+
+def test_looks_like_auth_error_false_for_genuinely_unavailable():
+    for message in ("Video unavailable", "Unsupported URL", ""):
+        assert looks_like_auth_error(message) is False, message
+
+
+def test_looks_like_auth_error_tolerates_none():
+    assert looks_like_auth_error(None) is False
