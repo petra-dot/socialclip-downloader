@@ -170,3 +170,9 @@ have been deleted). The notable ones:
   `MaintenanceCheckWorker` untouched. Verified offscreen on the real machine:
   `Everything is working` with five OK rows and no Repair button.
 
+
+- **Shipped and user-verified.** All of the above went out in **v0.10.1**
+  (tag `v0.10.1`, GitHub Release with Windows/macOS/Linux builds). The user
+  tested the fixes in the app and confirmed they work. See CHANGELOG.md for the
+  release notes.
+
