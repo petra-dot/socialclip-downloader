@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.12.2 - 2026-10-18
+
+### Fixed
+- **A console window flashed after a download or a conversion on Windows.** A
+  frozen `--windowed` build has no console of its own, so Windows allocated a
+  fresh one for every console child this app spawned (ffmpeg, ffprobe, `cmd.exe`)
+  and it popped up over the app. yt-dlp already hides its own ffmpeg children;
+  ours now do too, through a shared `utils.proc.no_window_kwargs()` (Windows
+  `CREATE_NO_WINDOW` plus a hidden `STARTUPINFO`). It is a no-op on macOS and
+  Linux, where a GUI app's child never gets a window, and `tests/test_proc.py`
+  fails if any future spawn skips it.
+
 ## v0.12.1 - 2026-10-18
 
 ### Fixed
