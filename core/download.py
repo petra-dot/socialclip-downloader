@@ -3,6 +3,7 @@ import subprocess
 
 from core.clip import ClipSpec, clip_ffmpeg_args
 from core.formats import EDITOR_SAFE_A
+from core.history import record
 from core.manifest import error_result, result_from_info
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
@@ -161,7 +162,29 @@ def _section_range(clip):
 def download_one(url, outtmpl, output_type, convert, target_resolution,
                  cookies_file=None, progress=None, cancel=None,
                  subtitles="off", embed_thumbnail=False, format_id=None,
-                 clip=None, archive=None, cookies_from_browser=None):
+                 clip=None, archive=None, cookies_from_browser=None,
+                 history=None, source=""):
+    """Download one URL, recording a successful result in `history`.
+
+    `history` is any object with an .add(entry) method; `source` labels the
+    caller ("single", "queue", "cli"). Recording can never fail the download.
+    """
+    result = _run_download(
+        url, outtmpl, output_type, convert, target_resolution,
+        cookies_file=cookies_file, progress=progress, cancel=cancel,
+        subtitles=subtitles, embed_thumbnail=embed_thumbnail,
+        format_id=format_id, clip=clip, archive=archive,
+        cookies_from_browser=cookies_from_browser,
+    )
+    if getattr(result, "status", "") == "ok":
+        record(history, result, source)
+    return result
+
+
+def _run_download(url, outtmpl, output_type, convert, target_resolution,
+                  cookies_file=None, progress=None, cancel=None,
+                  subtitles="off", embed_thumbnail=False, format_id=None,
+                  clip=None, archive=None, cookies_from_browser=None):
     in_flight = {"created": set()}
     saw_download = {"value": False}
     retried = False
