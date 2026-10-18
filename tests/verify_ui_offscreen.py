@@ -39,11 +39,12 @@ def main():
     assert queue._bulk_bar.isHidden()
 
     convert = ConvertTab()
-    assert not convert.convert_file_btn.isEnabled()
-    assert not convert.console_log.isHidden(), "the conversion log starts shown"
-    convert.details_toggle.setChecked(False)
-    assert convert.console_log.isHidden(), "the toggle minimizes the log"
-    convert.details_toggle.setChecked(True)
+    assert convert.table.rowCount() == 0, "the list starts empty"
+    assert convert.table.selectionMode() == \
+        QtWidgets.QAbstractItemView.ExtendedSelection
+    assert convert.bulk_bar.isHidden()
+    assert convert.start_btn.text() == "Convert"
+    assert convert.console_log.isHidden() is False
 
     HistoryTab()
     print("offscreen UI: ALL CHECKS PASSED")
