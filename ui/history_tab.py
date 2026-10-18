@@ -14,6 +14,7 @@ from core.history import (
     HistoryStore, STATUS_DELETED, STATUS_MISSING, STATUS_OK,
     filter_entries, format_date, platform_label, search, sort_entries, status_of,
 )
+from core.formats import download_format_label
 from core.progress import format_bytes
 from ui.platform_icons import icon_for_url, platform_icon
 from ui.style import danger_text_style, make_chip, make_heading, state_color
@@ -384,7 +385,7 @@ class HistoryTab(QtWidgets.QWidget):
             "URL": entry.url or "-",
             "Path": entry.path or "-",
             "Platform": platform_label(entry.platform) or "-",
-            "Format": (entry.extension or "-").upper(),
+            "Format": download_format_label((entry.extension or "-").upper()),
             "Resolution": "%dp" % entry.height if entry.height else "-",
             "Duration": _duration(entry.duration_seconds),
             "Size": format_bytes(entry.bytes) if entry.bytes else "-",

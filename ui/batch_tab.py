@@ -1,9 +1,10 @@
 import datetime
 import os
 
-from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore
 
 from core.collections import new_entries
+from core.formats import download_format_label
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
@@ -14,7 +15,6 @@ from ui.style import make_chip, make_heading
 from utils.file_utils import (
     default_download_folder,
     restore_or,
-    OUTPUT_FORMATS,
     RESOLUTIONS,
     output_index_for,
 )
@@ -62,18 +62,12 @@ def state_kind(state: str) -> str:
     return "muted"
 
 
-def state_brush(state: str):
-    """A foreground brush for a job state, so success and failure scan."""
-    from ui.style import state_color
-    return QtGui.QBrush(QtGui.QColor(state_color(state_kind(state))))
-
-
 def job_options_summary(options: dict) -> str:
-    """A short, human summary of a job's baked options, e.g. 'MP4 1080p'."""
+    """A short, human summary of a job's baked options, e.g. 'MP4 (...) 1080p'."""
     opts = options or {}
     raw = opts.get("output_type")
     fmt = raw if raw in ("MP3", "MP4") else "?"
-    parts = [fmt]
+    parts = [download_format_label(fmt)]
     if fmt == "MP4" and opts.get("target_resolution"):
         parts.append("%sp" % opts["target_resolution"])
     subtitles = opts.get("subtitles", "off")
@@ -256,7 +250,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_opts_layout = QtWidgets.QHBoxLayout()
         self.batch_output_combo = QtWidgets.QComboBox()
         self.batch_output_combo.setAccessibleName("Queue output format")
-        self.batch_output_combo.addItems(OUTPUT_FORMATS)
+        for code in ("MP4", "MP3"):
+            self.batch_output_combo.addItem(download_format_label(code), code)
         output_label = QtWidgets.QLabel("Output:")
         queue_opts_layout.addWidget(output_label)
         queue_opts_layout.addWidget(self.batch_output_combo)
@@ -467,7 +462,7 @@ class QueueTab(QtWidgets.QWidget):
         save_dir = self.batch_save_dir_input.text().strip() or default_download_folder()
         return build_job_options(
             save_dir,
-            self.batch_output_combo.currentText(),
+            self.batch_output_combo.currentData() or "MP4",
             self.batch_resolution_combo.currentText(),
             self._batch_get_cookies_path(),
             self.batch_subtitle_combo.currentData(),

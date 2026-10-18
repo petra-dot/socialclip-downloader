@@ -4,6 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from core.doctor import run_checks
 from sites.collections import collection_note
+from ui.style import primary_button_style
 from utils.file_utils import default_download_folder
 from utils.ui_helpers import reveal_in_folder
 
@@ -62,7 +63,15 @@ def show_welcome(parent=None):
         "Facebook) may require a cookies.txt export next to the app."
         % (folder, _ffmpeg_line(report))
     )
-    QtWidgets.QMessageBox.information(parent, "Welcome to SocialClip Downloader", text)
+    box = QtWidgets.QMessageBox(parent)
+    box.setWindowTitle("Welcome to SocialClip Downloader")
+    box.setIcon(QtWidgets.QMessageBox.Information)
+    box.setText(text)
+    box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    ok_btn = box.button(QtWidgets.QMessageBox.Ok)
+    ok_btn.setStyleSheet(primary_button_style())
+    ok_btn.setDefault(True)
+    box.exec_()
 
 
 def doctor_lines(report, components=None) -> list:
@@ -289,6 +298,8 @@ def show_update_ready(parent, version: str) -> bool:
         "Install it now and restart?" % (version or "")
     )
     install = box.addButton("Install and restart", QtWidgets.QMessageBox.AcceptRole)
+    install.setStyleSheet(primary_button_style())
+    install.setDefault(True)
     box.addButton("Later", QtWidgets.QMessageBox.RejectRole)
     box.exec_()
     return box.clickedButton() is install
@@ -352,6 +363,9 @@ class ExpandConfirmDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         layout.addWidget(buttons)
 
     def chosen_limit(self) -> int:
@@ -462,7 +476,6 @@ class CookiesDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        from ui.style import primary_button_style
         ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
         ok_btn.setStyleSheet(primary_button_style())
         ok_btn.setDefault(True)
@@ -554,6 +567,9 @@ class EditJobDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         layout.addWidget(buttons)
 
     def _browse(self):

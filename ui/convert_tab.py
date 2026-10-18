@@ -55,7 +55,7 @@ class ConvertTab(QtWidgets.QWidget):
         idx = self.conv_output_combo.findData(saved_output)
         self.conv_output_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.conv_output_combo.currentIndexChanged.connect(self._on_conv_output_changed)
-        conv_output_label = QtWidgets.QLabel("Convert to:")
+        conv_output_label = QtWidgets.QLabel("Output:")
         conv_output_label.setBuddy(self.conv_output_combo)
         conv_opts.addWidget(conv_output_label)
         conv_opts.addWidget(self.conv_output_combo)
@@ -225,6 +225,13 @@ class ConvertTab(QtWidgets.QWidget):
             ready.setVisible(True)
         else:
             self.panel_labels["body"].setText(msg or "The conversion did not finish.")
+
+    def refresh_state_colors(self):
+        """Re-color the result panel after a theme change."""
+        ready = self.panel_labels["ready"]
+        if not ready.text():
+            return
+        ready.setStyleSheet("color: %s;" % token("accent"))
 
     def _sync_convert_enabled(self, *_args):
         path = self.file_path_input.text().strip()

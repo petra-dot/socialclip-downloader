@@ -147,6 +147,7 @@ class SingleTab(QtWidgets.QWidget):
         self._fetch_seq = 0
         self._thumb_seq = 0
         self._last_path = ""
+        self._current_url = ""
         self._last_cookie_url = ""
         self._last_percent = -1
         self.settings = QtCore.QSettings()
@@ -415,6 +416,9 @@ class SingleTab(QtWidgets.QWidget):
         form = QtWidgets.QWidget()
         form.setLayout(main)
         self.result_panel, self.panel_labels = make_result_panel()
+        self.panel_labels["body"].setText(
+            "Downloads appear here, with the file name, codecs, and resolution."
+        )
 
         box = self.panel_labels["layout"]
         self.progress_bar = QtWidgets.QProgressBar()
@@ -865,6 +869,7 @@ class SingleTab(QtWidgets.QWidget):
         if not url:
             self.show_hint("Paste a video URL first.")
             return
+        self._current_url = url
         if classify_url(url) == "collection":
             self.collection_requested.emit(url)
             return
@@ -974,13 +979,31 @@ class SingleTab(QtWidgets.QWidget):
             if result.bytes:
                 parts.append(format_bytes(result.bytes))
             self._announce(body, "  ·  ".join(parts))
+            body.setStyleSheet("")
             ready.setText("Ready for CapCut, Premiere Pro, and DaVinci Resolve.")
             ready.setStyleSheet("color: %s;" % token("accent"))
             ready.setVisible(True)
             self.open_folder_btn.setVisible(True)
         else:
             self._announce(body, result.message or "The download did not finish.")
-            ready.setVisible(False)
+            category = getattr(result, "error_category", "")
+            cancelled = category == "cancelled"
+            body.setStyleSheet(
+                "color: %s;" % token("text_muted" if cancelled else "error")
+            )
+            if cancelled:
+                ready.setVisible(False)
+            else:
+                hint = result.message or "The download did not finish."
+                if category == "blocked":
+                    extra = get_cookie_message(
+                        detect_platform(self._current_url) if self._current_url else ""
+                    )
+                    if extra:
+                        hint = "%s %s" % (hint, extra)
+                ready.setText(hint)
+                ready.setStyleSheet("color: %s;" % token("text_muted"))
+                ready.setVisible(True)
             self.open_folder_btn.setVisible(False)
 
     def _on_worker_result(self, result):
@@ -998,7 +1021,8 @@ class SingleTab(QtWidgets.QWidget):
 
     def refresh_state_colors(self):
         """Re-color the result panel after a theme change."""
-        if not self.panel_labels["ready"].isVisible():
+        ready = self.panel_labels["ready"]
+        if not ready.text():
             return
         from ui.style import token
-        self.panel_labels["ready"].setStyleSheet("color: %s;" % token("accent"))
+        ready.setStyleSheet("color: %s;" % token("accent"))

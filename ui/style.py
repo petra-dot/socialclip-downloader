@@ -12,8 +12,8 @@ THEME_LIGHT = "light"
 THEME_DARK = "dark"
 THEMES = (THEME_SYSTEM, THEME_LIGHT, THEME_DARK)
 
-# "system" uses Qt's default palette, which on Windows is the light one. Call
-# it "Default" rather than promising it follows the OS theme.
+# "Default" follows the OS theme (detected at apply time); "Light" and "Dark"
+# force one. Fusion plus an explicit palette is used for every mode.
 THEME_LABELS = {
     THEME_SYSTEM: "Default",
     THEME_LIGHT: "Light",
@@ -72,12 +72,6 @@ def space(name: str) -> int:
 def state_color(kind: str) -> str:
     """A hex color for a UI state. Now a thin alias of `token`."""
     return token(kind)
-
-
-def state_style(kind: str) -> str:
-    """A stylesheet snippet that colors a widget by state."""
-    color = state_color(kind)
-    return "color: %s;" % color if color else ""
 
 
 def _relative_luminance(hex_color: str) -> float:

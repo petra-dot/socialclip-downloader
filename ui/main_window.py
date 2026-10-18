@@ -371,6 +371,7 @@ class MainWindow(QtWidgets.QWidget):
         """
         self.batch_tab.refresh_table()
         self.single_tab.refresh_state_colors()
+        self.convert_tab.refresh_state_colors()
 
     def _sync_theme_actions(self, mode: str):
         for name, action in getattr(self, "_theme_actions", {}).items():
