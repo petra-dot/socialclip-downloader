@@ -18,6 +18,9 @@ from ui.style import (
 class ConvertTab(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+        # The tab owns the drop so an unaccepted drop from the table viewport
+        # propagates up to dragEnterEvent/dropEvent below.
+        self.setAcceptDrops(True)
         self.worker = None
         self._last_output = ""
         self.settings = QtCore.QSettings()
@@ -62,7 +65,6 @@ class ConvertTab(QtWidgets.QWidget):
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setAcceptDrops(True)
         self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._on_menu)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
@@ -187,6 +189,10 @@ class ConvertTab(QtWidgets.QWidget):
         root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
         root.addLayout(panes)
+
+        # Paint the empty state now; it otherwise only appears on a selection
+        # change, leaving the panel body blank at startup.
+        self._show_detail(None)
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
@@ -342,12 +348,10 @@ class ConvertTab(QtWidgets.QWidget):
             ready.setVisible(False)
             self.open_folder_btn.setVisible(False)
             return
-        from core.formats import download_format_label
-        lines = [os.path.basename(job.path),
-                 download_format_label(job.target_format.upper())]
+        lines = [os.path.basename(job.path), format_label(job.target_format)]
         if job.resolution:
             lines.append("%dp" % job.resolution)
-        body.setText("  ·  ".join(lines))
+        body.setText("  ·  ".join(lines) + "\n" + (job.output_path or "-"))
         ready.setText(job.message or state_label(job.state))
         ready.setStyleSheet("color: %s;" % (
             token("ok") if job.state == "done" else token("text_muted")))
@@ -457,15 +461,20 @@ def state_kind(state: str) -> str:
             "running": "busy"}.get(state, "muted")
 
 
+def format_label(key: str) -> str:
+    """Registry label for a format key, falling back to the upper-cased key."""
+    fmt = formats.get(key)
+    return fmt.label if fmt is not None else key.upper()
+
+
 def detail_for(job) -> str:
-    from core.formats import download_format_label
     if job.state == "done" and job.output_path:
         return os.path.basename(job.output_path)
     if job.state == "failed":
         return job.message or "Failed."
     if job.state == "running":
         return job.message or "Converting…"
-    label = download_format_label(job.target_format.upper())
+    label = format_label(job.target_format)
     parts = [label]
     if job.resolution:
         parts.append("%dp" % job.resolution)

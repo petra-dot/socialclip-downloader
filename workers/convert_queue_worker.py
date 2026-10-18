@@ -43,7 +43,16 @@ class ConvertQueueWorker(QtCore.QThread):
             if job is None:
                 break
             self._emit(job)
-            if self._cancelling or job.id in self._cancelled:
+            if self._cancelling:
+                # Cancel all: stop the in-flight job and leave every unclaimed
+                # job pending so it can be resumed or retried.
+                job.state = STATUS_CANCELLED
+                job.message = "Cancelled."
+                done += 1
+                self._save()
+                self._emit(job)
+                break
+            if job.id in self._cancelled:
                 job.state = STATUS_CANCELLED
                 job.message = "Cancelled."
                 done += 1
