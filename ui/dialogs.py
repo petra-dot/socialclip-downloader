@@ -234,8 +234,11 @@ def show_doctor(parent=None, on_repair=None):
         row_layout.setContentsMargins(0, 0, 0, 0)
         chip_text, tone = state_chip(component.state)
         from ui.style import make_chip
-        chip = make_chip(chip_text, tone).label
-        chip.setAccessibleName("%s: %s" % (component.label, chip_text))
+        # Keep the holder widget: `make_chip` returns a centred container around
+        # the label, and taking only `.label` lets the holder be collected,
+        # which deletes the label it wraps.
+        chip = make_chip(chip_text, tone)
+        chip.label.setAccessibleName("%s: %s" % (component.label, chip_text))
         row_layout.addWidget(chip)
         name = QtWidgets.QLabel(component.label)
         name.setMinimumWidth(150)
