@@ -10,7 +10,6 @@ from workers.convert_worker import ConvertFileWorker
 from ui.style import (
     make_heading,
     make_result_panel,
-    primary_button_style,
     space,
     token,
 )
@@ -31,18 +30,41 @@ class ConvertTab(QtWidgets.QWidget):
         main.setContentsMargins(space("md"), space("md"), space("md"), 0)
         main.setSpacing(space("sm"))
 
-        file_heading = QtWidgets.QLabel("File")
-        make_heading(file_heading)
-        main.addWidget(file_heading)
-        file_row = QtWidgets.QHBoxLayout()
-        self.file_path_input = QtWidgets.QLineEdit()
-        self.file_path_input.setAccessibleName("File to convert")
-        file_heading.setBuddy(self.file_path_input)
-        file_row.addWidget(self.file_path_input)
-        pick_btn = QtWidgets.QPushButton("Select File...")
-        pick_btn.clicked.connect(self.on_pick_file)
-        file_row.addWidget(pick_btn)
-        main.addLayout(file_row)
+        from core.convert_queue import ConvertQueue, ConvertStore
+
+        self.store = ConvertStore()
+        self.store.load()
+        self.queue = ConvertQueue(self.store)
+        self.queue.jobs[:] = self.store.jobs
+
+        heading = QtWidgets.QLabel("Convert")
+        make_heading(heading)
+        main.addWidget(heading)
+
+        toolbar = QtWidgets.QHBoxLayout()
+        self.add_files_btn = QtWidgets.QPushButton("Add files…")
+        self.add_files_btn.clicked.connect(self.on_add_files)
+        self.clear_finished_btn = QtWidgets.QPushButton("Clear finished")
+        self.clear_finished_btn.clicked.connect(self.on_clear_finished)
+        self.retry_failed_btn = QtWidgets.QPushButton("Retry failed")
+        self.retry_failed_btn.clicked.connect(self.on_retry_failed)
+        for button in (self.add_files_btn, self.clear_finished_btn,
+                       self.retry_failed_btn):
+            toolbar.addWidget(button)
+        toolbar.addStretch(1)
+        main.addLayout(toolbar)
+
+        self.table = QtWidgets.QTableWidget(0, 3)
+        self.table.setAccessibleName("Conversion list")
+        self.table.setHorizontalHeaderLabels(["File", "Status", "Detail"])
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setAcceptDrops(True)
+        self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        main.addWidget(self.table, 1)
 
         main.addSpacing(space("lg"))
         conv_heading = QtWidgets.QLabel("Convert")
@@ -84,14 +106,6 @@ class ConvertTab(QtWidgets.QWidget):
         self._update_conv_controls()
         main.addLayout(conv_opts)
 
-        conv_btn_row = QtWidgets.QHBoxLayout()
-        self.convert_file_btn = QtWidgets.QPushButton("Convert")
-        self.convert_file_btn.setStyleSheet(primary_button_style())
-        self.convert_file_btn.clicked.connect(self.on_convert_file)
-        conv_btn_row.addWidget(self.convert_file_btn)
-        conv_btn_row.addStretch(1)
-        main.addLayout(conv_btn_row)
-
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
         self.hint_label.setVisible(False)
@@ -125,12 +139,7 @@ class ConvertTab(QtWidgets.QWidget):
         # Set the shown state last: the handler reads _bottom_stretch, which
         # only exists once the spacer above is in the layout.
         self.details_toggle.setChecked(True)
-        # One width for the action and its disclosure, matching the Download
-        # tab's row.
-        action_width = max(self.convert_file_btn.sizeHint().width(),
-                           self.details_toggle.sizeHint().width())
-        self.convert_file_btn.setFixedWidth(action_width)
-        self.details_toggle.setFixedWidth(action_width)
+        self.details_toggle.setFixedWidth(self.details_toggle.sizeHint().width())
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()
@@ -149,9 +158,6 @@ class ConvertTab(QtWidgets.QWidget):
         root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
         root.addLayout(panes)
-
-        self.file_path_input.textChanged.connect(self._sync_convert_enabled)
-        self._sync_convert_enabled()
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
@@ -264,3 +270,110 @@ class ConvertTab(QtWidgets.QWidget):
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )
+
+    def on_add_files(self):
+        files, _ = QtWidgets.QFileDialog.getOpenFileNames(
+            self, "Select media files", default_download_folder(),
+            "Media files (*.mp4 *.mov *.mkv *.avi *.webm *.mp3 *.m4a *.wav *.aac "
+            "*.flac *.ogg *.opus *.gif);;All files (*)")
+        if files:
+            self._add_paths(files)
+
+    def _new_item_options(self):
+        """The options baked into a row when it is added."""
+        fmt = self.conv_output_combo.currentData()
+        target_res = (int(self.conv_res_combo.currentText())
+                      if self.conv_res_combo.isEnabled() else 0)
+        return {"target_format": fmt, "resolution": target_res,
+                "copy_streams": self.copy_combo.currentData()}
+
+    def _add_paths(self, paths):
+        kept = [p for p in paths if os.path.isfile(p)]
+        added = self.queue.add(kept, self._new_item_options())
+        if not added:
+            self.show_hint("Those files are already in the list."
+                           if kept else "No usable files were added.")
+            return
+        self.show_hint("")
+        self._save()
+        self.refresh_table()
+        self._select_ids([job.id for job in added])
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        self._add_paths(paths)
+        event.acceptProposedAction()
+
+    def on_clear_finished(self):
+        self.queue.clear_finished()
+        self._save()
+        self.refresh_table()
+
+    def on_retry_failed(self):
+        if not self.queue.retry_failed():
+            self.show_hint("No failed files to retry.")
+            return
+        self._save()
+        self.refresh_table()
+
+    def refresh_table(self):
+        self.table.setRowCount(0)
+        for job in self.queue.jobs:
+            self._insert_row(job)
+
+    def _insert_row(self, job):
+        from ui.style import make_chip
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        name = os.path.basename(job.path)
+        name_item = QtWidgets.QTableWidgetItem(name)
+        name_item.setToolTip(job.path)
+        name_item.setData(QtCore.Qt.UserRole, job.id)
+        self.table.setItem(row, 0, name_item)
+        self.table.setCellWidget(row, 1, make_chip(
+            state_label(job.state), state_kind(job.state)))
+        self.table.setItem(row, 2, QtWidgets.QTableWidgetItem(detail_for(job)))
+
+    def _selected_jobs(self):
+        ids = {self.table.item(index.row(), 0).data(QtCore.Qt.UserRole)
+               for index in self.table.selectionModel().selectedRows()}
+        return [job for job in self.queue.jobs if job.id in ids]
+
+    def _select_ids(self, ids):
+        wanted = set(ids)
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item is not None and item.data(QtCore.Qt.UserRole) in wanted:
+                item.setSelected(True)
+
+    def _save(self):
+        self.store.jobs = list(self.queue.jobs)
+        self.store.save()
+
+
+def state_label(state: str) -> str:
+    return (state or "").capitalize()
+
+
+def state_kind(state: str) -> str:
+    return {"done": "ok", "failed": "error",
+            "running": "busy"}.get(state, "muted")
+
+
+def detail_for(job) -> str:
+    from core.formats import download_format_label
+    if job.state == "done" and job.output_path:
+        return os.path.basename(job.output_path)
+    if job.state == "failed":
+        return job.message or "Failed."
+    if job.state == "running":
+        return job.message or "Converting…"
+    label = download_format_label(job.target_format.upper())
+    parts = [label]
+    if job.resolution:
+        parts.append("%dp" % job.resolution)
+    return "  ·  ".join(parts) + "  ·  queued"
