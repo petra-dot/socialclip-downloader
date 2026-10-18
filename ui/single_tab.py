@@ -150,6 +150,9 @@ class SingleTab(QtWidgets.QWidget):
         self._current_url = ""
         self._last_cookie_url = ""
         self._last_percent = -1
+        self._result_shown = False
+        self._body_tone = None
+        self._ready_tone = None
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
         self.preset_store.load()
@@ -934,6 +937,7 @@ class SingleTab(QtWidgets.QWidget):
         self.open_folder_btn.setVisible(False)
         self.progress_label.setText("")
         self._last_percent = -1
+        self._result_shown = False
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
@@ -979,7 +983,9 @@ class SingleTab(QtWidgets.QWidget):
             if result.bytes:
                 parts.append(format_bytes(result.bytes))
             self._announce(body, "  ·  ".join(parts))
+            self._body_tone = None
             body.setStyleSheet("")
+            self._ready_tone = "accent"
             ready.setText("Ready for CapCut, Premiere Pro, and DaVinci Resolve.")
             ready.setStyleSheet("color: %s;" % token("accent"))
             ready.setVisible(True)
@@ -988,10 +994,10 @@ class SingleTab(QtWidgets.QWidget):
             self._announce(body, result.message or "The download did not finish.")
             category = getattr(result, "error_category", "")
             cancelled = category == "cancelled"
-            body.setStyleSheet(
-                "color: %s;" % token("text_muted" if cancelled else "error")
-            )
+            self._body_tone = "text_muted" if cancelled else "error"
+            body.setStyleSheet("color: %s;" % token(self._body_tone))
             if cancelled:
+                self._ready_tone = None
                 ready.setVisible(False)
             else:
                 hint = result.message or "The download did not finish."
@@ -1001,10 +1007,12 @@ class SingleTab(QtWidgets.QWidget):
                     )
                     if extra:
                         hint = "%s %s" % (hint, extra)
+                self._ready_tone = "text_muted"
                 ready.setText(hint)
                 ready.setStyleSheet("color: %s;" % token("text_muted"))
                 ready.setVisible(True)
             self.open_folder_btn.setVisible(False)
+        self._result_shown = True
 
     def _on_worker_result(self, result):
         self._show_result(result)
@@ -1015,14 +1023,21 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.progress_label.setText("")
-        if not self._last_path:
+        if not self._result_shown:
+            # Safety net only: a worker that died before emitting result_signal.
             self.panel_labels["body"].setText(msg or "The download did not finish.")
             self.panel_labels["ready"].setVisible(False)
 
     def refresh_state_colors(self):
         """Re-color the result panel after a theme change."""
-        ready = self.panel_labels["ready"]
-        if not ready.text():
-            return
         from ui.style import token
-        ready.setStyleSheet("color: %s;" % token("accent"))
+        for label, tone in (
+            (self.panel_labels["body"], self._body_tone),
+            (self.panel_labels["ready"], self._ready_tone),
+        ):
+            if not label.text():
+                continue
+            if tone:
+                label.setStyleSheet("color: %s;" % token(tone))
+            else:
+                label.setStyleSheet("")
