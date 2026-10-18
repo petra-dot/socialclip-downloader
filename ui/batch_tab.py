@@ -1,20 +1,20 @@
 import datetime
 import os
 
-from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore
 
 from core.collections import new_entries
+from core.formats import download_format_label
 from core.presets import PresetStore, default_presets_path
 from core.queue import Queue, QueueStore, TERMINAL_STATES, can_remove
 from sites.collections import classify_url
 from sites.cookies import cookie_box_value, cookie_dialog_dir, default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
-from ui.style import make_heading
+from ui.style import make_chip, make_heading, space
 from utils.file_utils import (
     default_download_folder,
     restore_or,
-    OUTPUT_FORMATS,
     RESOLUTIONS,
     output_index_for,
 )
@@ -62,18 +62,12 @@ def state_kind(state: str) -> str:
     return "muted"
 
 
-def state_brush(state: str):
-    """A foreground brush for a job state, so success and failure scan."""
-    from ui.style import state_color
-    return QtGui.QBrush(QtGui.QColor(state_color(state_kind(state))))
-
-
 def job_options_summary(options: dict) -> str:
-    """A short, human summary of a job's baked options, e.g. 'MP4 1080p'."""
+    """A short, human summary of a job's baked options, e.g. 'MP4 (...) 1080p'."""
     opts = options or {}
     raw = opts.get("output_type")
     fmt = raw if raw in ("MP3", "MP4") else "?"
-    parts = [fmt]
+    parts = [download_format_label(fmt)]
     if fmt == "MP4" and opts.get("target_resolution"):
         parts.append("%sp" % opts["target_resolution"])
     subtitles = opts.get("subtitles", "off")
@@ -100,9 +94,11 @@ class BulkPasteDialog(QtWidgets.QDialog):
         self.setWindowTitle("Add URLs")
         self.resize(520, 320)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(QtWidgets.QLabel("Paste one URL per line:"))
+        line_label = QtWidgets.QLabel("Paste one URL per line:")
+        layout.addWidget(line_label)
         self.text = QtWidgets.QTextEdit()
         self.text.setPlaceholderText("https://...\nhttps://...")
+        line_label.setBuddy(self.text)
         layout.addWidget(self.text)
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -135,8 +131,8 @@ class QueueTab(QtWidgets.QWidget):
 
     def init_ui(self):
         queue_layout = QtWidgets.QVBoxLayout(self)
-        queue_layout.setContentsMargins(8, 8, 8, 8)
-        queue_layout.setSpacing(6)
+        queue_layout.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        queue_layout.setSpacing(space("sm"))
 
         urls_heading = QtWidgets.QLabel("Queue")
         make_heading(urls_heading)
@@ -172,6 +168,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.setColumnWidth(1, 90)
         self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.batch_table.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.batch_table.itemSelectionChanged.connect(self._on_selection_changed)
         self.batch_table.cellClicked.connect(self.on_cell_clicked)
         # Right-click a row to remove a mistakenly added link.
         self.batch_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -191,6 +190,24 @@ class QueueTab(QtWidgets.QWidget):
         self.empty_label.setWordWrap(True)
         self.empty_label.setVisible(False)
         self.batch_table.viewport().installEventFilter(self)
+
+        # Bulk actions for a multi-selection, shown as a toolbar above the
+        # table. Acts on queue entries only; deleting files stays in History.
+        self._bulk_bar = QtWidgets.QWidget()
+        bulk = QtWidgets.QHBoxLayout(self._bulk_bar)
+        bulk.setContentsMargins(0, 0, 0, 0)
+        self._bulk_label = QtWidgets.QLabel("")
+        bulk.addWidget(self._bulk_label)
+        bulk.addStretch(1)
+        for text, slot in (("Retry", self.on_retry_selected),
+                           ("Remove", self.on_remove_selected_jobs),
+                           ("Clear finished", self.on_clear_finished)):
+            button = QtWidgets.QPushButton(text)
+            button.clicked.connect(slot)
+            bulk.addWidget(button)
+        self._bulk_bar.setVisible(False)
+        queue_layout.addWidget(self._bulk_bar)
+
         queue_layout.addWidget(self.batch_table)
 
         self.progress_bar = QtWidgets.QProgressBar()
@@ -198,7 +215,8 @@ class QueueTab(QtWidgets.QWidget):
         self.progress_bar.setValue(0)
         queue_layout.addWidget(self.progress_bar)
 
-        opts_heading = QtWidgets.QLabel("Output")
+        queue_layout.addSpacing(space("lg"))
+        opts_heading = QtWidgets.QLabel("Options for new items")
         make_heading(opts_heading)
         queue_layout.addWidget(opts_heading)
 
@@ -233,7 +251,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_opts_layout = QtWidgets.QHBoxLayout()
         self.batch_output_combo = QtWidgets.QComboBox()
         self.batch_output_combo.setAccessibleName("Queue output format")
-        self.batch_output_combo.addItems(OUTPUT_FORMATS)
+        for code in ("MP4", "MP3"):
+            self.batch_output_combo.addItem(download_format_label(code), code)
         output_label = QtWidgets.QLabel("Output:")
         queue_opts_layout.addWidget(output_label)
         queue_opts_layout.addWidget(self.batch_output_combo)
@@ -317,7 +336,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addLayout(archive_row)
 
         jobs_row = QtWidgets.QHBoxLayout()
-        jobs_row.addWidget(QtWidgets.QLabel("Downloads at once:"))
+        jobs_label = QtWidgets.QLabel("Downloads at once:")
+        jobs_row.addWidget(jobs_label)
         self.jobs_spin = QtWidgets.QSpinBox()
         self.jobs_spin.setAccessibleName("Queue concurrent downloads")
         self.jobs_spin.setRange(1, 8)
@@ -325,6 +345,7 @@ class QueueTab(QtWidgets.QWidget):
         self.jobs_spin.valueChanged.connect(
             lambda v: self.settings.setValue("queue/jobs", int(v))
         )
+        jobs_label.setBuddy(self.jobs_spin)
         jobs_row.addWidget(self.jobs_spin)
         jobs_row.addStretch(1)
         queue_layout.addLayout(jobs_row)
@@ -442,7 +463,7 @@ class QueueTab(QtWidgets.QWidget):
         save_dir = self.batch_save_dir_input.text().strip() or default_download_folder()
         return build_job_options(
             save_dir,
-            self.batch_output_combo.currentText(),
+            self.batch_output_combo.currentData() or "MP4",
             self.batch_resolution_combo.currentText(),
             self._batch_get_cookies_path(),
             self.batch_subtitle_combo.currentData(),
@@ -613,11 +634,11 @@ class QueueTab(QtWidgets.QWidget):
         # Platform badge beside the URL so a long queue is scannable at a glance.
         url_item.setIcon(icon_for_url(job.url))
         self.batch_table.setItem(row, 0, url_item)
-        status_item = QtWidgets.QTableWidgetItem(state_label(job.state))
-        status_item.setForeground(state_brush(job.state))
+        tone = state_kind(job.state)          # ok / error / busy / muted
+        chip = make_chip(state_label(job.state), tone)
         if job.state == "pending":
-            status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
-        self.batch_table.setItem(row, 1, status_item)
+            chip.setToolTip("Right-click the row to remove it, or click here to cancel")
+        self.batch_table.setCellWidget(row, 1, chip)
         detail = job.message or ""
         if job.state == "pending" and not detail:
             # Options are baked in when an item is added, so show them here;
@@ -637,6 +658,33 @@ class QueueTab(QtWidgets.QWidget):
             if self._row_for_id.get(job.id) == row:
                 return job
         return None
+
+    def _selected_jobs(self):
+        rows = sorted({i.row()
+                       for i in self.batch_table.selectionModel().selectedRows()})
+        return [self._job_at_row(r) for r in rows if self._job_at_row(r)]
+
+    def _on_selection_changed(self):
+        jobs = self._selected_jobs()
+        if len(jobs) < 2:
+            self._bulk_bar.setVisible(False)
+            return
+        # Count only: the queue model stores no file sizes (History does).
+        self._bulk_label.setText("%d selected" % len(jobs))
+        self._bulk_bar.setVisible(True)
+
+    def on_retry_selected(self):
+        for job in self._selected_jobs():
+            if job.state == "failed":
+                self.queue.retry_failed(job.id)
+        self.queue.store.save()
+        self.refresh_table()
+
+    def on_remove_selected_jobs(self):
+        for job in self._selected_jobs():
+            self.queue.remove_job(job.id)
+        self.queue.store.save()
+        self.refresh_table()
 
     def on_cell_clicked(self, row, column):
         if column != 1:
@@ -710,9 +758,8 @@ class QueueTab(QtWidgets.QWidget):
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
-            item = self.batch_table.item(row, 1)
-            item.setText(state_label(status))
-            item.setForeground(state_brush(status))
+            self.batch_table.setCellWidget(
+                row, 1, make_chip(state_label(status), state_kind(status)))
             self.batch_table.item(row, 2).setText(detail or "")
 
     def _on_job(self, job_id, state, job):
@@ -754,10 +801,18 @@ class QueueTab(QtWidgets.QWidget):
         stale = sum(1 for j in self.queue.jobs
                     if j.state == "pending" and (j.options or {}) != current)
         if stale:
-            self.batch_log(
-                "%d pending item(s) use different options than the ones above. "
-                "Use 'Apply to pending' to update them." % stale
+            answer = QtWidgets.QMessageBox.question(
+                self, "Apply options?",
+                "%d pending item(s) use different options than the ones above.\n\n"
+                "Apply the current options to them and start?" % stale,
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             )
+            if answer == QtWidgets.QMessageBox.Yes:
+                for job in self.queue.jobs:
+                    if job.state == "pending":
+                        self.queue.set_options(job.id, current)
+                self.queue.store.save()
+                self.refresh_table()
         self.queue.resume()
         self.queue.store.save()
         self.batch_start_btn.setEnabled(False)

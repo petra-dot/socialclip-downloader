@@ -74,6 +74,14 @@ def queue_path() -> str:
     return os.path.join(data_dir(), "queue.json")
 
 
+def convert_path() -> str:
+    """The convert list file: the SOCIALCLIP_CONVERT override, else the data dir."""
+    override = os.environ.get("SOCIALCLIP_CONVERT")
+    if override:
+        return override
+    return os.path.join(data_dir(), "convert.json")
+
+
 def history_path() -> str:
     """The history file: the SOCIALCLIP_HISTORY override, else the data dir."""
     override = os.environ.get("SOCIALCLIP_HISTORY")

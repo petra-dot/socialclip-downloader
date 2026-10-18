@@ -4,6 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from core.doctor import run_checks
 from sites.collections import collection_note
+from ui.style import primary_button_style
 from utils.file_utils import default_download_folder
 from utils.ui_helpers import reveal_in_folder
 
@@ -62,7 +63,15 @@ def show_welcome(parent=None):
         "Facebook) may require a cookies.txt export next to the app."
         % (folder, _ffmpeg_line(report))
     )
-    QtWidgets.QMessageBox.information(parent, "Welcome to SocialClip Downloader", text)
+    box = QtWidgets.QMessageBox(parent)
+    box.setWindowTitle("Welcome to SocialClip Downloader")
+    box.setIcon(QtWidgets.QMessageBox.Information)
+    box.setText(text)
+    box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    ok_btn = box.button(QtWidgets.QMessageBox.Ok)
+    ok_btn.setStyleSheet(primary_button_style())
+    ok_btn.setDefault(True)
+    box.exec_()
 
 
 def doctor_lines(report, components=None) -> list:
@@ -192,6 +201,8 @@ def show_doctor(parent=None, on_repair=None):
     footer.addStretch(1)
     open_btn = QtWidgets.QPushButton("Open data folder")
     close_btn = QtWidgets.QPushButton("Close")
+    close_btn.setStyleSheet(style.primary_button_style())
+    close_btn.setDefault(True)
     footer.addWidget(open_btn)
     footer.addWidget(close_btn)
     layout.addLayout(footer)
@@ -222,14 +233,12 @@ def show_doctor(parent=None, on_repair=None):
         row_layout = QtWidgets.QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
         chip_text, tone = state_chip(component.state)
-        chip = QtWidgets.QLabel(chip_text)
-        chip.setAccessibleName("%s: %s" % (component.label, chip_text))
-        color = style.state_color(tone)
-        if color:
-            chip.setStyleSheet(
-                "color: %s; border: 1px solid %s; border-radius: 4px; "
-                "padding: 1px 6px; font-weight: bold;" % (color, color)
-            )
+        from ui.style import make_chip
+        # Keep the holder widget: `make_chip` returns a centred container around
+        # the label, and taking only `.label` lets the holder be collected,
+        # which deletes the label it wraps.
+        chip = make_chip(chip_text, tone)
+        chip.label.setAccessibleName("%s: %s" % (component.label, chip_text))
         row_layout.addWidget(chip)
         name = QtWidgets.QLabel(component.label)
         name.setMinimumWidth(150)
@@ -292,6 +301,8 @@ def show_update_ready(parent, version: str) -> bool:
         "Install it now and restart?" % (version or "")
     )
     install = box.addButton("Install and restart", QtWidgets.QMessageBox.AcceptRole)
+    install.setStyleSheet(primary_button_style())
+    install.setDefault(True)
     box.addButton("Later", QtWidgets.QMessageBox.RejectRole)
     box.exec_()
     return box.clickedButton() is install
@@ -327,10 +338,12 @@ class ExpandConfirmDialog(QtWidgets.QDialog):
             layout.addWidget(hint)
 
         row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel("Add first"))
+        add_label = QtWidgets.QLabel("Add first")
+        row.addWidget(add_label)
         self.count_spin = QtWidgets.QSpinBox()
         self.count_spin.setRange(1, self._max)
         self.count_spin.setValue(self._default)
+        add_label.setBuddy(self.count_spin)
         row.addWidget(self.count_spin)
         row.addWidget(QtWidgets.QLabel("of %d" % found))
         row.addStretch(1)
@@ -353,6 +366,9 @@ class ExpandConfirmDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         layout.addWidget(buttons)
 
     def chosen_limit(self) -> int:
@@ -366,10 +382,12 @@ def manage_presets(parent, store) -> bool:
     dialog.setWindowTitle("Manage presets")
     dialog.resize(420, 320)
     layout = QtWidgets.QVBoxLayout(dialog)
-    layout.addWidget(QtWidgets.QLabel("Your presets:"))
+    presets_label = QtWidgets.QLabel("Your presets:")
+    layout.addWidget(presets_label)
     listing = QtWidgets.QListWidget()
     for preset in store.user():
         listing.addItem(preset.name)
+    presets_label.setBuddy(listing)
     layout.addWidget(listing)
 
     buttons = QtWidgets.QHBoxLayout()
@@ -434,7 +452,8 @@ class CookiesDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
 
         row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel("Use cookies from:"))
+        browser_label = QtWidgets.QLabel("Use cookies from:")
+        row.addWidget(browser_label)
         self.browser_combo = QtWidgets.QComboBox()
         self.browser_combo.setAccessibleName("Cookies browser")
         self.browser_combo.addItem("No cookies", "")
@@ -443,6 +462,7 @@ class CookiesDialog(QtWidgets.QDialog):
         saved = QtCore.QSettings().value("cookies/browser", "") or ""
         index = self.browser_combo.findData(saved)
         self.browser_combo.setCurrentIndex(index if index >= 0 else 0)
+        browser_label.setBuddy(self.browser_combo)
         row.addWidget(self.browser_combo)
         row.addStretch(1)
         layout.addLayout(row)
@@ -459,6 +479,9 @@ class CookiesDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         open_btn = buttons.addButton(
             "Open cookie folder", QtWidgets.QDialogButtonBox.ActionRole
         )
@@ -482,28 +505,34 @@ class EditJobDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
 
         fmt_row = QtWidgets.QHBoxLayout()
-        fmt_row.addWidget(QtWidgets.QLabel("Output:"))
+        edit_output_label = QtWidgets.QLabel("Output:")
+        fmt_row.addWidget(edit_output_label)
         self.output_combo = QtWidgets.QComboBox()
         self.output_combo.setAccessibleName("Edit job output format")
         self.output_combo.addItems(OUTPUT_FORMATS)
         index = output_index_for(opts.get("output_type", "MP4"))
         self.output_combo.setCurrentIndex(index if index >= 0 else 0)
+        edit_output_label.setBuddy(self.output_combo)
         fmt_row.addWidget(self.output_combo)
-        fmt_row.addWidget(QtWidgets.QLabel("Resolution:"))
+        edit_res_label = QtWidgets.QLabel("Resolution:")
+        fmt_row.addWidget(edit_res_label)
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.setAccessibleName("Edit job target resolution")
         self.resolution_combo.addItems(RESOLUTIONS)
         self.resolution_combo.setCurrentText(str(opts.get("target_resolution", 1080)))
+        edit_res_label.setBuddy(self.resolution_combo)
         fmt_row.addWidget(self.resolution_combo)
         fmt_row.addStretch(1)
         layout.addLayout(fmt_row)
 
         folder_row = QtWidgets.QHBoxLayout()
-        folder_row.addWidget(QtWidgets.QLabel("Folder:"))
+        folder_label = QtWidgets.QLabel("Folder:")
+        folder_row.addWidget(folder_label)
         self.folder_input = QtWidgets.QLineEdit(
             os.path.dirname(opts.get("outtmpl", "") or "")
         )
         self.folder_input.setAccessibleName("Edit job download folder")
+        folder_label.setBuddy(self.folder_input)
         folder_row.addWidget(self.folder_input)
         browse = QtWidgets.QPushButton("Browse")
         browse.clicked.connect(self._browse)
@@ -511,7 +540,8 @@ class EditJobDialog(QtWidgets.QDialog):
         layout.addLayout(folder_row)
 
         sub_row = QtWidgets.QHBoxLayout()
-        sub_row.addWidget(QtWidgets.QLabel("Subtitles:"))
+        edit_sub_label = QtWidgets.QLabel("Subtitles:")
+        sub_row.addWidget(edit_sub_label)
         self.subtitle_combo = QtWidgets.QComboBox()
         self.subtitle_combo.setAccessibleName("Edit job subtitle delivery")
         from core.subtitles import DELIVERY_CHOICES
@@ -520,15 +550,18 @@ class EditJobDialog(QtWidgets.QDialog):
         saved = opts.get("subtitles", "off")
         sub_index = self.subtitle_combo.findData(saved)
         self.subtitle_combo.setCurrentIndex(sub_index if sub_index >= 0 else 0)
+        edit_sub_label.setBuddy(self.subtitle_combo)
         sub_row.addWidget(self.subtitle_combo)
         sub_row.addStretch(1)
         layout.addLayout(sub_row)
 
         cookie_row = QtWidgets.QHBoxLayout()
-        cookie_row.addWidget(QtWidgets.QLabel("Cookies file:"))
+        edit_cookie_label = QtWidgets.QLabel("Cookies file:")
+        cookie_row.addWidget(edit_cookie_label)
         self.cookies_input = QtWidgets.QLineEdit(opts.get("cookies_file", "") or "")
         self.cookies_input.setAccessibleName("Edit job cookies file path")
         self.cookies_input.setPlaceholderText("Optional: path to cookies.txt for auth")
+        edit_cookie_label.setBuddy(self.cookies_input)
         cookie_row.addWidget(self.cookies_input)
         layout.addLayout(cookie_row)
 
@@ -537,6 +570,9 @@ class EditJobDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         layout.addWidget(buttons)
 
     def _browse(self):

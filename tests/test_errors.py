@@ -29,6 +29,22 @@ def test_missing_ffmpeg_is_classified():
     assert "ffmpeg" in message.lower()
 
 
+def test_silent_video_ffmpeg_failure_is_not_a_missing_install():
+    category, message = classify_error(
+        "ffmpeg version 6.1 ...\nStream map '0:a' matches no streams.\n",
+        "",
+    )
+    assert category == "ffmpeg"
+    assert "no audio track" in message.lower()
+    assert "not installed" not in message.lower()
+
+
+def test_genuine_missing_ffmpeg_still_reports_install_hint():
+    category, message = classify_error("ffmpeg: command not found", "")
+    assert category == "ffmpeg"
+    assert "not installed" in message.lower() or "not in path" in message.lower()
+
+
 def test_unknown_error_passes_message_through():
     category, message = classify_error("some weird failure", "https://youtu.be/x")
     assert category == "other"

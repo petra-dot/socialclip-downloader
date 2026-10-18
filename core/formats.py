@@ -142,3 +142,13 @@ def for_kind(kind):
 
 def keys():
     return [f.key for f in FORMATS]
+
+
+# The Download tab and the Queue only produce these two output types; label
+# them with the registry's wording so "MP4" reads the same everywhere.
+_DOWNLOAD_LABELS = {"MP4": "MP4 (H.264 + AAC)", "MP3": "MP3 (audio)"}
+
+
+def download_format_label(output_type: str) -> str:
+    """Registry wording for a download output_type; unknown keys pass through."""
+    return _DOWNLOAD_LABELS.get(output_type, output_type)

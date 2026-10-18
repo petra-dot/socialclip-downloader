@@ -221,7 +221,7 @@ def test_failed_format_conversion_removes_partial_output(monkeypatch, tmp_path):
 
     class Failing:
         returncode = 1
-        stderr = b"boom"
+        stderr = b"ffmpeg version 6.1 ...\nConversion failed!\n"
 
     def run(cmd, **kwargs):
         # Simulate ffmpeg writing a partial output before failing.
@@ -236,4 +236,5 @@ def test_failed_format_conversion_removes_partial_output(monkeypatch, tmp_path):
     result = convert_file(str(src), target_format="mkv")
     assert result.status == "error"
     assert result.error_category == "ffmpeg"
+    assert result.message == "ffmpeg could not convert this file."
     assert not out.exists()

@@ -143,6 +143,19 @@ def test_presets_path_honours_override(tmp_path, monkeypatch):
     assert cli._presets_path() == str(override)
 
 
+def test_convert_path_honours_the_override(monkeypatch, tmp_path):
+    from core.paths import convert_path
+    monkeypatch.setenv("SOCIALCLIP_CONVERT", str(tmp_path / "convert.json"))
+    assert convert_path() == str(tmp_path / "convert.json")
+
+
+def test_convert_path_defaults_beside_the_queue(monkeypatch, tmp_path):
+    from core.paths import convert_path
+    monkeypatch.delenv("SOCIALCLIP_CONVERT", raising=False)
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    assert convert_path() == str(tmp_path / "convert.json")
+
+
 def test_cookie_search_finds_data_dir_cookies(tmp_path, monkeypatch):
     data = tmp_path / "data"
     data.mkdir()

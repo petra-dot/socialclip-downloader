@@ -57,6 +57,21 @@ def test_dark_theme_applies_the_palette_under_fusion():
     assert 'setStyle("Fusion")' in src
 
 
+def test_all_themes_use_fusion():
+    from ui import style
+    src = (UI_DIR / "style.py").read_text(encoding="utf-8")
+    assert 'setStyle("Fusion")' in src
+    # The native-style restore must be gone, or shapes change between themes.
+    assert "setStyle(_native_style)" not in src
+
+
+def test_tab_bar_style_uses_the_accent():
+    from ui import style
+    style._current_mode = style.THEME_LIGHT
+    assert style.token("accent") in style.tab_bar_style()
+    style._current_mode = style.THEME_SYSTEM
+
+
 def test_convert_worker_announces_output_path():
     from workers.convert_worker import ConvertFileWorker
 

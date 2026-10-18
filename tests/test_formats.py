@@ -40,3 +40,10 @@ def test_curated_formats_present():
     expected = {"mp4", "mkv", "mov", "avi", "gif",
                 "mp3", "m4a", "wav", "aac"}
     assert set(keys()) == expected
+
+
+def test_download_format_label_uses_the_registry_wording():
+    from core.formats import download_format_label
+    assert download_format_label("MP4") == "MP4 (H.264 + AAC)"
+    assert download_format_label("MP3") == "MP3 (audio)"
+    assert download_format_label("WAV") == "WAV"

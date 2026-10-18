@@ -6,6 +6,7 @@ from core.formats import get
 from core.manifest import DownloadResult, error_result
 from core.pipeline import plan_postprocess
 from core.probe import probe_media
+from sites.errors import classify_error
 from utils.ffmpeg import ffmpeg_path
 from utils.proc import no_window_kwargs
 from utils.ydl_opts import _ffmpeg_to_nle_mp4, ffprobe_get_height
@@ -102,7 +103,8 @@ def _convert_to_format(input_path, fmt, copy_streams, target_resolution=None,
                 os.remove(out_path)
         except OSError:
             pass
-        return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
+        category, message = classify_error(result.stderr.decode(errors="ignore"))
+        return error_result(category, message, "")
 
     if plan.mode == "transcode" and copy_streams is True:
         # The caller asked to copy streams, but the source codec is editor
@@ -158,7 +160,10 @@ def convert_file(input_path: str, output_type: str = None,
             result = subprocess.run(cmd, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, **no_window_kwargs())
             if result.returncode != 0:
-                return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
+                category, message = classify_error(
+                    result.stderr.decode(errors="ignore")
+                )
+                return error_result(category, message, "")
             return DownloadResult(status="ok", path=out_path, extension=output_type.lower())
 
         if output_type == "MP4":
@@ -191,7 +196,10 @@ def convert_file(input_path: str, output_type: str = None,
             out_path = f"{base}_{target_resolution}p.mp4"
             result = _ffmpeg_to_nle_mp4(input_path, out_path, target_resolution)
             if result.returncode != 0:
-                return error_result("ffmpeg", result.stderr.decode(errors="ignore"), "")
+                category, message = classify_error(
+                    result.stderr.decode(errors="ignore")
+                )
+                return error_result(category, message, "")
             return DownloadResult(status="ok", path=out_path, extension="mp4")
 
         return error_result("other", "Unknown conversion parameters.", "")

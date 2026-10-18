@@ -4,6 +4,15 @@ import re
 OUTPUT_FORMATS = ["Video (MP4)", "Audio (MP3)"]
 RESOLUTIONS = ["720", "1080", "1440", "2160"]
 
+# "Best" means no re-encode, so it replaces the old "Convert to chosen
+# resolution" checkbox with one option in the resolution combo.
+BEST_RESOLUTION = "Best (no re-encode)"
+
+
+def resolution_to_convert(choice: str) -> bool:
+    """True when a resolution choice should trigger a re-encode."""
+    return choice != BEST_RESOLUTION
+
 
 def output_index_for(value: str) -> int:
     """Map a preset output code ("MP4"/"MP3") to its OUTPUT_FORMATS index."""

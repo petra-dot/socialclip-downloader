@@ -8,6 +8,7 @@ class DownloadWorker(QtCore.QThread):
     finished_signal = QtCore.pyqtSignal(str)
     progress_signal = QtCore.pyqtSignal(object)  # a core.progress.Progress
     path_signal = QtCore.pyqtSignal(str)
+    result_signal = QtCore.pyqtSignal(object)  # a core.manifest.DownloadResult
 
     def __init__(self, url, outtmpl, convert, target_resolution, output_type, cookies_file=None, clip=None, subtitles="off", cookies_from_browser=""):
         super().__init__()
@@ -48,5 +49,6 @@ class DownloadWorker(QtCore.QThread):
             source="single",
         )
         self.cancelled = result.error_category == "cancelled"
+        self.result_signal.emit(result)
         self.path_signal.emit((result.path or "") if result.status == "ok" else "")
         self.finished_signal.emit(result.message or result.path or result.status)

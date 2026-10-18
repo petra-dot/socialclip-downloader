@@ -14,9 +14,10 @@ from core.history import (
     HistoryStore, STATUS_DELETED, STATUS_MISSING, STATUS_OK,
     filter_entries, format_date, platform_label, search, sort_entries, status_of,
 )
+from core.formats import download_format_label
 from core.progress import format_bytes
 from ui.platform_icons import icon_for_url, platform_icon
-from ui.style import danger_text_style, make_heading, state_color
+from ui.style import danger_text_style, make_chip, make_heading, space, state_color
 from utils.ui_helpers import open_file, reveal_in_folder
 from workers.probe_worker import ProbeWorker
 
@@ -37,30 +38,6 @@ _DETAIL_FIELDS = ("Title", "URL", "Path", "Platform", "Format", "Resolution",
                   "Duration", "Size", "Downloaded", "Source", "Status",
                   "Container", "Video codec", "Audio codec")
 _CODEC_FIELDS = ("Container", "Video codec", "Audio codec")
-
-
-def _chip(text, color=None):
-    """A rounded pill label, centered in a cell container.
-
-    The container holds the pill at its content width instead of letting the
-    border stretch across the whole column. `color` also tints the text; with
-    no color the chip is a neutral tag that inherits the theme text.
-    """
-    label = QtWidgets.QLabel(text)
-    border = color or state_color("muted")
-    css = "border: 1px solid %s; border-radius: 8px; padding: 1px 8px;" % border
-    if color:
-        css += " color: %s; font-weight: 600;" % color
-    label.setStyleSheet(css)
-    label.setAlignment(QtCore.Qt.AlignCenter)
-    holder = QtWidgets.QWidget()
-    row = QtWidgets.QHBoxLayout(holder)
-    row.setContentsMargins(4, 0, 4, 0)
-    row.addStretch(1)
-    row.addWidget(label)
-    row.addStretch(1)
-    holder.label = label
-    return holder
 
 
 class HistoryTab(QtWidgets.QWidget):
@@ -92,6 +69,7 @@ class HistoryTab(QtWidgets.QWidget):
 
     def _build_summary_bar(self):
         bar = QtWidgets.QHBoxLayout()
+        bar.setSpacing(space("sm"))
         self.summary_label = QtWidgets.QLabel("")
         self.summary_label.setAccessibleName("History summary")
         make_heading(self.summary_label)
@@ -122,14 +100,15 @@ class HistoryTab(QtWidgets.QWidget):
 
         self.clear_action = QtWidgets.QAction("Clear history", self)
         self.clear_action.triggered.connect(self.clear_history)
-        overflow = QtWidgets.QToolButton()
-        overflow.setText("More")
-        overflow.setAccessibleName("More history actions")
-        overflow.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-        menu = QtWidgets.QMenu(overflow)
+        # A QPushButton, not a QToolButton: a tool button has tighter metrics and
+        # sat smaller than the buttons beside it. This inherits the platform's
+        # own button size and draws its own menu indicator.
+        self.more_btn = QtWidgets.QPushButton("More")
+        self.more_btn.setAccessibleName("More history actions")
+        menu = QtWidgets.QMenu(self.more_btn)
         menu.addAction(self.clear_action)
-        overflow.setMenu(menu)
-        bar.addWidget(overflow)
+        self.more_btn.setMenu(menu)
+        bar.addWidget(self.more_btn)
         return bar
 
     def _style_action_buttons(self):
@@ -309,13 +288,11 @@ class HistoryTab(QtWidgets.QWidget):
         date_item = QtWidgets.QTableWidgetItem(format_date(entry.created_at))
         self._put(row, _DATE, date_item, entry, muted)
 
+        self.table.setCellWidget(row, _FORMAT, make_chip((entry.extension or "-").upper()))
         self.table.setCellWidget(
-            row, _FORMAT, _chip((entry.extension or "-").upper())
-        )
-        self.table.setCellWidget(
-            row, _STATUS, _chip(_STATUS_LABELS.get(status, status),
-                                state_color(_STATUS_TONES.get(status, "muted")))
-        )
+            row, _STATUS,
+            make_chip(_STATUS_LABELS.get(status, status),
+                      _STATUS_TONES.get(status, "muted")))
 
     def _put(self, row, column, item, entry, muted):
         """A text cell carrying the row's entry id and the muted brush."""
@@ -410,7 +387,7 @@ class HistoryTab(QtWidgets.QWidget):
             "URL": entry.url or "-",
             "Path": entry.path or "-",
             "Platform": platform_label(entry.platform) or "-",
-            "Format": (entry.extension or "-").upper(),
+            "Format": download_format_label((entry.extension or "-").upper()),
             "Resolution": "%dp" % entry.height if entry.height else "-",
             "Duration": _duration(entry.duration_seconds),
             "Size": format_bytes(entry.bytes) if entry.bytes else "-",
