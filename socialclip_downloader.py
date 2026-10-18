@@ -89,6 +89,11 @@ def main():
 
     window = MainWindow()
     window.show()
+    # Paint the first frame before the startup checks run: they import yt-dlp
+    # and spawn ffmpeg, and doing that with the window already mapped shows a
+    # blank frame first.
+    QtWidgets.QApplication.processEvents()
+    window.start_background_work()
     sys.exit(app.exec_())
 
 

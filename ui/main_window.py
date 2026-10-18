@@ -65,6 +65,14 @@ class MainWindow(QtWidgets.QWidget):
             self.settings.setValue("first_run_done", True)
 
         QtCore.QTimer.singleShot(4000, self.check_for_updates)
+
+    def start_background_work(self):
+        """Run the startup checks once the first frame is painted.
+
+        Importing yt-dlp and spawning ffmpeg for the component check both stall
+        the machine for a moment. Done while the window is mapping, that stall
+        shows as a blank frame before the interface draws.
+        """
         self._warn_if_ytdlp_stale()
         self._check_components()
 
