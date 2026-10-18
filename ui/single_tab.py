@@ -436,6 +436,7 @@ class SingleTab(QtWidgets.QWidget):
         # Set the shown state last: the handler reads _bottom_stretch, which
         # only exists once the spacer above is in the layout.
         self.details_toggle.setChecked(True)
+        self._equalize_widths()
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
@@ -476,6 +477,22 @@ class SingleTab(QtWidgets.QWidget):
         root.addLayout(panes)
 
         self._refresh_presets()
+
+    def _equalize_widths(self):
+        """Give paired controls one width so the form reads as a grid.
+
+        The combos and the action buttons are sized to their own content by
+        default, so neighbours come out different widths and the column edges
+        wobble. Each group below is set to its widest member.
+        """
+        def match(*widgets):
+            width = max(widget.sizeHint().width() for widget in widgets)
+            for widget in widgets:
+                widget.setMinimumWidth(width)
+
+        match(self.preset_combo, self.output_combo)
+        match(self.preset_manage_btn, self.resolution_combo)
+        match(self.advanced_toggle, self.download_btn, self.details_toggle)
 
     def _current_preset_name(self):
         return self.settings.value("preset/last", "")

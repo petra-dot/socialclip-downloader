@@ -125,6 +125,12 @@ class ConvertTab(QtWidgets.QWidget):
         # Set the shown state last: the handler reads _bottom_stretch, which
         # only exists once the spacer above is in the layout.
         self.details_toggle.setChecked(True)
+        # One width for the action and its disclosure, matching the Download
+        # tab's row.
+        action_width = max(self.convert_file_btn.sizeHint().width(),
+                           self.details_toggle.sizeHint().width())
+        self.convert_file_btn.setMinimumWidth(action_width)
+        self.details_toggle.setMinimumWidth(action_width)
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()
