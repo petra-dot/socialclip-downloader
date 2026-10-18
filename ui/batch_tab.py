@@ -194,10 +194,9 @@ class QueueTab(QtWidgets.QWidget):
         self.empty_label.setWordWrap(True)
         self.empty_label.setVisible(False)
         self.batch_table.viewport().installEventFilter(self)
-        queue_layout.addWidget(self.batch_table)
 
-        # Bulk actions for a multi-selection. Acts on queue entries only;
-        # deleting files stays in the History tab.
+        # Bulk actions for a multi-selection, shown as a toolbar above the
+        # table. Acts on queue entries only; deleting files stays in History.
         self._bulk_bar = QtWidgets.QWidget()
         bulk = QtWidgets.QHBoxLayout(self._bulk_bar)
         bulk.setContentsMargins(0, 0, 0, 0)
@@ -212,6 +211,8 @@ class QueueTab(QtWidgets.QWidget):
             bulk.addWidget(button)
         self._bulk_bar.setVisible(False)
         queue_layout.addWidget(self._bulk_bar)
+
+        queue_layout.addWidget(self.batch_table)
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
