@@ -28,7 +28,6 @@ class ConvertTab(QtWidgets.QWidget):
         main = QtWidgets.QVBoxLayout()
         main.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
         main.setSpacing(space("sm"))
-        self._main_layout = main
 
         file_heading = QtWidgets.QLabel("File")
         make_heading(file_heading)
@@ -97,13 +96,13 @@ class ConvertTab(QtWidgets.QWidget):
         self.hint_label.setWordWrap(True)
         main.addWidget(self.hint_label)
 
-        # The log is a details view: hidden by default, opened on request.
+        # The log is shown by default at a compact height; the toggle minimizes
+        # it.
         main.addSpacing(space("lg"))
         self.details_toggle = QtWidgets.QToolButton()
         self.details_toggle.setText("Activity")
         self.details_toggle.setCheckable(True)
-        self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
-        self.details_toggle.setToolTip("Show the full activity log.")
+        self.details_toggle.setToolTip("Show or hide the activity log.")
         self.details_toggle.toggled.connect(self._on_details_toggled)
         main.addWidget(self.details_toggle)
 
@@ -112,13 +111,12 @@ class ConvertTab(QtWidgets.QWidget):
         self.console_log.setMinimumHeight(120)
         self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Conversion log")
-        self.console_log.setVisible(False)
         main.addWidget(self.console_log)
+        self.details_toggle.setChecked(True)   # the log starts shown
 
         # Pack the form to the top: spare height collects here, not inside the
-        # rows. The index is kept so an opened Activity log can reclaim it.
+        # rows.
         main.addStretch(1)
-        self._bottom_stretch = main.count() - 1
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()
@@ -245,12 +243,8 @@ class ConvertTab(QtWidgets.QWidget):
         self.convert_file_btn.setEnabled(bool(path) and os.path.exists(path))
 
     def _on_details_toggled(self, checked):
+        """The log keeps its compact height; the toggle shows or hides it."""
         self.console_log.setVisible(checked)
-        self.console_log.setMaximumHeight(16777215 if checked else 120)
-        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
-        # Release the bottom spacer while the log is open, so the log still
-        # takes the spare height instead of splitting it.
-        self._main_layout.setStretch(self._bottom_stretch, 0 if checked else 1)
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )

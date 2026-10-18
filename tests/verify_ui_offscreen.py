@@ -28,7 +28,10 @@ def main():
     assert single.resolution_combo.isEnabled(), "video must offer a resolution"
     # `isHidden()` is the explicit-hide state; `isVisible()` is always False
     # here because the widget is never shown offscreen.
-    assert single.console_log.isHidden(), "Activity starts collapsed"
+    assert not single.console_log.isHidden(), "the activity log starts shown"
+    single.details_toggle.setChecked(False)
+    assert single.console_log.isHidden(), "the toggle minimizes the log"
+    single.details_toggle.setChecked(True)
 
     queue = QueueTab({"path": ""})
     assert queue.batch_table.selectionMode() == \
@@ -37,7 +40,10 @@ def main():
 
     convert = ConvertTab()
     assert not convert.convert_file_btn.isEnabled()
-    assert convert.console_log.isHidden()
+    assert not convert.console_log.isHidden(), "the conversion log starts shown"
+    convert.details_toggle.setChecked(False)
+    assert convert.console_log.isHidden(), "the toggle minimizes the log"
+    convert.details_toggle.setChecked(True)
 
     HistoryTab()
     print("offscreen UI: ALL CHECKS PASSED")

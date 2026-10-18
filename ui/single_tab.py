@@ -394,15 +394,13 @@ class SingleTab(QtWidgets.QWidget):
         cookies_row.addWidget(clear_cookies_btn)
         advanced_layout.addLayout(cookies_row)
 
-        # The log is a details view: hidden by default, opened on request.
-        # It used to take every spare pixel, which made developer chatter the
-        # largest element on the tab.
-        self._main_layout = main
+        # The log is shown by default at a compact height; the toggle minimizes
+        # it. It used to take every spare pixel, which made developer chatter
+        # the largest element on the tab.
         self.details_toggle = QtWidgets.QToolButton()
         self.details_toggle.setText("Activity")
         self.details_toggle.setCheckable(True)
-        self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
-        self.details_toggle.setToolTip("Show the full activity log.")
+        self.details_toggle.setToolTip("Show or hide the activity log.")
         self.details_toggle.toggled.connect(self._on_details_toggled)
         main.addSpacing(space("lg"))
         main.addWidget(self.details_toggle)
@@ -412,13 +410,12 @@ class SingleTab(QtWidgets.QWidget):
         self.console_log.setMinimumHeight(120)
         self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Activity log")
-        self.console_log.setVisible(False)
         main.addWidget(self.console_log)
+        self.details_toggle.setChecked(True)   # the log starts shown
 
         # Pack the form to the top: spare height collects here, not inside the
-        # rows. The index is kept so an opened Activity log can reclaim it.
+        # rows.
         main.addStretch(1)
-        self._bottom_stretch = main.count() - 1
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
@@ -702,12 +699,8 @@ class SingleTab(QtWidgets.QWidget):
         )
 
     def _on_details_toggled(self, checked):
+        """The log keeps its compact height; the toggle shows or hides it."""
         self.console_log.setVisible(checked)
-        self.console_log.setMaximumHeight(16777215 if checked else 120)
-        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
-        # Release the bottom spacer while the log is open, so the log still
-        # takes the spare height instead of splitting it.
-        self._main_layout.setStretch(self._bottom_stretch, 0 if checked else 1)
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )
