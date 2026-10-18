@@ -10,7 +10,7 @@ from sites.collections import classify_url
 from sites.cookies import cookie_box_value, cookie_dialog_dir, default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
-from ui.style import make_heading
+from ui.style import make_chip, make_heading
 from utils.file_utils import (
     default_download_folder,
     restore_or,
@@ -172,6 +172,9 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.setColumnWidth(1, 90)
         self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.batch_table.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.batch_table.itemSelectionChanged.connect(self._on_selection_changed)
         self.batch_table.cellClicked.connect(self.on_cell_clicked)
         # Right-click a row to remove a mistakenly added link.
         self.batch_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -193,12 +196,29 @@ class QueueTab(QtWidgets.QWidget):
         self.batch_table.viewport().installEventFilter(self)
         queue_layout.addWidget(self.batch_table)
 
+        # Bulk actions for a multi-selection. Acts on queue entries only;
+        # deleting files stays in the History tab.
+        self._bulk_bar = QtWidgets.QWidget()
+        bulk = QtWidgets.QHBoxLayout(self._bulk_bar)
+        bulk.setContentsMargins(0, 0, 0, 0)
+        self._bulk_label = QtWidgets.QLabel("")
+        bulk.addWidget(self._bulk_label)
+        bulk.addStretch(1)
+        for text, slot in (("Retry", self.on_retry_selected),
+                           ("Remove", self.on_remove_selected_jobs),
+                           ("Clear finished", self.on_clear_finished)):
+            button = QtWidgets.QPushButton(text)
+            button.clicked.connect(slot)
+            bulk.addWidget(button)
+        self._bulk_bar.setVisible(False)
+        queue_layout.addWidget(self._bulk_bar)
+
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         queue_layout.addWidget(self.progress_bar)
 
-        opts_heading = QtWidgets.QLabel("Output")
+        opts_heading = QtWidgets.QLabel("Options for new items")
         make_heading(opts_heading)
         queue_layout.addWidget(opts_heading)
 
@@ -613,11 +633,11 @@ class QueueTab(QtWidgets.QWidget):
         # Platform badge beside the URL so a long queue is scannable at a glance.
         url_item.setIcon(icon_for_url(job.url))
         self.batch_table.setItem(row, 0, url_item)
-        status_item = QtWidgets.QTableWidgetItem(state_label(job.state))
-        status_item.setForeground(state_brush(job.state))
+        tone = state_kind(job.state)          # ok / error / busy / muted
+        chip = make_chip(state_label(job.state), tone)
         if job.state == "pending":
-            status_item.setToolTip("Right-click the row to remove it, or click here to cancel")
-        self.batch_table.setItem(row, 1, status_item)
+            chip.setToolTip("Right-click the row to remove it, or click here to cancel")
+        self.batch_table.setCellWidget(row, 1, chip)
         detail = job.message or ""
         if job.state == "pending" and not detail:
             # Options are baked in when an item is added, so show them here;
@@ -637,6 +657,33 @@ class QueueTab(QtWidgets.QWidget):
             if self._row_for_id.get(job.id) == row:
                 return job
         return None
+
+    def _selected_jobs(self):
+        rows = sorted({i.row()
+                       for i in self.batch_table.selectionModel().selectedRows()})
+        return [self._job_at_row(r) for r in rows if self._job_at_row(r)]
+
+    def _on_selection_changed(self):
+        jobs = self._selected_jobs()
+        if len(jobs) < 2:
+            self._bulk_bar.setVisible(False)
+            return
+        # Count only: the queue model stores no file sizes (History does).
+        self._bulk_label.setText("%d selected" % len(jobs))
+        self._bulk_bar.setVisible(True)
+
+    def on_retry_selected(self):
+        for job in self._selected_jobs():
+            if job.state == "failed":
+                self.queue.retry_failed(job.id)
+        self.queue.store.save()
+        self.refresh_table()
+
+    def on_remove_selected_jobs(self):
+        for job in self._selected_jobs():
+            self.queue.remove_job(job.id)
+        self.queue.store.save()
+        self.refresh_table()
 
     def on_cell_clicked(self, row, column):
         if column != 1:
@@ -710,9 +757,8 @@ class QueueTab(QtWidgets.QWidget):
 
     def _set_row_status(self, row, status, detail=""):
         if 0 <= row < self.batch_table.rowCount():
-            item = self.batch_table.item(row, 1)
-            item.setText(state_label(status))
-            item.setForeground(state_brush(status))
+            self.batch_table.setCellWidget(
+                row, 1, make_chip(state_label(status), state_kind(status)))
             self.batch_table.item(row, 2).setText(detail or "")
 
     def _on_job(self, job_id, state, job):
@@ -754,10 +800,18 @@ class QueueTab(QtWidgets.QWidget):
         stale = sum(1 for j in self.queue.jobs
                     if j.state == "pending" and (j.options or {}) != current)
         if stale:
-            self.batch_log(
-                "%d pending item(s) use different options than the ones above. "
-                "Use 'Apply to pending' to update them." % stale
+            answer = QtWidgets.QMessageBox.question(
+                self, "Apply options?",
+                "%d pending item(s) use different options than the ones above.\n\n"
+                "Apply the current options to them and start?" % stale,
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             )
+            if answer == QtWidgets.QMessageBox.Yes:
+                for job in self.queue.jobs:
+                    if job.state == "pending":
+                        self.queue.set_options(job.id, current)
+                self.queue.store.save()
+                self.refresh_table()
         self.queue.resume()
         self.queue.store.save()
         self.batch_start_btn.setEnabled(False)
