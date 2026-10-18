@@ -107,3 +107,10 @@ def test_is_generic_title_matches_the_extractor_name():
     assert is_generic_title("facebook", {"extractor_key": "Facebook"}) is True
     # A real title that merely resembles the site name stays usable.
     assert is_generic_title("Facebook Ads Tutorial", {"extractor_key": "Facebook"}) is False
+
+
+def test_best_resolution_means_no_convert():
+    from utils.file_utils import BEST_RESOLUTION, resolution_to_convert
+    assert resolution_to_convert(BEST_RESOLUTION) is False
+    assert resolution_to_convert("1080") is True
+    assert resolution_to_convert("720") is True
