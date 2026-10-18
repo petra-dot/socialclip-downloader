@@ -192,6 +192,8 @@ def show_doctor(parent=None, on_repair=None):
     footer.addStretch(1)
     open_btn = QtWidgets.QPushButton("Open data folder")
     close_btn = QtWidgets.QPushButton("Close")
+    close_btn.setStyleSheet(style.primary_button_style())
+    close_btn.setDefault(True)
     footer.addWidget(open_btn)
     footer.addWidget(close_btn)
     layout.addLayout(footer)
@@ -222,14 +224,9 @@ def show_doctor(parent=None, on_repair=None):
         row_layout = QtWidgets.QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
         chip_text, tone = state_chip(component.state)
-        chip = QtWidgets.QLabel(chip_text)
+        from ui.style import make_chip
+        chip = make_chip(chip_text, tone).label
         chip.setAccessibleName("%s: %s" % (component.label, chip_text))
-        color = style.state_color(tone)
-        if color:
-            chip.setStyleSheet(
-                "color: %s; border: 1px solid %s; border-radius: 4px; "
-                "padding: 1px 6px; font-weight: bold;" % (color, color)
-            )
         row_layout.addWidget(chip)
         name = QtWidgets.QLabel(component.label)
         name.setMinimumWidth(150)
@@ -459,6 +456,10 @@ class CookiesDialog(QtWidgets.QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        from ui.style import primary_button_style
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        ok_btn.setStyleSheet(primary_button_style())
+        ok_btn.setDefault(True)
         open_btn = buttons.addButton(
             "Open cookie folder", QtWidgets.QDialogButtonBox.ActionRole
         )

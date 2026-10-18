@@ -16,7 +16,7 @@ from core.history import (
 )
 from core.progress import format_bytes
 from ui.platform_icons import icon_for_url, platform_icon
-from ui.style import danger_text_style, make_heading, state_color
+from ui.style import danger_text_style, make_chip, make_heading, state_color
 from utils.ui_helpers import open_file, reveal_in_folder
 from workers.probe_worker import ProbeWorker
 
@@ -37,30 +37,6 @@ _DETAIL_FIELDS = ("Title", "URL", "Path", "Platform", "Format", "Resolution",
                   "Duration", "Size", "Downloaded", "Source", "Status",
                   "Container", "Video codec", "Audio codec")
 _CODEC_FIELDS = ("Container", "Video codec", "Audio codec")
-
-
-def _chip(text, color=None):
-    """A rounded pill label, centered in a cell container.
-
-    The container holds the pill at its content width instead of letting the
-    border stretch across the whole column. `color` also tints the text; with
-    no color the chip is a neutral tag that inherits the theme text.
-    """
-    label = QtWidgets.QLabel(text)
-    border = color or state_color("muted")
-    css = "border: 1px solid %s; border-radius: 8px; padding: 1px 8px;" % border
-    if color:
-        css += " color: %s; font-weight: 600;" % color
-    label.setStyleSheet(css)
-    label.setAlignment(QtCore.Qt.AlignCenter)
-    holder = QtWidgets.QWidget()
-    row = QtWidgets.QHBoxLayout(holder)
-    row.setContentsMargins(4, 0, 4, 0)
-    row.addStretch(1)
-    row.addWidget(label)
-    row.addStretch(1)
-    holder.label = label
-    return holder
 
 
 class HistoryTab(QtWidgets.QWidget):
@@ -309,13 +285,11 @@ class HistoryTab(QtWidgets.QWidget):
         date_item = QtWidgets.QTableWidgetItem(format_date(entry.created_at))
         self._put(row, _DATE, date_item, entry, muted)
 
+        self.table.setCellWidget(row, _FORMAT, make_chip((entry.extension or "-").upper()))
         self.table.setCellWidget(
-            row, _FORMAT, _chip((entry.extension or "-").upper())
-        )
-        self.table.setCellWidget(
-            row, _STATUS, _chip(_STATUS_LABELS.get(status, status),
-                                state_color(_STATUS_TONES.get(status, "muted")))
-        )
+            row, _STATUS,
+            make_chip(_STATUS_LABELS.get(status, status),
+                      _STATUS_TONES.get(status, "muted")))
 
     def _put(self, row, column, item, entry, muted):
         """A text cell carrying the row's entry id and the muted brush."""
