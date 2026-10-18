@@ -333,6 +333,28 @@ class ConvertTab(QtWidgets.QWidget):
         self.bulk_label.setText("%d selected" % len(jobs))
         self.bulk_bar.setVisible(True)
 
+    def _show_detail(self, job):
+        from ui.style import token
+        body = self.panel_labels["body"]
+        ready = self.panel_labels["ready"]
+        if job is None:
+            body.setText("Select a file to see its details.")
+            ready.setVisible(False)
+            self.open_folder_btn.setVisible(False)
+            return
+        from core.formats import download_format_label
+        lines = [os.path.basename(job.path),
+                 download_format_label(job.target_format.upper())]
+        if job.resolution:
+            lines.append("%dp" % job.resolution)
+        body.setText("  ·  ".join(lines))
+        ready.setText(job.message or state_label(job.state))
+        ready.setStyleSheet("color: %s;" % (
+            token("ok") if job.state == "done" else token("text_muted")))
+        ready.setVisible(True)
+        self._last_output = job.output_path
+        self.open_folder_btn.setVisible(bool(job.output_path))
+
     def on_retry_selected(self):
         for job in self._selected_jobs():
             self.queue.retry_failed(job.id)
