@@ -109,7 +109,7 @@ class ConvertTab(QtWidgets.QWidget):
         saved_res = self.settings.value("convert/resolution")
         self.conv_res_combo.setCurrentText(saved_res if saved_res in RESOLUTIONS else "1080")
         self.conv_res_combo.currentTextChanged.connect(self._on_conv_res_changed)
-        conv_res_label = QtWidgets.QLabel("Resolution (for video):")
+        conv_res_label = QtWidgets.QLabel("Resolution:")
         conv_res_label.setBuddy(self.conv_res_combo)
         conv_opts.addWidget(conv_res_label)
         conv_opts.addWidget(self.conv_res_combo)
@@ -124,16 +124,19 @@ class ConvertTab(QtWidgets.QWidget):
         conv_opts.addWidget(streams_label)
         conv_opts.addWidget(self.copy_combo)
         conv_opts.addStretch(1)
-        self.apply_options_btn = QtWidgets.QPushButton("Apply to all pending")
-        self.apply_options_btn.clicked.connect(self.on_apply_options)
-        conv_opts.addWidget(self.apply_options_btn)
         self._update_conv_controls()
         main.addLayout(conv_opts)
 
+        # The action and the bulk apply sit on their own row. With three
+        # label/combo pairs above, the options row has no width left for a long
+        # button label, so Qt elides it to "Apply to all pendin".
         start_row = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Convert")
         self.start_btn.clicked.connect(self.on_start)
         start_row.addWidget(self.start_btn)
+        self.apply_options_btn = QtWidgets.QPushButton("Apply to all pending")
+        self.apply_options_btn.clicked.connect(self.on_apply_options)
+        start_row.addWidget(self.apply_options_btn)
         start_row.addStretch(1)
         main.addLayout(start_row)
 
