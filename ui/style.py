@@ -128,6 +128,10 @@ def make_result_panel():
 
     caption = QtWidgets.QLabel("Result")
     caption.setStyleSheet("color: %s;" % token("text_muted"))
+    # A Preferred label would grow into spare height and float its text; a
+    # caption must hug one line.
+    caption.setSizePolicy(QtWidgets.QSizePolicy.Preferred,
+                          QtWidgets.QSizePolicy.Fixed)
     box.addWidget(caption)
     body = QtWidgets.QLabel("")
     body.setWordWrap(True)
@@ -199,6 +203,11 @@ def make_heading(label):
     if base and base > 0:
         font.setPointSizeF(base + 1.0)
     label.setFont(font)
+    # Pin the vertical axis: a Preferred heading absorbs leftover height in a
+    # stretch-less column and floats its text mid-gap instead of sitting on the
+    # group it labels.
+    label.setSizePolicy(QtWidgets.QSizePolicy.Preferred,
+                        QtWidgets.QSizePolicy.Fixed)
     return label
 
 

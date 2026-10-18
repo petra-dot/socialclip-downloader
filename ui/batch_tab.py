@@ -11,7 +11,7 @@ from sites.collections import classify_url
 from sites.cookies import cookie_box_value, cookie_dialog_dir, default_cookie_dir
 from ui.dialogs import ExpandConfirmDialog
 from ui.platform_icons import icon_for_url
-from ui.style import make_chip, make_heading
+from ui.style import make_chip, make_heading, space
 from utils.file_utils import (
     default_download_folder,
     restore_or,
@@ -131,8 +131,8 @@ class QueueTab(QtWidgets.QWidget):
 
     def init_ui(self):
         queue_layout = QtWidgets.QVBoxLayout(self)
-        queue_layout.setContentsMargins(8, 8, 8, 8)
-        queue_layout.setSpacing(6)
+        queue_layout.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        queue_layout.setSpacing(space("sm"))
 
         urls_heading = QtWidgets.QLabel("Queue")
         make_heading(urls_heading)
@@ -215,6 +215,7 @@ class QueueTab(QtWidgets.QWidget):
         self.progress_bar.setValue(0)
         queue_layout.addWidget(self.progress_bar)
 
+        queue_layout.addSpacing(space("lg"))
         opts_heading = QtWidgets.QLabel("Options for new items")
         make_heading(opts_heading)
         queue_layout.addWidget(opts_heading)

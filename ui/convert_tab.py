@@ -26,8 +26,8 @@ class ConvertTab(QtWidgets.QWidget):
 
     def init_ui(self):
         main = QtWidgets.QVBoxLayout()
-        main.setContentsMargins(8, 8, 8, 8)
-        main.setSpacing(6)
+        main.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        main.setSpacing(space("sm"))
         self._main_layout = main
 
         file_heading = QtWidgets.QLabel("File")
@@ -43,6 +43,7 @@ class ConvertTab(QtWidgets.QWidget):
         file_row.addWidget(pick_btn)
         main.addLayout(file_row)
 
+        main.addSpacing(space("lg"))
         conv_heading = QtWidgets.QLabel("Convert")
         make_heading(conv_heading)
         main.addWidget(conv_heading)
@@ -97,6 +98,7 @@ class ConvertTab(QtWidgets.QWidget):
         main.addWidget(self.hint_label)
 
         # The log is a details view: hidden by default, opened on request.
+        main.addSpacing(space("lg"))
         self.details_toggle = QtWidgets.QToolButton()
         self.details_toggle.setText("Activity")
         self.details_toggle.setCheckable(True)
@@ -112,6 +114,11 @@ class ConvertTab(QtWidgets.QWidget):
         self.console_log.setAccessibleName("Conversion log")
         self.console_log.setVisible(False)
         main.addWidget(self.console_log)
+
+        # Pack the form to the top: spare height collects here, not inside the
+        # rows. The index is kept so an opened Activity log can reclaim it.
+        main.addStretch(1)
+        self._bottom_stretch = main.count() - 1
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()
@@ -241,6 +248,9 @@ class ConvertTab(QtWidgets.QWidget):
         self.console_log.setVisible(checked)
         self.console_log.setMaximumHeight(16777215 if checked else 120)
         self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        # Release the bottom spacer while the log is open, so the log still
+        # takes the spare height instead of splitting it.
+        self._main_layout.setStretch(self._bottom_stretch, 0 if checked else 1)
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )

@@ -161,8 +161,8 @@ class SingleTab(QtWidgets.QWidget):
 
     def init_ui(self):
         main = QtWidgets.QVBoxLayout()
-        main.setContentsMargins(8, 8, 8, 8)
-        main.setSpacing(6)
+        main.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        main.setSpacing(space("sm"))
 
         # URL row
         url_row = QtWidgets.QHBoxLayout()
@@ -191,7 +191,7 @@ class SingleTab(QtWidgets.QWidget):
         self.info_section = QtWidgets.QWidget()
         info_section_layout = QtWidgets.QVBoxLayout(self.info_section)
         info_section_layout.setContentsMargins(0, 0, 0, 0)
-        info_section_layout.setSpacing(4)
+        info_section_layout.setSpacing(space("xs"))
 
         info_heading = QtWidgets.QLabel("Video Info")
         make_heading(info_heading)
@@ -218,6 +218,7 @@ class SingleTab(QtWidgets.QWidget):
         main.addWidget(self.info_section)
 
         # --- Output ---
+        main.addSpacing(space("lg"))
         output_heading = QtWidgets.QLabel("Output")
         make_heading(output_heading)
         main.addWidget(output_heading)
@@ -267,6 +268,7 @@ class SingleTab(QtWidgets.QWidget):
         self.advanced_widget = QtWidgets.QWidget()
         advanced_layout = QtWidgets.QVBoxLayout(self.advanced_widget)
         advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_layout.setSpacing(space("xs"))
 
         self.checkbox_channel = QtWidgets.QCheckBox("Add channel/uploader to filename")
         advanced_layout.addWidget(self.checkbox_channel)
@@ -309,6 +311,7 @@ class SingleTab(QtWidgets.QWidget):
             "Subtitles, clip range, filename options, and cookies."
         )
         self.advanced_toggle.toggled.connect(self._on_advanced_toggled)
+        main.addSpacing(space("lg"))
         main.addWidget(self.advanced_toggle)
         self.advanced_widget.setVisible(False)
         main.addWidget(self.advanced_widget)
@@ -322,6 +325,7 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.setStyleSheet(primary_button_style())
         self.download_btn.clicked.connect(self.on_download)
         download_bar.addWidget(self.download_btn)
+        download_bar.addStretch(1)
         main.addLayout(download_bar)
 
         # Keyboard path to cancel: Ctrl+. only acts while a download runs, so
@@ -400,6 +404,7 @@ class SingleTab(QtWidgets.QWidget):
         self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
         self.details_toggle.setToolTip("Show the full activity log.")
         self.details_toggle.toggled.connect(self._on_details_toggled)
+        main.addSpacing(space("lg"))
         main.addWidget(self.details_toggle)
 
         self.console_log = QtWidgets.QTextEdit()
@@ -409,6 +414,11 @@ class SingleTab(QtWidgets.QWidget):
         self.console_log.setAccessibleName("Activity log")
         self.console_log.setVisible(False)
         main.addWidget(self.console_log)
+
+        # Pack the form to the top: spare height collects here, not inside the
+        # rows. The index is kept so an opened Activity log can reclaim it.
+        main.addStretch(1)
+        self._bottom_stretch = main.count() - 1
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
@@ -695,6 +705,9 @@ class SingleTab(QtWidgets.QWidget):
         self.console_log.setVisible(checked)
         self.console_log.setMaximumHeight(16777215 if checked else 120)
         self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        # Release the bottom spacer while the log is open, so the log still
+        # takes the spare height instead of splitting it.
+        self._main_layout.setStretch(self._bottom_stretch, 0 if checked else 1)
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )
