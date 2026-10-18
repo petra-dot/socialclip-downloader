@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.13.0 - 2026-10-18
+
+### Added
+- **A design system.** `ui/style.py` now holds semantic tokens - surfaces, text,
+  one accent, state colours, spacing, radius, and type - plus a shared chip
+  factory and button styles, so colour lives in one place instead of literal hex
+  scattered across the tabs. The app adopts one accent, teal `#0d7d75`, for the
+  primary action, the active tab, and the editor-ready result.
+- **Bulk convert.** The Convert tab is now a persistent list (`convert.json`
+  beside `queue.json`): add many files at once with **Add files…** or by dragging
+  them onto the table, each row carries its own target and state, files convert
+  one at a time, and rows can be cancelled, retried, cleared, or edited in bulk.
+  A selected row's detail shows its target, output path, and state.
+- **A Download result panel.** The Download tab is a two-pane layout: the form on
+  the left, a result panel on the right showing the file name, format,
+  resolution, size, and an editor-ready line. The activity log is shown by
+  default and minimizable.
+- **Queue multi-select** with a bulk bar (Retry / Remove / Clear finished), status
+  chips, and one **Options for new items** block that Start offers to apply.
+
+### Changed
+- **One Fusion look for every theme**, with hand-tuned Light and Dark palettes;
+  Default follows the OS light/dark setting. Widget shapes no longer change
+  between themes.
+- **One output vocabulary**: `MP4 (H.264 + AAC)` and `MP3 (audio)` wherever a
+  format is named, across Download, Queue, Convert, and History.
+- **Even layout.** Forms pack to the top, headings no longer stretch into the
+  spare height, paired controls share a width so the columns line up, and the
+  Convert tab mirrors the Download tab's shape.
+- The activity log on Download and Convert is visible by default and can be
+  minimized; the Convert log runs to the pane's bottom to line up with the result
+  panel.
+
+### Fixed
+- **A failed conversion was reported as a success.** The batch summary counted
+  every processed file as converted, so a failure read "Converted 1 file(s)"; it
+  now reports `Converted N, M failed`.
+- **Every ffmpeg failure was misreported as "ffmpeg is not installed"**, because
+  ffmpeg prints its own name in nearly every message. A video with no audio track
+  converted to MP3 now says exactly that, and the message is a short sentence
+  rather than the whole ffmpeg stderr.
+- **Cancel on a running conversion did nothing.** It now discards the file the
+  conversion produced and marks the row cancelled; **Cancel all** stops after the
+  current file and leaves the rest pending, so they can still be run.
+- A job left mid-flight by a crash or a close is demoted to pending on the next
+  launch instead of staying stuck as running.
+- The History action row's overflow control now matches the buttons beside it,
+  and the Convert and Download forms' controls line up in one column.
+
 ## v0.12.2 - 2026-10-18
 
 ### Fixed
