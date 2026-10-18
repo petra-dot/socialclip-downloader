@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.13.1 - 2026-10-19
+
+### Fixed
+- **Subtitles are written for audio downloads.** An MP3 download produced no
+  `.srt` even with subtitles on, while the same video as MP4 wrote one. The
+  shared download path skipped the entire subtitle step for the audio action,
+  because that step also embeds, and embedding into an MP3 is impossible. A
+  sidecar `.srt` does not care what the container is, so it is now written for
+  audio too, and only the embed is skipped. `Embed` on an MP3 keeps the sidecar
+  instead of silently producing nothing. This covers the Download tab, the
+  Queue, and the CLI, since all of them call the same function.
+
 ## v0.13.0 - 2026-10-18
 
 ### Added

@@ -422,7 +422,10 @@ def _run_download(url, outtmpl, output_type, convert, target_resolution,
                 final_path = out_file
                 reencoded = True
 
-        if (subtitles and subtitles != "off" and action != "audio"
+        # Sidecars are written for every action, including the audio one: an MP3
+        # has no video stream to embed a track into, but the .srt sits beside
+        # the media file and does not care what the container is.
+        if (subtitles and subtitles != "off"
                 and clip is None and os.path.isfile(final_path)):
             from core.subtitles import (
                 embed_subtitles, subtitle_tracks, write_subtitle,
@@ -437,10 +440,14 @@ def _run_download(url, outtmpl, output_type, convert, target_resolution,
                 if written:
                     in_flight["created"].add(written)
                     sidecars.append((track.lang, written))
+            # Embedding needs a video stream, so the audio action keeps its
+            # sidecars even when "embed" was asked for: leaving them on disk
+            # beats silently producing no subtitles at all.
             embedded = False
-            if subtitles in ("embed", "both") and sidecars:
+            if (action != "audio" and subtitles in ("embed", "both")
+                    and sidecars):
                 embedded = embed_subtitles(final_path, sidecars)
-            if subtitles == "embed" and embedded:
+            if action != "audio" and subtitles == "embed" and embedded:
                 for _lang, path in sidecars:
                     try:
                         os.remove(path)

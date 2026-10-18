@@ -32,7 +32,7 @@ def test_download_one_returns_ok_result(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.path == "D:/a.mp4"
     assert result.height == 1080
 
@@ -65,7 +65,7 @@ def test_download_one_skip_low_carries_message(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=True, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.message is not None
     assert "720" in result.message
     assert "1080" in result.message
@@ -79,7 +79,7 @@ def test_download_one_skip_equal_carries_message(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=True, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.message is not None
     assert "1080" in result.message
     assert "resolution equals target" in result.message
@@ -124,6 +124,7 @@ def test_skip_low_still_runs_universal_reencode(monkeypatch, tmp_path):
     )
     monkeypatch.setattr("core.download.os.path.isfile", lambda p: True)
     monkeypatch.setattr("core.download.os.path.getsize", lambda p: 123)
+    monkeypatch.setattr("core.download.os.path.getsize", lambda p: 123)
     monkeypatch.setattr("core.download.os.remove", lambda p: None)
     monkeypatch.setattr("utils.ydl_opts.subprocess.run", run)
 
@@ -131,7 +132,7 @@ def test_skip_low_still_runs_universal_reencode(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=True, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert argv_seen, "the universal re-encode must run for skip_low"
     assert "libx264" in argv_seen[0], argv_seen[0]
     assert result.path.endswith("_h264.mp4")
@@ -151,9 +152,92 @@ def test_mp3_extension_matches_final_artifact(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP3", convert=True, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.path.endswith(".mp3")
     assert result.extension == "mp3"  # not the source container ("mp4")
+
+
+def test_mp3_download_still_writes_subtitle_sidecar(monkeypatch, tmp_path):
+    """An MP3 has no video stream to embed a track into, but a sidecar .srt is
+    independent of the container, so the audio path must still write it."""
+    class P:
+        returncode = 0
+        stderr = b""
+
+    written = []
+
+    class SubtitleYDL(FakeYDL):
+        def extract_info(self, url, download=True):
+            info = super().extract_info(url, download)
+            info["subtitles"] = {
+                "en": [{"ext": "srt", "url": "https://example.test/e.srt"}],
+            }
+            return info
+
+    def fake_write(track, base_path, opener=None):
+        written.append(track.lang)
+        return base_path + ".en.srt"
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", SubtitleYDL)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.download.os.path.isfile", lambda p: True)
+    monkeypatch.setattr("core.download.os.path.getsize", lambda p: 123)
+    monkeypatch.setattr("core.download.subprocess.run", lambda *a, **k: P())
+    monkeypatch.setattr("core.download.os.remove", lambda p: None)
+    monkeypatch.setattr("core.subtitles.write_subtitle", fake_write)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP3", convert=True, target_resolution=1080,
+        subtitles="sidecar",
+    )
+    assert result.status == "ok", result.message
+    assert written == ["en"]
+
+
+def test_embed_on_audio_writes_sidecar_but_does_not_embed(monkeypatch, tmp_path):
+    """Embedding into an MP3 is impossible, so "embed" must still leave the
+    sidecar on disk rather than producing nothing at all."""
+    class P:
+        returncode = 0
+        stderr = b""
+
+    written = []
+    embedded = []
+
+    class SubtitleYDL(FakeYDL):
+        def extract_info(self, url, download=True):
+            info = super().extract_info(url, download)
+            info["subtitles"] = {
+                "en": [{"ext": "srt", "url": "https://example.test/e.srt"}],
+            }
+            return info
+
+    def fake_write(track, base_path, opener=None):
+        written.append(track.lang)
+        return base_path + ".en.srt"
+
+    def fake_embed(video_path, sidecars):
+        embedded.append(video_path)
+        return True
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", SubtitleYDL)
+    monkeypatch.setattr("core.download.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.download.os.path.isfile", lambda p: True)
+    monkeypatch.setattr("core.download.os.path.getsize", lambda p: 123)
+    monkeypatch.setattr("core.download.subprocess.run", lambda *a, **k: P())
+    monkeypatch.setattr("core.download.os.remove", lambda p: None)
+    monkeypatch.setattr("core.subtitles.write_subtitle", fake_write)
+    monkeypatch.setattr("core.subtitles.embed_subtitles", fake_embed)
+
+    result = download_one(
+        "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
+        output_type="MP3", convert=True, target_resolution=1080,
+        subtitles="embed",
+    )
+    assert result.status == "ok", result.message
+    assert written == ["en"]      # the sidecar survives
+    assert embedded == []         # nothing was muxed into the mp3
 
 
 def test_download_one_classifies_exception(monkeypatch, tmp_path):
@@ -273,7 +357,7 @@ def test_no_cancel_callable_is_unchanged(monkeypatch, tmp_path):
         outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.path == str(real)
 
 
@@ -463,7 +547,7 @@ def test_no_archive_never_skips(monkeypatch, tmp_path):
         "https://youtu.be/x", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
 
 def test_real_download_with_archive_does_not_skip(monkeypatch, tmp_path):
     class YDL(ArchivedYDL):
@@ -483,7 +567,7 @@ def test_real_download_with_archive_does_not_skip(monkeypatch, tmp_path):
         output_type="MP4", convert=False, target_resolution=1080,
         archive=str(tmp_path / "archive.txt"),
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
 
 
 def test_clip_does_not_set_download_archive(monkeypatch, tmp_path):
@@ -744,7 +828,7 @@ def test_download_one_renames_a_generic_title(monkeypatch, tmp_path):
         "https://a.com/1", outtmpl=str(tmp_path / "%(title)s.%(ext)s"),
         output_type="MP4", convert=False, target_resolution=1080,
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert result.path == str(tmp_path / "My Holiday Video 2026.mp4")
     assert not site_named.exists()
 
@@ -850,7 +934,7 @@ def test_blocked_error_retries_once_with_browser_cookies(monkeypatch, tmp_path):
         output_type="MP4", convert=False, target_resolution=1080,
         cookies_from_browser="chrome",
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert len(attempts) == 2
     assert "cookiesfrombrowser" not in attempts[0]
     assert attempts[1].get("cookiesfrombrowser") == ("chrome", None, None, None)
@@ -946,7 +1030,7 @@ def test_auth_error_without_blocked_keywords_retries_once(monkeypatch, tmp_path)
         output_type="MP4", convert=False, target_resolution=1080,
         cookies_from_browser="chrome",
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert len(attempts) == 2
     assert "cookiesfrombrowser" not in attempts[0]
     assert attempts[1].get("cookiesfrombrowser") == ("chrome", None, None, None)
@@ -965,7 +1049,7 @@ def test_auth_error_with_missing_cookie_file_retries_once(monkeypatch, tmp_path)
         output_type="MP4", convert=False, target_resolution=1080,
         cookies_file=str(missing), cookies_from_browser="chrome",
     )
-    assert result.status == "ok"
+    assert result.status == "ok", result.message
     assert len(attempts) == 2
     assert "cookiefile" not in attempts[0]
     assert attempts[1].get("cookiesfrombrowser") == ("chrome", None, None, None)
