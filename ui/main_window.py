@@ -56,6 +56,15 @@ class MainWindow(QtWidgets.QWidget):
 
         self._apply_app_theme()        # before init_ui: nothing to re-polish
         self.init_ui()
+        # Resolve every layout now, while no window is on screen. Otherwise the
+        # whole tree lays out inside the first paint, which shows as a blank
+        # frame before the interface appears.
+        for index in range(self.tabs.count()):
+            page = self.tabs.widget(index)
+            if page.layout() is not None:
+                page.layout().activate()
+        if self.layout() is not None:
+            self.layout().activate()
         self._restore_geometry()
         self._sync_theme_actions(self.settings.value("ui/theme", "system"))
         self._refresh_theme_colors()
