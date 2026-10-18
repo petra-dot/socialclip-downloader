@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets, QtCore
 from core import formats
 from utils.file_utils import default_download_folder, RESOLUTIONS
 from utils.ui_helpers import reveal_in_folder
-from workers.convert_worker import ConvertFileWorker
+from workers.convert_queue_worker import ConvertQueueWorker
 from ui.style import (
     make_heading,
     make_result_panel,
@@ -18,7 +18,7 @@ from ui.style import (
 class ConvertTab(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        self.conv_worker = None
+        self.worker = None
         self._last_output = ""
         self.settings = QtCore.QSettings()
         self.init_ui()
@@ -64,10 +64,28 @@ class ConvertTab(QtWidgets.QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setAcceptDrops(True)
         self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._on_menu)
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
+
+        # Bulk actions for a multi-selection, above the table as in the Queue.
+        self.bulk_bar = QtWidgets.QWidget()
+        bulk = QtWidgets.QHBoxLayout(self.bulk_bar)
+        bulk.setContentsMargins(0, 0, 0, 0)
+        self.bulk_label = QtWidgets.QLabel("")
+        bulk.addWidget(self.bulk_label)
+        bulk.addStretch(1)
+        for text, slot in (("Retry", self.on_retry_selected),
+                           ("Remove", self.on_remove_selected),
+                           ("Clear finished", self.on_clear_finished)):
+            button = QtWidgets.QPushButton(text)
+            button.clicked.connect(slot)
+            bulk.addWidget(button)
+        self.bulk_bar.setVisible(False)
+        main.addWidget(self.bulk_bar)
         main.addWidget(self.table, 1)
 
         main.addSpacing(space("lg"))
-        conv_heading = QtWidgets.QLabel("Convert")
+        conv_heading = QtWidgets.QLabel("Options for new items")
         make_heading(conv_heading)
         main.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
@@ -103,8 +121,19 @@ class ConvertTab(QtWidgets.QWidget):
         streams_label.setBuddy(self.copy_combo)
         conv_opts.addWidget(streams_label)
         conv_opts.addWidget(self.copy_combo)
+        conv_opts.addStretch(1)
+        self.apply_options_btn = QtWidgets.QPushButton("Apply to all pending")
+        self.apply_options_btn.clicked.connect(self.on_apply_options)
+        conv_opts.addWidget(self.apply_options_btn)
         self._update_conv_controls()
         main.addLayout(conv_opts)
+
+        start_row = QtWidgets.QHBoxLayout()
+        self.start_btn = QtWidgets.QPushButton("Convert")
+        self.start_btn.clicked.connect(self.on_start)
+        start_row.addWidget(self.start_btn)
+        start_row.addStretch(1)
+        main.addLayout(start_row)
 
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
@@ -190,66 +219,8 @@ class ConvertTab(QtWidgets.QWidget):
     def _on_conv_res_changed(self, text):
         self.settings.setValue("convert/resolution", text)
 
-    def on_pick_file(self):
-        file, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Select media file",
-            self.file_path_input.text() or default_download_folder(),
-        )
-        if file:
-            self.file_path_input.setText(file)
-            self.log(f"Selected file: {file}")
-
-    def on_convert_file(self):
-        if self.conv_worker and self.conv_worker.isRunning():
-            self.log("Already converting. Wait for current conversion to finish.")
-            return
-        path = self.file_path_input.text().strip()
-        if not path:
-            self.show_hint("Select a file to convert first.")
-            return
-        if not os.path.exists(path):
-            self.show_hint("That file path does not exist.")
-            return
-        self.show_hint("")
-
-        out_key = self.conv_output_combo.currentData()
-        copy_streams = self.copy_combo.currentData()
-        target_res = (
-            int(self.conv_res_combo.currentText())
-            if self.conv_res_combo.isEnabled()
-            else None
-        )
-
-        self.convert_file_btn.setEnabled(False)
-        self.conv_worker = ConvertFileWorker(
-            path, target_format=out_key, copy_streams=copy_streams,
-            target_resolution=target_res,
-        )
-        self.conv_worker.status_signal.connect(self.log)
-        self.conv_worker.output_signal.connect(self._on_conv_output)
-        self.conv_worker.finished_signal.connect(self.on_conv_finished)
-        self.conv_worker.start()
-
-    def _on_conv_output(self, path: str):
-        self._last_output = path
-        self.open_folder_btn.setVisible(bool(path))
-        if path:
-            self.panel_labels["body"].setText(os.path.basename(path))
-
     def _on_open_folder(self):
         reveal_in_folder(self._last_output)
-
-    def on_conv_finished(self, msg: str):
-        self.log(msg)
-        self.convert_file_btn.setEnabled(True)
-        if self._last_output:
-            ready = self.panel_labels["ready"]
-            ready.setText("Ready for CapCut, Premiere Pro, and DaVinci Resolve.")
-            ready.setStyleSheet("color: %s;" % token("accent"))
-            ready.setVisible(True)
-        else:
-            self.panel_labels["body"].setText(msg or "The conversion did not finish.")
 
     def refresh_state_colors(self):
         """Re-color the result panel after a theme change."""
@@ -257,10 +228,6 @@ class ConvertTab(QtWidgets.QWidget):
         if not ready.text():
             return
         ready.setStyleSheet("color: %s;" % token("accent"))
-
-    def _sync_convert_enabled(self, *_args):
-        path = self.file_path_input.text().strip()
-        self.convert_file_btn.setEnabled(bool(path) and os.path.exists(path))
 
     def _on_details_toggled(self, checked):
         """Show or hide the log; whichever is visible takes the spare height."""
@@ -286,6 +253,42 @@ class ConvertTab(QtWidgets.QWidget):
                       if self.conv_res_combo.isEnabled() else 0)
         return {"target_format": fmt, "resolution": target_res,
                 "copy_streams": self.copy_combo.currentData()}
+
+    def on_apply_options(self):
+        ids = [job.id for job in self.queue.jobs if job.state == "pending"]
+        changed = self.queue.set_options(ids, self._new_item_options())
+        if not changed:
+            self.show_hint("No pending files to update.")
+            return
+        self._save()
+        self.refresh_table()
+
+    def on_start(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel_all()
+            self.start_btn.setEnabled(False)
+            self.start_btn.setText("Cancelling…")
+            return
+        if not self.queue.pending_count():
+            self.show_hint("Add at least one file first.")
+            return
+        self.show_hint("")
+        self.start_btn.setText("Cancel all")
+        self.start_btn.setEnabled(True)
+        self.worker = ConvertQueueWorker(self.queue, self.store)
+        self.worker.job_signal.connect(self._on_job)
+        self.worker.finished_signal.connect(self._on_finished)
+        self.worker.start()
+
+    def _on_job(self, payload):
+        self.refresh_table()
+        self._sync_buttons()
+
+    def _on_finished(self, message):
+        self.log(message)
+        self.start_btn.setText("Convert")
+        self.start_btn.setEnabled(True)
+        self.refresh_table()
 
     def _add_paths(self, paths):
         kept = [p for p in paths if os.path.isfile(p)]
@@ -319,6 +322,74 @@ class ConvertTab(QtWidgets.QWidget):
             return
         self._save()
         self.refresh_table()
+
+    def _on_selection_changed(self):
+        jobs = self._selected_jobs()
+        self._sync_buttons()
+        self._show_detail(jobs[0] if jobs else None)
+        if len(jobs) < 2:
+            self.bulk_bar.setVisible(False)
+            return
+        self.bulk_label.setText("%d selected" % len(jobs))
+        self.bulk_bar.setVisible(True)
+
+    def on_retry_selected(self):
+        for job in self._selected_jobs():
+            self.queue.retry_failed(job.id)
+        self._save()
+        self.refresh_table()
+
+    def on_remove_selected(self):
+        for job in self._selected_jobs():
+            self.queue.remove(job.id)
+        self._save()
+        self.refresh_table()
+
+    def _on_menu(self, pos):
+        index = self.table.indexAt(pos)
+        if not index.isValid():
+            return
+        if index.row() not in {i.row()
+                               for i in self.table.selectionModel().selectedRows()}:
+            self.table.selectRow(index.row())
+        menu = QtWidgets.QMenu(self)
+        edit = menu.addAction("Edit options…")
+        retry = menu.addAction("Retry")
+        remove = menu.addAction("Remove")
+        cancel = menu.addAction("Cancel")
+        chosen = menu.exec_(self.table.viewport().mapToGlobal(pos))
+        if chosen is edit:
+            self._edit_selected_options()
+        elif chosen is retry:
+            self.on_retry_selected()
+        elif chosen is remove:
+            self.on_remove_selected()
+        elif chosen is cancel:
+            if self.worker and self.worker.isRunning():
+                for job in self._selected_jobs():
+                    self.worker.cancel(job.id)
+
+    def _edit_selected_options(self):
+        jobs = [job for job in self._selected_jobs() if job.state == "pending"]
+        if not jobs:
+            self.show_hint("Only pending files can be edited.")
+            return
+        changed = self.queue.set_options(
+            [job.id for job in jobs], self._new_item_options())
+        if not changed:
+            self.show_hint("Nothing to update.")
+            return
+        self._save()
+        self.refresh_table()
+        self.show_hint("Updated %d file(s) from the options above." % changed)
+
+    def _sync_buttons(self):
+        from core.convert_queue import (
+            STATUS_FAILED, STATUS_PENDING, TERMINAL_STATES)
+        states = {job.state for job in self.queue.jobs}
+        self.retry_failed_btn.setEnabled(STATUS_FAILED in states)
+        self.clear_finished_btn.setEnabled(bool(states.intersection(TERMINAL_STATES)))
+        self.apply_options_btn.setEnabled(STATUS_PENDING in states)
 
     def refresh_table(self):
         self.table.setRowCount(0)
