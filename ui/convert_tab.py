@@ -104,6 +104,8 @@ class ConvertTab(QtWidgets.QWidget):
         self.details_toggle = QtWidgets.QToolButton()
         self.details_toggle.setText("Activity")
         self.details_toggle.setCheckable(True)
+        self.details_toggle.setToolButtonStyle(
+            QtCore.Qt.ToolButtonTextBesideIcon)
         self.details_toggle.setToolTip("Show or hide the activity log.")
         self.details_toggle.toggled.connect(self._on_details_toggled)
         main.addWidget(self.details_toggle)

@@ -226,7 +226,8 @@ class SingleTab(QtWidgets.QWidget):
         main.addWidget(output_heading)
 
         preset_row = QtWidgets.QHBoxLayout()
-        preset_row.addWidget(QtWidgets.QLabel("Preset:"))
+        preset_label = QtWidgets.QLabel("Preset:")
+        preset_row.addWidget(preset_label)
         self.preset_combo = QtWidgets.QComboBox()
         self.preset_combo.setAccessibleName("Download preset")
         self.preset_combo.currentIndexChanged.connect(self.on_preset_selected)
@@ -309,6 +310,10 @@ class SingleTab(QtWidgets.QWidget):
         self.advanced_toggle.setText("Advanced")
         self.advanced_toggle.setCheckable(True)
         self.advanced_toggle.setArrowType(QtCore.Qt.RightArrow)
+        # Without this a tool button shows only its arrow, so "Advanced" is
+        # invisible and the control reads as a stray glyph.
+        self.advanced_toggle.setToolButtonStyle(
+            QtCore.Qt.ToolButtonTextBesideIcon)
         self.advanced_toggle.setToolTip(
             "Subtitles, clip range, filename options, and cookies."
         )
@@ -377,7 +382,6 @@ class SingleTab(QtWidgets.QWidget):
         # --- Cookies ---
         cookies_row = QtWidgets.QHBoxLayout()
         cookies_label = QtWidgets.QLabel("Cookies file:")
-        cookies_label.setMinimumWidth(130)
         cookies_row.addWidget(cookies_label)
         self.cookies_input = QtWidgets.QLineEdit(
             self.settings.value("single/cookies", "") or ""
@@ -396,12 +400,22 @@ class SingleTab(QtWidgets.QWidget):
         cookies_row.addWidget(clear_cookies_btn)
         advanced_layout.addLayout(cookies_row)
 
+        # One label column: every control starts at the same x, so the rows read
+        # as a form instead of a ragged stack.
+        form_labels = [url_label, preset_label, output_label, save_label,
+                       subtitles_label, cookies_label]
+        label_width = max(label.sizeHint().width() for label in form_labels)
+        for label in form_labels:
+            label.setMinimumWidth(label_width)
+
         # The log is shown by default at a compact height; the toggle minimizes
         # it. It used to take every spare pixel, which made developer chatter
         # the largest element on the tab.
         self.details_toggle = QtWidgets.QToolButton()
         self.details_toggle.setText("Activity")
         self.details_toggle.setCheckable(True)
+        self.details_toggle.setToolButtonStyle(
+            QtCore.Qt.ToolButtonTextBesideIcon)
         self.details_toggle.setToolTip("Show or hide the activity log.")
         self.details_toggle.toggled.connect(self._on_details_toggled)
         main.addSpacing(space("lg"))
