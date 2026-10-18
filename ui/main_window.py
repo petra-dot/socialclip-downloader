@@ -54,9 +54,11 @@ class MainWindow(QtWidgets.QWidget):
         self._repair_worker = None
         cleanup_update_temp()
 
+        self._apply_app_theme()        # before init_ui: nothing to re-polish
         self.init_ui()
         self._restore_geometry()
-        self._apply_saved_theme()
+        self._sync_theme_actions(self.settings.value("ui/theme", "system"))
+        self._refresh_theme_colors()
 
         if not self.settings.value("first_run_done"):
             show_welcome(self)
@@ -355,13 +357,18 @@ class MainWindow(QtWidgets.QWidget):
         self._sync_theme_actions(mode)
         self._refresh_theme_colors()
 
-    def _apply_saved_theme(self):
+    def _apply_app_theme(self):
+        """Set the application style and palette.
+
+        Called before any widget is built: switching the application style
+        re-polishes every existing widget, and doing that to a built tree makes
+        the window flash once at its pre-layout size before it is shown.
+        """
         mode = self.settings.value("ui/theme", "system")
         app = QtWidgets.QApplication.instance()
         if app is not None:
             apply_theme(app, mode)
-        self._sync_theme_actions(mode)
-        self._refresh_theme_colors()
+        return mode
 
     def _refresh_theme_colors(self):
         """Re-apply state colors after a theme change.
