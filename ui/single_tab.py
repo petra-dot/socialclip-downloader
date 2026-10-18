@@ -12,13 +12,15 @@ from utils.file_utils import (
     default_download_folder,
     output_code_for,
     restore_or,
-    OUTPUT_FORMATS,
     RESOLUTIONS,
     output_index_for,
+    BEST_RESOLUTION,
+    resolution_to_convert,
 )
 from utils.ydl_opts import strip_ansi
 from utils.ui_helpers import looks_like_url, reveal_in_folder
 from core.clip import resolve_range
+from core.formats import download_format_label
 from core.presets import Preset, PresetStore, default_presets_path
 from ui.dialogs import manage_presets
 from workers.download_worker import DownloadWorker
@@ -31,7 +33,7 @@ from sites.cookies import (
 )
 from sites.collections import classify_url
 from sites.errors import classify_error
-from ui.style import make_heading
+from ui.style import make_heading, primary_button_style, space
 
 
 PLACEHOLDER = "-"
@@ -228,30 +230,30 @@ class SingleTab(QtWidgets.QWidget):
         preset_row.addStretch(1)
         main.addLayout(preset_row)
 
-        fmt_row = QtWidgets.QHBoxLayout()
+        out_row = QtWidgets.QHBoxLayout()
         self.output_combo = QtWidgets.QComboBox()
         self.output_combo.setAccessibleName("Output format")
-        self.output_combo.addItems(OUTPUT_FORMATS)
-        format_label = QtWidgets.QLabel("Format:")
-        format_label.setBuddy(self.output_combo)
-        fmt_row.addWidget(format_label)
-        fmt_row.addWidget(self.output_combo)
-        fmt_row.addSpacing(12)
+        for code in ("MP4", "MP3"):
+            self.output_combo.addItem(download_format_label(code), code)
+        output_label = QtWidgets.QLabel("Output:")
+        output_label.setBuddy(self.output_combo)
+        out_row.addWidget(output_label)
+        out_row.addWidget(self.output_combo)
+        out_row.addSpacing(space("lg"))
+
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.setAccessibleName("Target resolution")
+        self.resolution_combo.addItem(BEST_RESOLUTION)
         self.resolution_combo.addItems(RESOLUTIONS)
-        self.resolution_combo.setCurrentText("1080")
+        self.resolution_combo.currentIndexChanged.connect(self._sync_output_state)
         resolution_label = QtWidgets.QLabel("Resolution:")
         resolution_label.setBuddy(self.resolution_combo)
-        fmt_row.addWidget(resolution_label)
-        fmt_row.addWidget(self.resolution_combo)
-        fmt_row.addStretch()
-        main.addLayout(fmt_row)
-
-        self.convert_checkbox = QtWidgets.QCheckBox("Convert to chosen resolution")
-        self.convert_checkbox.toggled.connect(self._sync_resolution_state)
-        main.addWidget(self.convert_checkbox)
-        self._sync_resolution_state()
+        out_row.addWidget(resolution_label)
+        out_row.addWidget(self.resolution_combo)
+        out_row.addStretch()
+        main.addLayout(out_row)
+        self.output_combo.currentIndexChanged.connect(self._sync_output_state)
+        self._sync_output_state()
 
         # Everything past the format choice is optional, so it lives behind one
         # disclosure instead of competing with Download for attention.
@@ -414,8 +416,7 @@ class SingleTab(QtWidgets.QWidget):
 
         for widget in (self.output_combo, self.resolution_combo):
             widget.currentIndexChanged.connect(self._mark_custom)
-        for widget in (self.convert_checkbox, self.checkbox_channel,
-                       self.checkbox_timestamp):
+        for widget in (self.checkbox_channel, self.checkbox_timestamp):
             widget.toggled.connect(self._mark_custom)
 
         self._refresh_presets()
@@ -453,8 +454,8 @@ class SingleTab(QtWidgets.QWidget):
         index = output_index_for(preset.output)
         if index >= 0:
             self.output_combo.setCurrentIndex(index)
-        self.resolution_combo.setCurrentText(preset.resolution)
-        self.convert_checkbox.setChecked(preset.convert)
+        self.resolution_combo.setCurrentText(
+            preset.resolution if preset.convert else BEST_RESOLUTION)
         self.checkbox_channel.setChecked(preset.add_channel)
         self.checkbox_timestamp.setChecked(preset.add_timestamp)
         self.save_dir_input.setText(preset.save_dir or default_download_folder())
@@ -478,8 +479,10 @@ class SingleTab(QtWidgets.QWidget):
         return Preset(
             name=name,
             output=output_code_for(self.output_combo.currentText()),
-            resolution=self.resolution_combo.currentText(),
-            convert=self.convert_checkbox.isChecked(),
+            convert=resolution_to_convert(self.resolution_combo.currentText()),
+            resolution=(self.resolution_combo.currentText()
+                        if resolution_to_convert(self.resolution_combo.currentText())
+                        else "1080"),
             add_channel=self.checkbox_channel.isChecked(),
             add_timestamp=self.checkbox_timestamp.isChecked(),
             save_dir=self.save_dir_input.text().strip(),
@@ -627,17 +630,15 @@ class SingleTab(QtWidgets.QWidget):
             self._fill_from_clipboard()
         return super().eventFilter(obj, event)
 
-    def _sync_resolution_state(self, _checked=None):
-        """The Resolution combo only applies while its checkbox is on.
-
-        Leaving it enabled while inert made the tab promise a resolution it
-        would not deliver, which is the surprise this app exists to prevent.
-        """
-        active = self.convert_checkbox.isChecked()
-        self.resolution_combo.setEnabled(active)
+    def _sync_output_state(self, *_args):
+        """The resolution only applies to video, and only when a height is set."""
+        is_video = self.output_combo.currentData() == "MP4"
+        self.resolution_combo.setEnabled(is_video)
+        if not is_video:
+            self.resolution_combo.setCurrentText(BEST_RESOLUTION)
         self.resolution_combo.setToolTip(
-            "Re-encode the download at this height." if active
-            else "Enable 'Convert to chosen resolution' to use this."
+            "Re-encode the download at this height." if is_video
+            else "Audio output keeps its source resolution."
         )
 
     def _on_advanced_toggled(self, checked):
@@ -871,9 +872,10 @@ class SingleTab(QtWidgets.QWidget):
         final_base = os.path.splitext(os.path.basename(final_path))[0]
         final_outtmpl = os.path.join(save_dir, final_base + ".%(ext)s")
 
-        output_type = "MP3" if "MP3" in self.output_combo.currentText() else "MP4"
-        convert = self.convert_checkbox.isChecked() and (output_type == "MP4")
-        target_resolution = int(self.resolution_combo.currentText())
+        output_type = self.output_combo.currentData() or "MP4"
+        choice = self.resolution_combo.currentText()
+        convert = output_type == "MP4" and resolution_to_convert(choice)
+        target_resolution = int(choice) if convert else 0
 
         if not self.cookies_input.text().strip():
             auto_cookie = get_cookie_path(url)
