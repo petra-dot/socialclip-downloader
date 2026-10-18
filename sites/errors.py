@@ -41,11 +41,22 @@ def classify_error(message: str, url: str = ""):
         return "blocked", f"{site} blocked the request. Load a cookies.txt file and try again."
     if any(keyword in text for keyword in FORMAT_KEYWORDS):
         return "format", "Could not find a downloadable format. The video may be unavailable or region-locked."
-    if "ffmpeg" in text.lower():
+    lowered = text.lower()
+    if ("matches no streams" in lowered
+            or "does not contain any stream" in lowered
+            or "output file #0 does not contain any stream" in lowered):
+        return "ffmpeg", (
+            "That file has no matching stream for the chosen output. "
+            "For example, a video with no audio track cannot be converted to MP3."
+        )
+    if "ffmpeg" in lowered and any(k in lowered for k in (
+            "not found", "no such file", "is not recognized", "cannot find")):
         return "ffmpeg", (
             "ffmpeg is not installed or not in PATH. "
             "Install it from https://ffmpeg.org/download.html and add to PATH."
         )
+    if "ffmpeg" in lowered or "conversion failed" in lowered:
+        return "ffmpeg", "ffmpeg could not convert this file."
     if any(k in text for k in NETWORK_KEYWORDS):
         return "network", "Network error reaching the site. Check your connection and retry."
     if any(k in text for k in NOT_FOUND_KEYWORDS):

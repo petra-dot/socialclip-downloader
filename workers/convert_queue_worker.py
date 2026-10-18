@@ -1,8 +1,20 @@
 """Drain a ConvertQueue one job at a time, off the UI thread."""
 
+import os
+
 from PyQt5 import QtCore
 
-from core.convert_queue import STATUS_CANCELLED, TERMINAL_STATES
+from core.convert_queue import STATUS_CANCELLED, STATUS_DONE, STATUS_FAILED
+
+
+def _discard_output(result) -> None:
+    """A cancelled conversion's file is not wanted; remove it."""
+    path = getattr(result, "path", "") or ""
+    if path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 class ConvertQueueWorker(QtCore.QThread):
@@ -37,7 +49,7 @@ class ConvertQueueWorker(QtCore.QThread):
     def run(self):
         from core.convert import convert_file
 
-        done = 0
+        converted = failed = stopped = 0
         while not self._cancelling:
             job = self.queue.claim_next()
             if job is None:
@@ -46,21 +58,33 @@ class ConvertQueueWorker(QtCore.QThread):
             if job.id in self._cancelled:
                 job.state = STATUS_CANCELLED
                 job.message = "Cancelled."
-                done += 1
-                self._save()
-                self._emit(job)
-                continue
-            try:
-                result = convert_file(
-                    job.path, target_format=job.target_format,
-                    target_resolution=job.resolution or None,
-                    copy_streams=job.copy_streams,
-                )
-            except Exception as exc:  # noqa: BLE001 - a bad file must not stop the batch
-                from core.manifest import error_result
-                result = error_result("other", str(exc), "")
-            self.queue.apply_result(job.id, result)
-            done += 1
+            else:
+                try:
+                    result = convert_file(
+                        job.path, target_format=job.target_format,
+                        target_resolution=job.resolution or None,
+                        copy_streams=job.copy_streams,
+                    )
+                except Exception as exc:  # noqa: BLE001 - a bad file must not stop the batch
+                    from core.manifest import error_result
+                    result = error_result("other", str(exc), "")
+                if job.id in self._cancelled:
+                    _discard_output(result)
+                    job.state = STATUS_CANCELLED
+                    job.message = "Cancelled."
+                else:
+                    self.queue.apply_result(job.id, result)
+            if job.state == STATUS_DONE:
+                converted += 1
+            elif job.state == STATUS_FAILED:
+                failed += 1
+            else:
+                stopped += 1
             self._save()
             self._emit(job)
-        self.finished_signal.emit("Converted %d file(s)." % done)
+        parts = ["Converted %d" % converted]
+        if failed:
+            parts.append("%d failed" % failed)
+        if stopped:
+            parts.append("%d cancelled" % stopped)
+        self.finished_signal.emit(", ".join(parts) + ".")
