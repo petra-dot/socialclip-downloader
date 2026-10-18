@@ -201,6 +201,10 @@ class ConvertTab(QtWidgets.QWidget):
         # Paint the empty state now; it otherwise only appears on a selection
         # change, leaving the panel body blank at startup.
         self._show_detail(None)
+        # Fill the table from the jobs the store just loaded, or a list saved by
+        # an earlier session stays invisible until something else refreshes it.
+        self.refresh_table()
+        self._sync_buttons()
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
