@@ -250,7 +250,6 @@ class SingleTab(QtWidgets.QWidget):
         output_label.setBuddy(self.output_combo)
         out_row.addWidget(output_label)
         out_row.addWidget(self.output_combo)
-        out_row.addSpacing(space("lg"))
 
         self.resolution_combo = QtWidgets.QComboBox()
         self.resolution_combo.setAccessibleName("Target resolution")
@@ -258,6 +257,11 @@ class SingleTab(QtWidgets.QWidget):
         self.resolution_combo.addItems(RESOLUTIONS)
         self.resolution_combo.currentIndexChanged.connect(self._sync_output_state)
         resolution_label = QtWidgets.QLabel("Resolution:")
+        # This label shares a column with "Save as preset...", so it is
+        # stretched to that button's width; right-align it to hug its combo.
+        resolution_label.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self._resolution_label = resolution_label
         resolution_label.setBuddy(self.resolution_combo)
         out_row.addWidget(resolution_label)
         out_row.addWidget(self.resolution_combo)
@@ -491,6 +495,9 @@ class SingleTab(QtWidgets.QWidget):
                 widget.setMinimumWidth(width)
 
         match(self.preset_combo, self.output_combo)
+        # The widgets before the last column must match too, or that column
+        # starts at a different x and its right edge overshoots the row above.
+        match(self.preset_save_btn, self._resolution_label)
         match(self.preset_manage_btn, self.resolution_combo)
         match(self.advanced_toggle, self.download_btn, self.details_toggle)
 
