@@ -129,8 +129,8 @@ class ConvertTab(QtWidgets.QWidget):
         # tab's row.
         action_width = max(self.convert_file_btn.sizeHint().width(),
                            self.details_toggle.sizeHint().width())
-        self.convert_file_btn.setMinimumWidth(action_width)
-        self.details_toggle.setMinimumWidth(action_width)
+        self.convert_file_btn.setFixedWidth(action_width)
+        self.details_toggle.setFixedWidth(action_width)
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()

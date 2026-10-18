@@ -490,9 +490,12 @@ class SingleTab(QtWidgets.QWidget):
         wobble. Each group below is set to its widest member.
         """
         def match(*widgets):
+            # A fixed width, not a minimum: a combo will not shrink below its
+            # own content minimum, so "Best (no re-encode)" kept the Resolution
+            # combo wider than the Manage button beside it.
             width = max(widget.sizeHint().width() for widget in widgets)
             for widget in widgets:
-                widget.setMinimumWidth(width)
+                widget.setFixedWidth(width)
 
         match(self.preset_combo, self.output_combo)
         # The widgets before the last column must match too, or that column
