@@ -148,6 +148,7 @@ class SingleTab(QtWidgets.QWidget):
         self._thumb_seq = 0
         self._last_path = ""
         self._last_cookie_url = ""
+        self._last_percent = -1
         self.settings = QtCore.QSettings()
         self.preset_store = PresetStore(default_presets_path())
         self.preset_store.load()
@@ -173,6 +174,9 @@ class SingleTab(QtWidgets.QWidget):
         self._url_timer.setInterval(600)
         self._url_timer.timeout.connect(self._maybe_autofetch)
         self.url_input.textChanged.connect(self._on_url_text_changed)
+        url_label = QtWidgets.QLabel("URL:")
+        url_label.setBuddy(self.url_input)
+        url_row.addWidget(url_label)
         url_row.addWidget(self.url_input)
         self.fetch_meta_btn = QtWidgets.QPushButton("Fetch")
         self.fetch_meta_btn.clicked.connect(self.on_fetch_metadata)
@@ -284,6 +288,9 @@ class SingleTab(QtWidgets.QWidget):
         )
         self.save_dir_input.setAccessibleName("Download folder")
         self.save_dir_input.editingFinished.connect(self._on_save_dir_changed)
+        save_label = QtWidgets.QLabel("Folder:")
+        save_label.setBuddy(self.save_dir_input)
+        save_layout.addWidget(save_label)
         save_layout.addWidget(self.save_dir_input)
         browse_btn = QtWidgets.QPushButton("Browse")
         browse_btn.clicked.connect(self.on_browse)
@@ -312,6 +319,14 @@ class SingleTab(QtWidgets.QWidget):
         self.download_btn.clicked.connect(self.on_download)
         download_bar.addWidget(self.download_btn)
         main.addLayout(download_bar)
+
+        # Keyboard path to cancel: Ctrl+. only acts while a download runs, so
+        # it can never start one. The button itself already takes Enter/Space.
+        self.cancel_shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence("Ctrl+."), self
+        )
+        self.cancel_shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
+        self.cancel_shortcut.activated.connect(self._on_cancel_shortcut)
 
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
@@ -527,6 +542,22 @@ class SingleTab(QtWidgets.QWidget):
     def show_hint(self, text: str):
         self.hint_label.setText(text)
         self.hint_label.setVisible(bool(text))
+
+    def _announce(self, label, text):
+        """Set a label and, best effort, notify assistive tech of the change."""
+        label.setText(text)
+        label.setAccessibleName(text)
+        try:
+            from PyQt5 import QtGui
+            event = QtGui.QAccessibleEvent(label, QtGui.QAccessible.NameChanged)
+            QtGui.QAccessible.updateAccessibility(event)
+        except Exception:
+            pass
+
+    def _on_cancel_shortcut(self):
+        """Ctrl+. cancels a running download; a no-op when nothing runs."""
+        if self.worker and self.worker.isRunning():
+            self.on_download()
 
     def _on_clip_toggled(self, checked):
         self.clip_row.setVisible(checked)
@@ -897,6 +928,7 @@ class SingleTab(QtWidgets.QWidget):
         self.panel_labels["ready"].setVisible(False)
         self.open_folder_btn.setVisible(False)
         self.progress_label.setText("")
+        self._last_percent = -1
         self.log(f"Downloading as: {final_base} (H.264/AAC MP4).")
         self.worker = DownloadWorker(
             url, final_outtmpl, convert, target_resolution, output_type,
@@ -917,7 +949,15 @@ class SingleTab(QtWidgets.QWidget):
     def _on_progress(self, p):
         from core.progress import format_progress
         self.progress_bar.setValue(int(p.percent))
-        self.progress_label.setText(format_progress(p))
+        text = format_progress(p)
+        whole = int(p.percent)
+        if whole != self._last_percent:
+            # Announce once per whole percent, so a screen reader is not
+            # flooded by every speed/tick update.
+            self._last_percent = whole
+            self._announce(self.progress_label, text)
+        else:
+            self.progress_label.setText(text)
 
     def _show_result(self, result):
         from core.progress import format_bytes
@@ -933,13 +973,13 @@ class SingleTab(QtWidgets.QWidget):
                 parts.append("%dp" % result.height)
             if result.bytes:
                 parts.append(format_bytes(result.bytes))
-            body.setText("  ·  ".join(parts))
+            self._announce(body, "  ·  ".join(parts))
             ready.setText("Ready for CapCut, Premiere Pro, and DaVinci Resolve.")
             ready.setStyleSheet("color: %s;" % token("accent"))
             ready.setVisible(True)
             self.open_folder_btn.setVisible(True)
         else:
-            body.setText(result.message or "The download did not finish.")
+            self._announce(body, result.message or "The download did not finish.")
             ready.setVisible(False)
             self.open_folder_btn.setVisible(False)
 

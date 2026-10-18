@@ -100,9 +100,11 @@ class BulkPasteDialog(QtWidgets.QDialog):
         self.setWindowTitle("Add URLs")
         self.resize(520, 320)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(QtWidgets.QLabel("Paste one URL per line:"))
+        line_label = QtWidgets.QLabel("Paste one URL per line:")
+        layout.addWidget(line_label)
         self.text = QtWidgets.QTextEdit()
         self.text.setPlaceholderText("https://...\nhttps://...")
+        line_label.setBuddy(self.text)
         layout.addWidget(self.text)
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -338,7 +340,8 @@ class QueueTab(QtWidgets.QWidget):
         queue_layout.addLayout(archive_row)
 
         jobs_row = QtWidgets.QHBoxLayout()
-        jobs_row.addWidget(QtWidgets.QLabel("Downloads at once:"))
+        jobs_label = QtWidgets.QLabel("Downloads at once:")
+        jobs_row.addWidget(jobs_label)
         self.jobs_spin = QtWidgets.QSpinBox()
         self.jobs_spin.setAccessibleName("Queue concurrent downloads")
         self.jobs_spin.setRange(1, 8)
@@ -346,6 +349,7 @@ class QueueTab(QtWidgets.QWidget):
         self.jobs_spin.valueChanged.connect(
             lambda v: self.settings.setValue("queue/jobs", int(v))
         )
+        jobs_label.setBuddy(self.jobs_spin)
         jobs_row.addWidget(self.jobs_spin)
         jobs_row.addStretch(1)
         queue_layout.addLayout(jobs_row)
