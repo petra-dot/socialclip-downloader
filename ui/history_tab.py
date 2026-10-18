@@ -17,7 +17,7 @@ from core.history import (
 from core.formats import download_format_label
 from core.progress import format_bytes
 from ui.platform_icons import icon_for_url, platform_icon
-from ui.style import danger_text_style, make_chip, make_heading, state_color
+from ui.style import danger_text_style, make_chip, make_heading, space, state_color
 from utils.ui_helpers import open_file, reveal_in_folder
 from workers.probe_worker import ProbeWorker
 
@@ -69,6 +69,7 @@ class HistoryTab(QtWidgets.QWidget):
 
     def _build_summary_bar(self):
         bar = QtWidgets.QHBoxLayout()
+        bar.setSpacing(space("sm"))
         self.summary_label = QtWidgets.QLabel("")
         self.summary_label.setAccessibleName("History summary")
         make_heading(self.summary_label)
@@ -99,14 +100,15 @@ class HistoryTab(QtWidgets.QWidget):
 
         self.clear_action = QtWidgets.QAction("Clear history", self)
         self.clear_action.triggered.connect(self.clear_history)
-        overflow = QtWidgets.QToolButton()
-        overflow.setText("More")
-        overflow.setAccessibleName("More history actions")
-        overflow.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-        menu = QtWidgets.QMenu(overflow)
+        # A QPushButton, not a QToolButton: a tool button has tighter metrics and
+        # sat smaller than the buttons beside it. This inherits the platform's
+        # own button size and draws its own menu indicator.
+        self.more_btn = QtWidgets.QPushButton("More")
+        self.more_btn.setAccessibleName("More history actions")
+        menu = QtWidgets.QMenu(self.more_btn)
         menu.addAction(self.clear_action)
-        overflow.setMenu(menu)
-        bar.addWidget(overflow)
+        self.more_btn.setMenu(menu)
+        bar.addWidget(self.more_btn)
         return bar
 
     def _style_action_buttons(self):
