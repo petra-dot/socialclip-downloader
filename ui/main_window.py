@@ -67,17 +67,11 @@ class MainWindow(QtWidgets.QWidget):
         self._check_components()
 
     def init_ui(self):
+        from ui.style import space
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
         layout.addWidget(self._build_menubar())
-
-        header = QtWidgets.QHBoxLayout()
-        header.addStretch(1)
-        self.update_button = UpdateButton(self)
-        self.update_button.clicked.connect(self._on_update_button)
-        header.addWidget(self.update_button)
-        layout.addLayout(header)
 
         self.tabs = QtWidgets.QTabWidget()
         self.single_tab = SingleTab(self.cookies_file)
@@ -90,7 +84,13 @@ class MainWindow(QtWidgets.QWidget):
         self.tabs.addTab(self.history_tab, "History")
         self.tabs.setAccessibleName("Main sections")
         self.tabs.currentChanged.connect(self._on_tab_changed)
+
+        self.update_button = UpdateButton(self)
+        self.update_button.clicked.connect(self._on_update_button)
+        self.tabs.setCornerWidget(self.update_button, QtCore.Qt.TopRightCorner)
+
         layout.addWidget(self.tabs)
+        layout.setSpacing(space("sm"))
 
         # Ctrl+1/2/3/4 switch tabs, the desktop convention.
         for index in range(4):
