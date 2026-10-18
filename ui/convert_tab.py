@@ -7,7 +7,13 @@ from core import formats
 from utils.file_utils import default_download_folder, RESOLUTIONS
 from utils.ui_helpers import reveal_in_folder
 from workers.convert_worker import ConvertFileWorker
-from ui.style import make_heading
+from ui.style import (
+    make_heading,
+    make_result_panel,
+    primary_button_style,
+    space,
+    token,
+)
 
 
 class ConvertTab(QtWidgets.QWidget):
@@ -19,13 +25,14 @@ class ConvertTab(QtWidgets.QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        main = QtWidgets.QVBoxLayout()
+        main.setContentsMargins(8, 8, 8, 8)
+        main.setSpacing(6)
+        self._main_layout = main
 
         file_heading = QtWidgets.QLabel("File")
         make_heading(file_heading)
-        layout.addWidget(file_heading)
+        main.addWidget(file_heading)
         file_row = QtWidgets.QHBoxLayout()
         self.file_path_input = QtWidgets.QLineEdit()
         self.file_path_input.setAccessibleName("File to convert")
@@ -33,11 +40,11 @@ class ConvertTab(QtWidgets.QWidget):
         pick_btn = QtWidgets.QPushButton("Select File...")
         pick_btn.clicked.connect(self.on_pick_file)
         file_row.addWidget(pick_btn)
-        layout.addLayout(file_row)
+        main.addLayout(file_row)
 
         conv_heading = QtWidgets.QLabel("Convert")
         make_heading(conv_heading)
-        layout.addWidget(conv_heading)
+        main.addWidget(conv_heading)
         conv_opts = QtWidgets.QHBoxLayout()
         self.conv_output_combo = QtWidgets.QComboBox()
         self.conv_output_combo.setAccessibleName("Convert to format")
@@ -66,28 +73,59 @@ class ConvertTab(QtWidgets.QWidget):
         conv_opts.addWidget(QtWidgets.QLabel("Streams:"))
         conv_opts.addWidget(self.copy_combo)
         self._update_conv_controls()
-        layout.addLayout(conv_opts)
+        main.addLayout(conv_opts)
+
         conv_btn_row = QtWidgets.QHBoxLayout()
-        self.convert_file_btn = QtWidgets.QPushButton("Convert Selected File")
+        self.convert_file_btn = QtWidgets.QPushButton("Convert")
+        self.convert_file_btn.setStyleSheet(primary_button_style())
         self.convert_file_btn.clicked.connect(self.on_convert_file)
         conv_btn_row.addWidget(self.convert_file_btn)
-        self.open_folder_btn = QtWidgets.QPushButton("Open folder")
-        self.open_folder_btn.setVisible(False)
-        self.open_folder_btn.clicked.connect(self._on_open_folder)
-        conv_btn_row.addWidget(self.open_folder_btn)
-        layout.addLayout(conv_btn_row)
+        conv_btn_row.addStretch(1)
+        main.addLayout(conv_btn_row)
 
         # Inline hint for recoverable mistakes, instead of a modal popup.
         self.hint_label = QtWidgets.QLabel("")
         self.hint_label.setVisible(False)
         self.hint_label.setWordWrap(True)
-        layout.addWidget(self.hint_label)
+        main.addWidget(self.hint_label)
+
+        # The log is a details view: hidden by default, opened on request.
+        self.details_toggle = QtWidgets.QToolButton()
+        self.details_toggle.setText("Activity")
+        self.details_toggle.setCheckable(True)
+        self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
+        self.details_toggle.setToolTip("Show the full activity log.")
+        self.details_toggle.toggled.connect(self._on_details_toggled)
+        main.addWidget(self.details_toggle)
 
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setMinimumHeight(120)
+        self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Conversion log")
-        layout.addWidget(self.console_log, 1)
+        self.console_log.setVisible(False)
+        main.addWidget(self.console_log)
+
+        # Two panes: the form on the left, the shared result panel on the right.
+        form = QtWidgets.QWidget()
+        form.setLayout(main)
+        self.result_panel, self.panel_labels = make_result_panel()
+        self.open_folder_btn = QtWidgets.QPushButton("Open folder")
+        self.open_folder_btn.clicked.connect(self._on_open_folder)
+        self.open_folder_btn.setVisible(False)
+        box = self.panel_labels["layout"]
+        box.insertWidget(box.count() - 1, self.open_folder_btn)
+
+        panes = QtWidgets.QHBoxLayout()
+        panes.setSpacing(space("lg"))
+        panes.addWidget(form, 3)
+        panes.addWidget(self.result_panel, 2)
+        root = QtWidgets.QVBoxLayout(self)
+        root.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        root.addLayout(panes)
+
+        self.file_path_input.textChanged.connect(self._sync_convert_enabled)
+        self._sync_convert_enabled()
 
     def show_hint(self, text: str):
         self.hint_label.setText(text)
@@ -164,6 +202,8 @@ class ConvertTab(QtWidgets.QWidget):
     def _on_conv_output(self, path: str):
         self._last_output = path
         self.open_folder_btn.setVisible(bool(path))
+        if path:
+            self.panel_labels["body"].setText(os.path.basename(path))
 
     def _on_open_folder(self):
         reveal_in_folder(self._last_output)
@@ -171,3 +211,22 @@ class ConvertTab(QtWidgets.QWidget):
     def on_conv_finished(self, msg: str):
         self.log(msg)
         self.convert_file_btn.setEnabled(True)
+        if self._last_output:
+            ready = self.panel_labels["ready"]
+            ready.setText("Ready for CapCut, Premiere Pro, and DaVinci Resolve.")
+            ready.setStyleSheet("color: %s;" % token("accent"))
+            ready.setVisible(True)
+        else:
+            self.panel_labels["body"].setText(msg or "The conversion did not finish.")
+
+    def _sync_convert_enabled(self, *_args):
+        path = self.file_path_input.text().strip()
+        self.convert_file_btn.setEnabled(bool(path) and os.path.exists(path))
+
+    def _on_details_toggled(self, checked):
+        self.console_log.setVisible(checked)
+        self.console_log.setMaximumHeight(16777215 if checked else 120)
+        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        self.details_toggle.setArrowType(
+            QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
+        )
