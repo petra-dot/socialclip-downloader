@@ -26,7 +26,9 @@ class ConvertTab(QtWidgets.QWidget):
 
     def init_ui(self):
         main = QtWidgets.QVBoxLayout()
-        main.setContentsMargins(space("md"), space("md"), space("md"), space("md"))
+        # No bottom margin: the activity log runs to the pane's bottom so its
+        # edge lines up with the result panel's.
+        main.setContentsMargins(space("md"), space("md"), space("md"), 0)
         main.setSpacing(space("sm"))
 
         file_heading = QtWidgets.QLabel("File")
@@ -106,17 +108,21 @@ class ConvertTab(QtWidgets.QWidget):
         self.details_toggle.toggled.connect(self._on_details_toggled)
         main.addWidget(self.details_toggle)
 
+        self._main_layout = main
         self.console_log = QtWidgets.QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setMinimumHeight(120)
-        self.console_log.setMaximumHeight(120)
         self.console_log.setAccessibleName("Conversion log")
-        main.addWidget(self.console_log)
-        self.details_toggle.setChecked(True)   # the log starts shown
+        main.addWidget(self.console_log, 1)   # grows to the pane's bottom
 
-        # Pack the form to the top: spare height collects here, not inside the
-        # rows.
+        # The rows pack to the top. While the log is shown it takes the spare
+        # height, so this spacer is slack; when the log is minimized the spacer
+        # takes it, so the rows never spread.
         main.addStretch(1)
+        self._bottom_stretch = main.count() - 1
+        # Set the shown state last: the handler reads _bottom_stretch, which
+        # only exists once the spacer above is in the layout.
+        self.details_toggle.setChecked(True)
 
         # Two panes: the form on the left, the shared result panel on the right.
         form = QtWidgets.QWidget()
@@ -243,8 +249,10 @@ class ConvertTab(QtWidgets.QWidget):
         self.convert_file_btn.setEnabled(bool(path) and os.path.exists(path))
 
     def _on_details_toggled(self, checked):
-        """The log keeps its compact height; the toggle shows or hides it."""
+        """Show or hide the log; whichever is visible takes the spare height."""
         self.console_log.setVisible(checked)
+        self._main_layout.setStretchFactor(self.console_log, 1 if checked else 0)
+        self._main_layout.setStretch(self._bottom_stretch, 0 if checked else 1)
         self.details_toggle.setArrowType(
             QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow
         )
