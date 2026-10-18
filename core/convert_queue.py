@@ -174,6 +174,11 @@ class ConvertStore:
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             return
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
+        # A job cannot be running across a restart: demote anything the last
+        # session left mid-flight so it can be retried or removed.
+        for job in self.jobs:
+            if job.state == STATUS_RUNNING:
+                job.state = STATUS_PENDING
 
     def save(self) -> None:
         if not self.path:

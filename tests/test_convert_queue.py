@@ -96,3 +96,12 @@ def test_store_loads_empty_from_a_corrupt_file(tmp_path):
     store = ConvertStore(str(path))
     store.load()
     assert store.jobs == []
+
+
+def test_load_demotes_a_job_left_running(tmp_path):
+    path = tmp_path / "convert.json"
+    path.write_text('{"version": 1, "jobs": [{"id": "x", "path": "a", "state": "running"}]}',
+                    encoding="utf-8")
+    store = ConvertStore(str(path))
+    store.load()
+    assert store.jobs[0].state == "pending"
