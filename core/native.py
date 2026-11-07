@@ -6,19 +6,65 @@ host, the GUI and the tests can share it without Qt.
 """
 
 import json
+import re
 import struct
 from typing import List
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from core.queue import Queue
 from core.version import __version__
-from sites.cookies import PLATFORM_NAMES, PLATFORM_PATTERNS
+from sites.cookies import PLATFORM_NAMES, PLATFORM_PATTERNS, detect_platform
 from utils.file_utils import RESOLUTIONS
 
 HOST_NAME = "com.petra_dot.socialclip"
 PROTOCOL_VERSION = 1
 MAX_SCAN_LINKS = 200
 OUTPUTS = ("MP4", "MP3")
+
+# A single downloadable item, not a page that happens to live on the same host.
+# Written against the full href so a short link (youtu.be/x) and a watch link
+# can be distinguished; the platform is decided separately by hostname.
+MEDIA_PATTERNS = {
+    "youtube": (
+        r"^https?://(?:[\w-]+\.)*youtube\.com/watch\?(?:[^#]*&)?v=[\w-]+",
+        r"^https?://(?:[\w-]+\.)*youtube\.com/(?:shorts|live|embed|v)/[\w-]+",
+        r"^https?://(?:[\w-]+\.)*youtu\.be/[\w-]+",
+    ),
+    "instagram": (
+        r"^https?://(?:[\w-]+\.)*instagram\.com/(?:p|reel|reels|tv)/[\w-]+",
+    ),
+    "tiktok": (
+        r"^https?://(?:[\w-]+\.)*tiktok\.com/@[^/]+/video/\d+",
+        r"^https?://(?:vm|vt)\.tiktok\.com/[\w]+",
+    ),
+    "twitter": (
+        r"^https?://(?:[\w-]+\.)*(?:twitter|x)\.com/(?:[^/]+|i)/status(?:es)?/\d+",
+    ),
+    "facebook": (
+        r"^https?://(?:[\w-]+\.)*facebook\.com/reel/\d+",
+        r"^https?://(?:[\w-]+\.)*facebook\.com/watch/?(?:\?(?:[^#]*&)?v=\d+)?$",
+        r"^https?://(?:[\w-]+\.)*facebook\.com/[^/]+/videos/\d+",
+        r"^https?://(?:[\w-]+\.)*facebook\.com/video\.php\?(?:[^#]*&)?v=\d+",
+        r"^https?://fb\.watch/[\w]+",
+    ),
+    "bilibili": (
+        r"^https?://(?:[\w-]+\.)*bilibili\.com/video/(?:BV[\w]+|av\d+)",
+        r"^https?://(?:[\w-]+\.)*bilibili\.com/bangumi/play/[\w]+",
+    ),
+    "douyin": (
+        r"^https?://(?:[\w-]+\.)*douyin\.com/(?:video|note)/\d+",
+    ),
+}
+
+
+def is_media_url(url: str) -> bool:
+    """True when the link is one downloadable item, not a channel or a feed."""
+    if not isinstance(url, str):
+        return False
+    platform = detect_platform(url)
+    if not platform:
+        return False
+    return any(re.match(pattern, url) for pattern in MEDIA_PATTERNS.get(platform, ()))
 
 # A job in one of these states is still work the user is waiting on.
 ACTIVE_STATES = ("pending", "running", "paused")
@@ -130,6 +176,7 @@ def supported_sites() -> List[dict]:
             "pattern": pattern,
             "platform": platform,
             "name": PLATFORM_NAMES.get(platform, platform),
+            "media": list(MEDIA_PATTERNS.get(platform, ())),
         }
         for pattern, platform in PLATFORM_PATTERNS
     ]

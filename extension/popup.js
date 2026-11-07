@@ -53,14 +53,21 @@ function hostnameOf(url) {
   }
 }
 
-function supported(hostname, sites) {
-  return sites.some((site) => {
-    try {
-      return new RegExp("^(?:" + site.pattern + ")$").test(hostname);
-    } catch (error) {
-      return false;
-    }
-  });
+function matches(pattern, value) {
+  try {
+    return new RegExp(pattern).test(value);
+  } catch (error) {
+    return false;
+  }
+}
+
+// The host decides which platform this is; the pattern list then decides
+// whether the link is one downloadable item or a channel/feed/about page.
+function mediaUrl(url, sites) {
+  const hostname = hostnameOf(url);
+  const site = sites.find((entry) => matches(entry.pattern, hostname));
+  if (!site) return false;
+  return (site.media || []).some((pattern) => matches(pattern, url));
 }
 
 function setStatus(text) {
@@ -68,12 +75,12 @@ function setStatus(text) {
 }
 
 async function sitesList() {
-  const cached = (await api.storage.local.get("sites")).sites;
+  const cached = (await api.storage.local.get("sites_v2")).sites_v2;
   if (cached && cached.length) return cached;
   try {
     const reply = await host({ cmd: "sites" });
     const sites = (reply && reply.sites) || [];
-    if (sites.length) await api.storage.local.set({ sites });
+    if (sites.length) await api.storage.local.set({ sites_v2: sites });
     return sites;
   } catch (error) {
     return cached || [];
@@ -239,8 +246,7 @@ async function scanPage() {
   const seen = new Set();
   const found = [];
   for (const raw of hrefs) {
-    const hostname = hostnameOf(raw);
-    if (!hostname || !supported(hostname, sites)) continue;
+    if (!mediaUrl(raw, sites)) continue;
     const key = normalize(raw);
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -248,7 +254,7 @@ async function scanPage() {
     if (found.length >= 200) break;
   }
   if (!found.length) {
-    setStatus("No supported links on this page.");
+    setStatus("No downloadable links on this page.");
     rows = [];
     render();
     return;
@@ -264,7 +270,7 @@ async function scanPage() {
     };
   });
   render();
-  setStatus(found.length + " supported link(s). Pick what you want.");
+  setStatus(found.length + " downloadable link(s). Pick what you want.");
 }
 
 async function addThisTab() {

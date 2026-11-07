@@ -10,6 +10,7 @@ from core.native import (
     download_choices,
     encode_message,
     handle_message,
+    is_media_url,
     normalize_url,
     read_message,
     supported_sites,
@@ -119,3 +120,57 @@ def test_already_known_treats_two_youtube_ids_as_different():
         ["https://www.youtube.com/watch?v=BBB&t=5"], jobs, []
     )
     assert found == {"in_queue": [], "in_history": []}
+
+NOT_MEDIA = [
+    "https://www.youtube.com/",
+    "https://www.youtube.com/feed/subscriptions",
+    "https://www.youtube.com/@somechannel",
+    "https://www.youtube.com/feed/you",
+    "https://www.youtube.com/feed/history",
+    "https://www.youtube.com/playlist?list=WL",
+    "https://www.youtube.com/premium",
+    "https://www.youtube.com/about/",
+    "https://www.youtube.com/t/terms",
+    "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxxxxxxx",
+    "https://www.youtube.com/gaming",
+    "https://www.youtube.com/new",
+    "https://studio.youtube.com/channel/UCxxxxxxxxxxxxxxxxxxxxxx/content",
+    "https://www.facebook.com/somepage",
+    "https://www.instagram.com/someone/",
+    "https://www.tiktok.com/@someone",
+    "https://x.com/someone",
+]
+
+MEDIA = [
+    "https://www.youtube.com/watch?v=abc123",
+    "https://www.youtube.com/watch?v=abc123&list=RDabc123&start_radio=1",
+    "https://www.youtube.com/shorts/abc123",
+    "https://www.youtube.com/live/abc123",
+    "https://www.youtube.com/embed/abc123",
+    "https://youtu.be/abc123",
+    "https://music.youtube.com/watch?v=abc123",
+    "https://www.instagram.com/p/abc123/",
+    "https://www.instagram.com/reel/abc123/",
+    "https://www.tiktok.com/@someone/video/123456789",
+    "https://x.com/someone/status/123456789",
+    "https://twitter.com/someone/status/123456789",
+    "https://www.facebook.com/reel/123456789",
+    "https://www.facebook.com/watch/?v=123456789",
+    "https://www.bilibili.com/video/BV1xx411c7mD",
+    "https://www.douyin.com/video/123456789",
+]
+
+
+@pytest.mark.parametrize("url", NOT_MEDIA)
+def test_page_links_are_not_media(url):
+    assert is_media_url(url) is False
+
+
+@pytest.mark.parametrize("url", MEDIA)
+def test_single_item_links_are_media(url):
+    assert is_media_url(url) is True
+
+
+def test_supported_sites_carry_media_patterns():
+    sites = supported_sites()
+    assert all(site["media"] for site in sites)
