@@ -101,11 +101,21 @@ class QueueFileError(Exception):
     """The queue file exists but cannot be trusted; do not write over it."""
 
 
+def _file_stamp(path: str):
+    """Cheap identity for the file's current contents, or None if unreadable."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size)
+
+
 class QueueStore:
     def __init__(self, path: str):
         self.path = path
         self.jobs: List[QueueJob] = []
         self.paused = False
+        self._stamp = None
 
     def _read(self) -> Optional[dict]:
         """Parsed queue data, or None when there is nothing to read.
@@ -124,6 +134,7 @@ class QueueStore:
             raise QueueFileError(str(exc))
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             raise QueueFileError("unrecognised queue file version")
+        self._stamp = _file_stamp(self.path)
         return data
 
     def load(self) -> None:
@@ -152,14 +163,40 @@ class QueueStore:
         self.paused = bool(data.get("paused", False))
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
 
+    def _merge_from_disk(self) -> None:
+        """Keep jobs another writer added since this instance last read or wrote.
+
+        The headless host and the GUI can both write this file. Without the
+        merge, whichever saves last silently drops the other's jobs. A store
+        that never read the file is left alone, so a deliberate clear still
+        clears.
+        """
+        if not self.path or self._stamp is None:
+            return
+        if _file_stamp(self.path) == self._stamp:
+            return
+        try:
+            with open(self.path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            return
+        if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
+            return
+        known = {job.id for job in self.jobs}
+        for job in _coerce_jobs(data.get("jobs")):
+            if job.id not in known:
+                self.jobs.append(job)
+
     def save(self) -> None:
         if not self.path:
             return
+        self._merge_from_disk()
         data = self.to_dict()
         tmp = f"{self.path}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
         os.replace(tmp, self.path)
+        self._stamp = _file_stamp(self.path)
 
     def to_dict(self) -> dict:
         return {

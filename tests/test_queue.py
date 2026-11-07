@@ -470,3 +470,25 @@ def test_strict_load_raises_on_unknown_version(tmp_path):
     path.write_text('{"version": 99, "jobs": []}', encoding="utf-8")
     with pytest.raises(QueueFileError):
         QueueStore(str(path)).load_strict()
+
+
+def test_save_keeps_a_job_written_by_another_writer(tmp_path):
+    path = str(tmp_path / "queue.json")
+    first = QueueStore(path)
+    first.load()
+    Queue(first).add("https://youtu.be/x")
+    first.save()
+
+    second = QueueStore(path)
+    second.load()
+    Queue(second).add("https://youtu.be/y")
+
+    Queue(first).add("https://youtu.be/z")
+    first.save()
+    second.save()  # stale copy; must not drop x and z
+
+    final = QueueStore(path)
+    final.load()
+    assert sorted(j.url for j in final.jobs) == [
+        "https://youtu.be/x", "https://youtu.be/y", "https://youtu.be/z",
+    ]
