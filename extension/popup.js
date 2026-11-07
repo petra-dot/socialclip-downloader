@@ -7,6 +7,9 @@ const FALLBACK = {
   outputs: ["MP4", "MP3"],
   resolutions: ["720", "1080", "1440", "2160"],
 };
+// The app's Queue tab starts at 1080; the first option is 720, so this has to
+// be explicit or the extension looks like it defaults elsewhere.
+const DEFAULT_CHOICE = { output: "MP4", resolution: "1080" };
 
 let known = { in_queue: [], in_history: [] };
 let rows = [];
@@ -90,13 +93,13 @@ async function refreshFormats() {
   }
   fill("output", formats.outputs);
   fill("resolution", formats.resolutions);
-  const saved = (await api.storage.local.get("choice")).choice;
-  if (saved) {
-    if (formats.outputs.includes(saved.output)) $("output").value = saved.output;
-    if (formats.resolutions.includes(saved.resolution)) {
-      $("resolution").value = saved.resolution;
-    }
-  }
+  const saved = (await api.storage.local.get("choice")).choice || DEFAULT_CHOICE;
+  $("output").value = formats.outputs.includes(saved.output)
+    ? saved.output
+    : DEFAULT_CHOICE.output;
+  $("resolution").value = formats.resolutions.includes(saved.resolution)
+    ? saved.resolution
+    : DEFAULT_CHOICE.resolution;
   syncResolution();
 }
 
@@ -113,12 +116,19 @@ function fill(id, values) {
 
 function syncResolution() {
   $("resolution").disabled = $("output").value === "MP3";
+  // Persist on every change: a popup closes the moment it loses focus, and a
+  // choice that is only saved on submit is lost before it can be used.
+  saveChoice().catch(() => {});
 }
 
-async function currentChoice() {
+async function saveChoice() {
   const choice = { output: $("output").value, resolution: $("resolution").value };
   await api.storage.local.set({ choice });
   return choice;
+}
+
+async function currentChoice() {
+  return saveChoice();
 }
 
 async function knownFor(urls) {
@@ -307,6 +317,9 @@ async function submit(start) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   $("output").addEventListener("change", syncResolution);
+  $("resolution").addEventListener("change", () => {
+    saveChoice().catch(() => {});
+  });
   $("scan").addEventListener("click", scanPage);
   $("add-tab").addEventListener("click", addThisTab);
   $("add").addEventListener("click", () => submit(false));

@@ -2,7 +2,8 @@
 
 Run:  python assets/make_icon.py
 
-Produces assets/icon_512.png and a multi-size assets/icon.ico.
+Produces assets/icon_512.png, a multi-size assets/icon.ico, and the browser
+extension icons under extension/icons/.
 Deterministic and dependency-light (Pillow only); re-run to regenerate.
 """
 
@@ -85,6 +86,14 @@ def main():
     sizes = [16, 24, 32, 48, 64, 128, 256]
     master.save(ico_path, format="ICO", sizes=[(s, s) for s in sizes])
     print("wrote", ico_path, "sizes", sizes)
+
+    # Browsers want PNG, and want the sizes the toolbar actually uses.
+    ext_icons = os.path.join(os.path.dirname(here), "extension", "icons")
+    os.makedirs(ext_icons, exist_ok=True)
+    for size in (16, 32, 48, 128):
+        path = os.path.join(ext_icons, "%d.png" % size)
+        master.resize((size, size), Image.LANCZOS).save(path)
+        print("wrote", path)
 
 
 if __name__ == "__main__":

@@ -22,3 +22,21 @@ def test_both_manifests_ask_for_native_messaging():
         manifest = json.loads((EXT / name).read_text(encoding="utf-8"))
         assert "nativeMessaging" in manifest["permissions"]
         assert manifest["action"]["default_popup"] == "popup.html"
+
+
+def _png_size(path):
+    data = path.read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG: %s" % path
+    width = int.from_bytes(data[16:20], "big")
+    height = int.from_bytes(data[20:24], "big")
+    return width, height
+
+
+def test_both_manifests_reference_real_icons():
+    for name in ("manifest.json", "manifest.firefox.json"):
+        manifest = json.loads((EXT / name).read_text(encoding="utf-8"))
+        icons = manifest["icons"]
+        assert set(icons) >= {"16", "32", "48", "128"}
+        for size, relative in icons.items():
+            assert _png_size(EXT / relative) == (int(size), int(size))
+        assert manifest["action"]["default_icon"]

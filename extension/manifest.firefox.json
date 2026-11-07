@@ -5,7 +5,22 @@
   "description": "Send links to SocialClip Downloader: add to the queue or download now.",
   "permissions": ["contextMenus", "nativeMessaging", "activeTab", "scripting", "storage"],
   "background": {"scripts": ["background.js"]},
-  "action": {"default_popup": "popup.html", "default_title": "SocialClip"},
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SocialClip",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "socialclip@petra-dot",

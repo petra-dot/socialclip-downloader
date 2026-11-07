@@ -61,9 +61,12 @@ def copy_tree(source: str, dest: str, skip=()) -> str:
         if name in skip:
             continue
         src = os.path.join(source, name)
+        dst = os.path.join(dest, name)
+        if os.path.isdir(src):
+            copy_tree(src, dst, skip)
+            continue
         if not os.path.isfile(src):
             continue
-        dst = os.path.join(dest, name)
         if os.path.isfile(dst) and filecmp.cmp(src, dst, shallow=False):
             continue
         shutil.copy2(src, dst)

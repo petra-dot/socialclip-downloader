@@ -100,3 +100,19 @@ def test_copy_tree_removes_a_skipped_name_left_behind(tmp_path):
 
     copy_tree(str(source), str(dest), skip=("skip.json",))
     assert not (dest / "skip.json").exists()
+
+
+def test_copy_tree_keeps_subfolders(tmp_path):
+    source = tmp_path / "src"
+    (source / "icons").mkdir(parents=True)
+    (source / "icons" / "16.png").write_bytes(b"x")
+    dest = tmp_path / "dest"
+
+    copy_tree(str(source), str(dest))
+    assert (dest / "icons" / "16.png").read_bytes() == b"x"
+
+
+def test_installed_folder_carries_the_icons(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    chromium = Path(ensure_installed()["chromium"])
+    assert (chromium / "icons" / "128.png").is_file()
