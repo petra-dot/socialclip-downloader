@@ -774,6 +774,10 @@ class QueueTab(QtWidgets.QWidget):
             self._set_row_status(row, "running", format_progress(p))
 
     def on_start_queue(self):
+        self.start_queue(confirm=True)
+
+    def start_queue(self, confirm: bool = True):
+        """Start the queue. confirm=False is the browser-driven path: no dialogs."""
         if self.queue_worker and self.queue_worker.isRunning():
             self.batch_log("Queue is already running.")
             return
@@ -786,7 +790,7 @@ class QueueTab(QtWidgets.QWidget):
         current = self._job_options()
         stale = sum(1 for j in self.queue.jobs
                     if j.state == "pending" and (j.options or {}) != current)
-        if stale:
+        if stale and confirm:
             answer = QtWidgets.QMessageBox.question(
                 self, "Apply options?",
                 "%d pending item(s) use different options than the ones above.\n\n"

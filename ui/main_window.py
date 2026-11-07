@@ -143,6 +143,9 @@ class MainWindow(QtWidgets.QWidget):
         file_menu.addAction(self._action(
             "Open data folder", lambda: reveal_in_folder(data_dir())
         ))
+        file_menu.addAction(self._action(
+            "Install browser extension host", self.install_extension_host
+        ))
         file_menu.addSeparator()
         file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
 
@@ -282,6 +285,42 @@ class MainWindow(QtWidgets.QWidget):
 
         folder = self.single_tab.save_dir_input.text().strip() or default_download_folder()
         reveal_in_folder(folder)
+
+    def on_ipc_message(self, payload):
+        """A second launch or the browser asked this window to do something."""
+        self.raise_()
+        self.activateWindow()
+        if payload.get("action") != "run":
+            return
+        self.batch_tab.queue.store.load()
+        self.batch_tab.refresh_table()
+        self.tabs.setCurrentWidget(self.batch_tab)
+        self.batch_tab.start_queue(confirm=False)
+
+    def install_extension_host(self):
+        """Register the native-messaging host for the installed browsers."""
+        from core.native_install import FIREFOX_ADDON_ID, install
+
+        extension_id, accepted = QtWidgets.QInputDialog.getText(
+            self,
+            "Browser extension host",
+            "Chromium extension id (copy it from chrome://extensions):",
+        )
+        if not accepted or not extension_id.strip():
+            return
+        frozen = bool(getattr(sys, "frozen", False))
+        target = sys.executable if frozen else os.path.abspath(sys.argv[0])
+        try:
+            written = install(target, extension_id.strip(), frozen=frozen)
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(self, "Not registered", str(exc))
+            return
+        detail = "\n".join(written) or "Manifests written; register them manually."
+        QtWidgets.QMessageBox.information(
+            self,
+            "Host registered",
+            "Firefox add-on id: %s\n\n%s" % (FIREFOX_ADDON_ID, detail),
+        )
 
     def _warn_if_ytdlp_stale(self):
         """Say once, in the activity log, when yt-dlp has gone stale.

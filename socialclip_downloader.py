@@ -174,6 +174,12 @@ def main():
     app.setOrganizationName("petra-dot")
     app.setApplicationName("SocialClip Downloader")
 
+    from ui.ipc import IpcServer, reset_server, send_to_primary
+
+    run_queue = "--run-queue" in sys.argv
+    if send_to_primary({"action": "run" if run_queue else "show"}):
+        return 0
+
     icon_path = _asset_path("icon.ico")
     if os.path.isfile(icon_path):
         app.setWindowIcon(QtGui.QIcon(icon_path))
@@ -193,12 +199,23 @@ def main():
         )
 
     window = MainWindow()
+    server = IpcServer(window)
+    if not server.listen():
+        # A crashed run can leave the name behind on POSIX; nothing answered
+        # above, so taking it back is safe.
+        reset_server()
+        server.listen()
+    server.json_received.connect(window.on_ipc_message)
+    window.ipc_server = server
     window.show()
     # Paint the first frame before the startup checks run: they import yt-dlp
     # and spawn ffmpeg, and doing that with the window already mapped shows a
     # blank frame first.
     QtWidgets.QApplication.processEvents()
     window.start_background_work()
+    if run_queue:
+        window.tabs.setCurrentWidget(window.batch_tab)
+        window.batch_tab.start_queue(confirm=False)
     sys.exit(app.exec_())
 
 

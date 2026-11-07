@@ -47,6 +47,17 @@ def main():
     assert convert.console_log.isHidden() is False
 
     HistoryTab()
+
+    from ui.ipc import IpcServer, send_to_primary
+
+    ipc = IpcServer()
+    assert ipc.listen(), "the first instance takes the socket name"
+    assert send_to_primary({"action": "show"}, timeout_ms=1000), \
+        "a second launch reaches the running instance"
+    ipc.close()
+    assert not send_to_primary({"action": "show"}, timeout_ms=200), \
+        "nothing answers once the instance closes"
+
     print("offscreen UI: ALL CHECKS PASSED")
 
 
