@@ -22,37 +22,53 @@ MAX_SCAN_LINKS = 200
 OUTPUTS = ("MP4", "MP3")
 
 # A single downloadable item, not a page that happens to live on the same host.
-# Written against the full href so a short link (youtu.be/x) and a watch link
-# can be distinguished; the platform is decided separately by hostname.
+# Ported from the yt-dlp extractors' own _VALID_URL (see
+# docs/research/ytdlp-media-url-patterns.md for the file:line behind each
+# line). Written against the full href so a short link and a watch link can be
+# told apart; the platform is decided separately by hostname.
 MEDIA_PATTERNS = {
     "youtube": (
-        r"^https?://(?:[\w-]+\.)*youtube\.com/watch\?(?:[^#]*&)?v=[\w-]+",
-        r"^https?://(?:[\w-]+\.)*youtube\.com/(?:shorts|live|embed|v)/[\w-]+",
-        r"^https?://(?:[\w-]+\.)*youtu\.be/[\w-]+",
+        r"^https?://(?:[\w-]+\.)*youtube\.com/watch\?(?:[^#]*&)?v=[\w-]{11}",
+        r"^https?://(?:[\w-]+\.)*youtube\.com/"
+        r"(?:shorts|live|embed|v|e)/(?!videoseries|live_stream)[\w-]{11}",
+        r"^https?://youtu\.be/[\w-]{11}",
+        r"^https?://(?:[\w-]+\.)*youtube\.com/clip/[\w-]+",
     ),
     "instagram": (
-        r"^https?://(?:[\w-]+\.)*instagram\.com/(?:p|reel|reels|tv)/[\w-]+",
+        r"^https?://(?:www\.)?instagram\.com/"
+        r"(?:(?!share/)[^/?#]+/)?(?:p|tv|reels?)/(?!audio/)[\w-]+",
     ),
     "tiktok": (
-        r"^https?://(?:[\w-]+\.)*tiktok\.com/@[^/]+/video/\d+",
-        r"^https?://(?:vm|vt)\.tiktok\.com/[\w]+",
+        r"^https?://www\.tiktokv?\.com/(?:embed|(?:share|@[\w.-]+)/video)/\d+",
+        r"^https?://(?:vm|vt)\.tiktok\.com/\w+",
+        r"^https?://(?:www\.)?tiktok\.com/t/\w+",
     ),
     "twitter": (
-        r"^https?://(?:[\w-]+\.)*(?:twitter|x)\.com/(?:[^/]+|i)/status(?:es)?/\d+",
+        r"^https?://(?:(?:www|m|mobile)\.)?(?:twitter|x)\.com/"
+        r"(?:(?:i/web|[^/?#]+)/status|statuses)/\d+",
     ),
     "facebook": (
-        r"^https?://(?:[\w-]+\.)*facebook\.com/reel/\d+",
-        r"^https?://(?:[\w-]+\.)*facebook\.com/watch/?(?:\?(?:[^#]*&)?v=\d+)?$",
-        r"^https?://(?:[\w-]+\.)*facebook\.com/[^/]+/videos/\d+",
-        r"^https?://(?:[\w-]+\.)*facebook\.com/video\.php\?(?:[^#]*&)?v=\d+",
-        r"^https?://fb\.watch/[\w]+",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/reel/\d+",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/"
+        r"(?:permalink\.php|video/video\.php|video\.php|video/embed|story\.php"
+        r"|watch(?:/live)?/?)\?(?:[^#]*&)?(?:v|video_id|story_fbid)="
+        r"(?:pfbid\w+|\d+)",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/[^/?#]+/videos/"
+        r"(?:[^/?#]+/)?(?:pfbid\w+|\d+)",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/[^/?#]+/posts/(?:pfbid\w+|\d+)",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/groups/[^/?#]+/"
+        r"(?:permalink|posts)/(?:pfbid\w+|\d+)",
+        r"^https?://(?:[\w-]+\.)?facebook\.com/watchparty/(?:pfbid\w+|\d+)",
     ),
     "bilibili": (
-        r"^https?://(?:[\w-]+\.)*bilibili\.com/video/(?:BV[\w]+|av\d+)",
-        r"^https?://(?:[\w-]+\.)*bilibili\.com/bangumi/play/[\w]+",
+        r"^https?://(?:www\.)?bilibili\.com/video/[aAbB][vV]\w+",
+        r"^https?://(?:www\.)?bilibili\.com/bangumi/play/ep\d+",
+        r"^https?://(?:www\.)?bilibili\.com/audio/au\d+",
+        r"^https?://(?:www\.)?bilibili\.com/festival/[^/?#]+\?"
+        r"(?:[^#]*&)?bvid=[aAbB][vV]\w+",
     ),
     "douyin": (
-        r"^https?://(?:[\w-]+\.)*douyin\.com/(?:video|note)/\d+",
+        r"^https?://(?:www\.)?douyin\.com/video/\d+",
     ),
 }
 
