@@ -154,6 +154,16 @@ jobs:
             ${{ matrix.cli_path }}
           if-no-files-found: error
 
+  sign:
+    name: sign firefox add-on
+    needs: release
+    uses: ./.github/workflows/sign-firefox.yml
+    permissions:
+      contents: write
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
+
   release:
     name: publish release
     needs: build

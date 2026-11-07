@@ -3,10 +3,18 @@ name: Sign Firefox add-on
 # AMO signs the extension once per version. The signed .xpi is attached to the
 # release and the app downloads it for the "Install for Firefox" button.
 # Unlisted signing is free; it does not create a public store listing.
+#
+# Called by release.yml, because a release created with GITHUB_TOKEN does not
+# fire the "release: published" event. workflow_dispatch exists for re-signing
+# a tag by hand.
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to sign and attach to"
+        required: false
+        type: string
   workflow_dispatch:
-  release:
-    types: [published]
 
 permissions:
   contents: write
@@ -38,7 +46,8 @@ jobs:
       - name: Resolve tag
         id: tag
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.event.release.tag_name }}"; fi
           if [ -z "$TAG" ]; then TAG=$(git describe --tags --abbrev=0); fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
