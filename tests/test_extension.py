@@ -181,3 +181,23 @@ def test_build_package_removes_the_legacy_manifest_name(tmp_path):
     (dest / "manifest.chromium.json").write_text("{}", encoding="utf-8")
     build_package(str(dest), "chromium")
     assert not (dest / "manifest.chromium.json").exists()
+
+
+def test_installed_browsers_reports_only_what_exists():
+    from core.extension import installed_browsers
+
+    def fake_exists(path):
+        return "Brave-Browser" in path
+
+    found = installed_browsers(exists=fake_exists)
+    assert set(found) == {"Brave"}
+    assert found["Brave"].endswith("brave.exe")
+
+
+def test_extension_ready_checks_for_a_loadable_manifest(tmp_path, monkeypatch):
+    from core.extension import ensure_installed, extension_ready
+
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    assert extension_ready() is False
+    ensure_installed()
+    assert extension_ready() is True

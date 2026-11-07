@@ -108,6 +108,59 @@ def ensure_installed() -> dict:
 
 FIREFOX_XPI_NAME = "socialclip-firefox.xpi"
 
+# Where each browser keeps its executable, most likely location first.
+BROWSER_CANDIDATES = {
+    "Chrome": (
+        r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+        r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+        r"%LocalAppData%\Google\Chrome\Application\chrome.exe",
+    ),
+    "Edge": (
+        r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+        r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+    ),
+    "Brave": (
+        r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+        r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
+        r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe",
+    ),
+    "Firefox": (
+        r"%ProgramFiles%\Mozilla Firefox\firefox.exe",
+        r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe",
+    ),
+}
+
+# The page that lists extensions, per browser.
+EXTENSION_PAGES = {
+    "Chrome": "chrome://extensions",
+    "Edge": "edge://extensions",
+    "Brave": "brave://extensions",
+    "Firefox": "about:debugging#/runtime/this-firefox",
+}
+
+
+def installed_browsers(exists=None) -> dict:
+    """Browsers found on this machine, as ``{name: executable}``.
+
+    ``exists`` is injectable so the check is testable without a browser.
+    """
+    import os as _os
+
+    check = exists or _os.path.isfile
+    found = {}
+    for name, candidates in BROWSER_CANDIDATES.items():
+        for candidate in candidates:
+            path = _os.path.expandvars(candidate)
+            if check(path):
+                found[name] = path
+                break
+    return found
+
+
+def extension_ready() -> bool:
+    """True when the loadable folder is on disk and has its manifest."""
+    return os.path.isfile(os.path.join(installed_dir("chromium"), "manifest.json"))
+
 
 def firefox_xpi_url(version: str) -> str:
     """The signed add-on attached to this version's GitHub release."""

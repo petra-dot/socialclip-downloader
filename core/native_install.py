@@ -77,6 +77,21 @@ def _register(key_path: str, path: str) -> bool:
     return True
 
 
+def host_registered() -> bool:
+    """True when this machine's Chromium key names a manifest that exists."""
+    if not sys.platform.startswith("win"):
+        return False
+    import winreg
+
+    key_path = CHROMIUM_REGISTRY_PATHS[0] + "\\" + HOST_NAME
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            path, _kind = winreg.QueryValueEx(key, "")
+    except OSError:
+        return False
+    return bool(path) and os.path.isfile(path)
+
+
 def install(executable: str, extension_id: str, frozen: bool = True,
             data: str = None) -> list:
     """Write both manifests and register them. Returns the keys written."""

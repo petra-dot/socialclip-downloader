@@ -256,8 +256,9 @@ on the Queue tab with the job running.
 It talks to the app through a native-messaging host: no port, no daemon, and it
 works with the app closed because the browser starts it.
 
-1. In the app, open **File > Install browser extension...**. It copies the
-   extension to a loadable folder, opens it, and registers the host.
+1. In the app, open **Help > Browser extension setup...**. It shows what is
+   already in place, the steps for the browsers this machine actually has, and
+   the buttons that register the host and install the Firefox add-on.
 2. **Chrome, Edge or Brave:** open `chrome://extensions`, `edge://extensions`
    or `brave://extensions`, turn on **Developer mode**, choose
    **Load unpacked**, and pick the folder the app opened.
@@ -277,7 +278,7 @@ same on every machine and the host is registered for it with nothing copied by
 hand.
 
 Developer mode shows a warning about unpacked extensions and the extension does
-not auto-update: re-run **Install browser extension...** after updating the app
+not auto-update: open **Help > Browser extension setup...** again after updating the app
 to refresh the copy on disk.
 
 If a link is already in the queue or already in your history, the popup says so

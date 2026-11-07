@@ -50,6 +50,13 @@ def main():
 
     HistoryTab()
 
+    from ui.extension_setup import ExtensionSetupDialog
+
+    setup = ExtensionSetupDialog()
+    assert setup._stack.count() == 4, "one setup page per browser"
+    assert setup.windowTitle() == "Browser extension setup"
+    setup.close()
+
     from ui.ipc import IpcServer, send_to_primary
 
     ipc = IpcServer()

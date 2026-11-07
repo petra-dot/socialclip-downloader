@@ -143,9 +143,6 @@ class MainWindow(QtWidgets.QWidget):
         file_menu.addAction(self._action(
             "Open data folder", lambda: reveal_in_folder(data_dir())
         ))
-        file_menu.addAction(self._action(
-            "Install browser extension...", self.install_extension_host
-        ))
         file_menu.addSeparator()
         file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
 
@@ -167,6 +164,9 @@ class MainWindow(QtWidgets.QWidget):
         ))
         help_menu.addAction(self._action(
             "Check components", lambda: self._check_components(force=True)
+        ))
+        help_menu.addAction(self._action(
+            "&Browser extension setup...", self.show_extension_setup
         ))
         help_menu.addAction(self._action("&About", self.show_about))
 
@@ -312,77 +312,11 @@ class MainWindow(QtWidgets.QWidget):
         self.tabs.setCurrentWidget(self.batch_tab)
         self.batch_tab.start_queue(confirm=False)
 
-    def install_extension_host(self):
-        """Copy the extension out and register the native host for it."""
-        from core.extension import CHROMIUM_EXTENSION_ID, ensure_installed
-        from core.native_install import install
-        from utils.ui_helpers import reveal_in_folder
+    def show_extension_setup(self):
+        """Open the guided browser-extension setup."""
+        from ui.extension_setup import ExtensionSetupDialog
 
-        try:
-            folders = ensure_installed()
-            frozen = bool(getattr(sys, "frozen", False))
-            target = sys.executable if frozen else os.path.abspath(sys.argv[0])
-            written = install(target, CHROMIUM_EXTENSION_ID, frozen=frozen)
-        except OSError as exc:
-            QtWidgets.QMessageBox.warning(self, "Not installed", str(exc))
-            return
-        tail = ("Registered the host for Chrome, Edge, Brave and Firefox."
-                if written else
-                "Register the manifest with your browser by hand on this platform.")
-        reveal_in_folder(folders["chromium"])
-        box = QtWidgets.QMessageBox(self)
-        box.setWindowTitle("Browser extension")
-        box.setText(
-            "Chrome, Edge and Brave\n"
-            "  1. Open chrome://extensions, edge://extensions or brave://extensions\n"
-            "  2. Turn on Developer mode\n"
-            "  3. Load unpacked, and pick this folder:\n"
-            "     %s\n"
-            "  4. Restart the browser\n\n"
-            "Firefox\n"
-            "  Press Install for Firefox below. It downloads the signed add-on\n"
-            "  for this version and hands it to Firefox, which asks you to add it.\n"
-            "  That install is permanent.\n\n"
-            "  Or load it temporarily: about:debugging > This Firefox >\n"
-            "  Load Temporary Add-on, then pick:\n"
-            "     %s\n"
-            "  (a temporary add-on is lost when Firefox restarts)"
-            % (folders["chromium"], os.path.join(folders["firefox"], "manifest.json"))
-        )
-        box.setInformativeText(tail)
-        firefox_button = box.addButton(
-            "Install for Firefox", QtWidgets.QMessageBox.ActionRole
-        )
-        box.addButton(QtWidgets.QMessageBox.Close)
-        box.exec_()
-        if box.clickedButton() is firefox_button:
-            self.install_firefox_addon()
-
-    def install_firefox_addon(self):
-        """Download the signed add-on for this version and hand it to Firefox."""
-        from core.extension import fetch_firefox_xpi
-        from core.version import __version__
-        from utils.ui_helpers import open_file
-
-        try:
-            path = fetch_firefox_xpi(__version__)
-        except Exception as exc:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Firefox add-on",
-                "Could not fetch the signed add-on for %s.\n\n%s\n\n"
-                "Every release attaches it, so check your connection and try "
-                "the Release page." % (__version__, exc),
-            )
-            return
-        if open_file(path):
-            QtWidgets.QMessageBox.information(
-                self, "Firefox add-on", "Firefox should now ask to add SocialClip."
-            )
-        else:
-            QtWidgets.QMessageBox.information(
-                self, "Firefox add-on", "Saved to:\n%s\n\nOpen it in Firefox." % path
-            )
+        ExtensionSetupDialog(self).exec_()
 
     def _warn_if_ytdlp_stale(self):
         """Say once, in the activity log, when yt-dlp has gone stale.
