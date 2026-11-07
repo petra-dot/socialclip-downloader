@@ -22,7 +22,112 @@ def _asset_path(name: str) -> str:
     return os.path.join(here, "assets", name)
 
 
+def _host_options(msg: dict) -> dict:
+    """The option dict a browser-started job runs with."""
+    from core.queue import build_job_options
+    from utils.file_utils import default_download_folder
+
+    output = msg.get("output") if msg.get("output") in ("MP4", "MP3") else "MP4"
+    resolution = str(msg.get("resolution") or "1080")
+    if not resolution.isdigit():
+        resolution = "1080"
+    save_dir = default_download_folder()
+    cookies = ""
+    browser = ""
+    try:
+        from PyQt5.QtCore import QSettings
+
+        settings = QSettings("petra-dot", "SocialClip Downloader")
+        save_dir = settings.value("batch/save_dir") or save_dir
+        cookies = settings.value("batch/cookies") or ""
+        browser = settings.value("cookies/browser") or ""
+    except Exception:
+        pass
+    return build_job_options(save_dir, output, resolution, cookies, "off", browser)
+
+
+def _launch_gui(start: bool) -> None:
+    """Start the app detached, without handing it the browser's pipes."""
+    import subprocess
+
+    if getattr(sys, "frozen", False):
+        args = [sys.executable]
+    else:
+        args = [sys.executable, os.path.abspath(__file__)]
+    if start:
+        args.append("--run-queue")
+    try:
+        subprocess.Popen(
+            args,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except OSError:
+        pass
+
+
+def run_native_host() -> int:
+    """Answer one native message and exit. Nothing else may touch stdout."""
+    from core.history import HistoryStore
+    from core.native import ProtocolError, encode_message, handle_message, read_message
+    from core.native_io import stdin_stream, stdout_stream
+    from core.paths import migrate_legacy_files, queue_path
+    from core.queue import QueueFileError, QueueStore
+
+    migrate_legacy_files()
+    msg = {}
+    try:
+        msg = read_message(stdin_stream())
+        store = QueueStore(queue_path())
+        store.load_strict()
+        reply = handle_message(msg, store, HistoryStore(), _host_options(msg))
+    except ProtocolError as exc:
+        reply = {"ok": False, "error": "bad message: %s" % exc}
+    except QueueFileError as exc:
+        reply = {"ok": False, "error": "queue unreadable: %s" % exc}
+    except Exception as exc:  # the browser only sees what we reply
+        reply = {"ok": False, "error": "%s" % exc}
+
+    out = stdout_stream()
+    out.write(encode_message(reply))
+    out.flush()
+    if reply.get("ok") and msg.get("start"):
+        _launch_gui(start=True)
+    return 0
+
+
+def install_native_host(argv) -> int:
+    """Write the host manifests and register them for each browser."""
+    from core.native_install import FIREFOX_ADDON_ID, install
+    from core.paths import migrate_legacy_files
+
+    migrate_legacy_files()
+    extension_id = ""
+    if "--extension-id" in argv:
+        position = argv.index("--extension-id")
+        if position + 1 < len(argv):
+            extension_id = argv[position + 1]
+    if not extension_id:
+        print("usage: --install-native-host --extension-id <chromium extension id>")
+        return 2
+    frozen = bool(getattr(sys, "frozen", False))
+    target = sys.executable if frozen else os.path.abspath(__file__)
+    written = install(target, extension_id, frozen=frozen)
+    print("Firefox add-on id: %s" % FIREFOX_ADDON_ID)
+    for path in written:
+        print("registered %s" % path)
+    return 0
+
+
 def main():
+    if "--native-host" in sys.argv:
+        return run_native_host()
+
+    if "--install-native-host" in sys.argv:
+        return install_native_host(sys.argv)
+
     from core.paths import migrate_legacy_files
     from utils.ytdlp import load
     migrate_legacy_files()
