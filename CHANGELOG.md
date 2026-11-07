@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.15.0 - 2026-11-08
+
+### Added
+- **Closing the window keeps SocialClip running in the tray.** The queue keeps
+  downloading and the browser keeps adding jobs; reopen it from the tray icon
+  or quit for real from the same menu. Where the desktop has no tray, closing
+  still quits, rather than leaving a hidden process behind.
+- **Start with the system**, from the File menu. Windows uses the per-user Run
+  key, macOS a LaunchAgent, Linux an autostart entry. No administrator rights,
+  and it can be turned off the same way.
+- **The popup now matches the app**: the same teal accent, the app icon, and a
+  light or dark theme following the browser's preference.
+
+### Fixed
+- **Open extensions page no longer opens a blank tab.** Chromium refuses a
+  chrome:// address passed on the command line, so the button now copies the
+  address and opens the browser; paste it in the address bar. All Chromium
+  browsers accept `chrome://extensions`.
+
 ## v0.14.1 - 2026-11-08
 
 ### Fixed

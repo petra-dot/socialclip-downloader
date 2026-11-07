@@ -1,32 +1,67 @@
+/* The app's own tokens, light and dark, so the popup reads as the same
+   product: teal accent, quiet borders, one surface behind the controls. */
 :root {
-  --bg: #0b1220;
-  --panel: #131c2b;
-  --line: #243146;
-  --text: #e6edf7;
-  --muted: #93a3b8;
-  --accent: #14b8a6;
-  --warn: #f59e0b;
+  --window: #f3f3f3;
+  --base: #ffffff;
+  --panel: #ebebeb;
+  --border: #d0d0d0;
+  --text: #1b1b1b;
+  --muted: #5a5a5a;
+  --accent: #0d7d75;
+  --on-accent: #ffffff;
+  --warn: #9a6700;
+  --warn-tint: #fdf3e2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --window: #252628;
+    --base: #1c1d1f;
+    --panel: #2c2e31;
+    --border: #3c4043;
+    --text: #e8eaed;
+    --muted: #9aa4b2;
+    --accent: #3fb0a6;
+    --on-accent: #0b1f1d;
+    --warn: #d29922;
+    --warn-tint: #2f2713;
+  }
 }
 
 * { box-sizing: border-box; }
 
 body {
-  width: 340px;
+  width: 348px;
   margin: 0;
-  padding: 14px;
-  background: var(--bg);
+  padding: 14px 14px 12px;
+  background: var(--window);
   color: var(--text);
   font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+header img.logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex: none;
 }
 
 header h1 {
   margin: 0;
   font-size: 15px;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
 }
 
 #status {
-  margin: 2px 0 12px;
+  margin: 0 0 14px 28px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -39,22 +74,27 @@ header h1 {
   margin-bottom: 8px;
 }
 
+.row label { color: var(--muted); }
+
 select {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--base);
   color: var(--text);
+  font: inherit;
 }
+
+select:disabled { opacity: 0.55; }
 
 .warning {
   margin: 10px 0;
   padding: 8px 10px;
-  border-left: 3px solid var(--warn);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: rgba(245, 158, 11, 0.12);
-  color: #fde68a;
+  background: var(--warn-tint);
+  color: var(--warn);
   font-size: 12px;
 }
 
@@ -66,34 +106,37 @@ select {
 
 button {
   flex: 1;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--base);
   color: var(--text);
   font: inherit;
   cursor: pointer;
 }
 
-button:hover { border-color: var(--accent); }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button:disabled { opacity: 0.5; cursor: default; }
 
 button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #04211d;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
 button.ghost { background: transparent; }
 
 .links {
-  max-height: 200px;
+  max-height: 190px;
   margin: 10px 0 0;
   padding: 0;
   list-style: none;
   overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--base);
 }
 
 .links li {
@@ -101,7 +144,7 @@ button.ghost { background: transparent; }
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
   font-size: 12px;
 }
 
@@ -116,9 +159,9 @@ button.ghost { background: transparent; }
 
 .chip {
   padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(245, 158, 11, 0.16);
-  color: #fcd34d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--warn);
   font-size: 10px;
   white-space: nowrap;
 }

@@ -12,6 +12,15 @@ from ui.history_tab import HistoryTab
 from ui.dialogs import show_welcome, show_doctor
 from ui.style import THEMES, THEME_LABELS, apply_theme
 from ui.update_indicator import UpdateButton
+
+
+def _autostart_enabled() -> bool:
+    from core.autostart import is_enabled
+
+    try:
+        return is_enabled()
+    except OSError:
+        return False
 from ui.dialogs import show_update_ready
 from core.paths import data_dir
 from utils.ui_helpers import reveal_in_folder
@@ -73,7 +82,52 @@ class MainWindow(QtWidgets.QWidget):
             show_welcome(self)
             self.settings.setValue("first_run_done", True)
 
+        self._quitting = False
+        self._tray = None
+        self._tray_hint_shown = False
+        self._setup_tray()
+
         QtCore.QTimer.singleShot(4000, self.check_for_updates)
+
+    def _setup_tray(self):
+        from ui.tray import make_tray
+
+        self._tray = make_tray(self, self.show_from_tray, self.quit_app)
+        if self._tray is None:
+            self.tray_action.setChecked(False)
+            self.tray_action.setEnabled(False)
+            self.tray_action.setToolTip(
+                "This desktop does not offer a tray icon."
+            )
+
+    def toggle_startup(self, checked):
+        from core.autostart import disable, enable
+
+        frozen = bool(getattr(sys, "frozen", False))
+        parts = [sys.executable]
+        if not frozen:
+            parts.append(os.path.abspath(sys.argv[0]))
+        try:
+            enable(parts) if checked else disable()
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(
+                self, "Start with the system", str(exc)
+            )
+            return
+        self.settings.setValue("startup/enabled", bool(checked))
+
+    def toggle_tray(self, checked):
+        self.settings.setValue("tray/close_to_tray", bool(checked))
+
+    def show_from_tray(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def quit_app(self):
+        """Quit for real, past the close-to-tray rule."""
+        self._quitting = True
+        self.close()
 
     def start_background_work(self):
         """Run the startup checks once the first frame is painted.
@@ -143,8 +197,20 @@ class MainWindow(QtWidgets.QWidget):
         file_menu.addAction(self._action(
             "Open data folder", lambda: reveal_in_folder(data_dir())
         ))
+        startup_action = self._action(
+            "Start with the system", self.toggle_startup
+        )
+        startup_action.setCheckable(True)
+        startup_action.setChecked(_autostart_enabled())
+        file_menu.addAction(startup_action)
+        self.tray_action = self._action("Close to tray", self.toggle_tray)
+        self.tray_action.setCheckable(True)
+        self.tray_action.setChecked(
+            self.settings.value("tray/close_to_tray", True, type=bool)
+        )
+        file_menu.addAction(self.tray_action)
         file_menu.addSeparator()
-        file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
+        file_menu.addAction(self._action("&Quit", self.quit_app, "Ctrl+Q"))
 
         view_menu = menubar.addMenu("&View")
         theme_menu = view_menu.addMenu("&Theme")
@@ -300,11 +366,11 @@ class MainWindow(QtWidgets.QWidget):
             self.batch_tab.queue.store.save()
             self.batch_tab.refresh_table()
             if payload.get("start"):
+                self.show_from_tray()
                 self.tabs.setCurrentWidget(self.batch_tab)
                 self.batch_tab.start_queue(confirm=False)
             return
-        self.raise_()
-        self.activateWindow()
+        self.show_from_tray()
         if action != "run":
             return
         self.batch_tab.queue.store.load()
@@ -462,5 +528,21 @@ class MainWindow(QtWidgets.QWidget):
         super().changeEvent(event)
 
     def closeEvent(self, event):
+        from ui.tray import should_hide_on_close
+
+        setting = self.settings.value("tray/close_to_tray", True, type=bool)
+        if should_hide_on_close(self._tray is not None, self._quitting, setting):
+            event.ignore()
+            self.hide()
+            if not self._tray_hint_shown:
+                self._tray.showMessage(
+                    "SocialClip is still running",
+                    "The queue keeps working and the browser can keep adding "
+                    "jobs. Quit from the tray icon when you are done.",
+                    QtWidgets.QSystemTrayIcon.Information,
+                    5000,
+                )
+                self._tray_hint_shown = True
+            return
         self.settings.setValue("window/geometry", self.saveGeometry())
         super().closeEvent(event)
