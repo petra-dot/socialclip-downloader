@@ -210,9 +210,11 @@ async function loadPending() {
     chip: keys.queue.has(normalize(url)) ? "in queue" : "already downloaded",
   }));
   render();
-  setStatus(pending.reason === "queue"
-    ? "Already in your queue."
-    : "Already in your history.");
+  setStatus(pending.start
+    ? "Choose a format, then Download now."
+    : pending.reason === "queue"
+      ? "Already in your queue."
+      : "Already in your history.");
 }
 
 async function scanPage() {

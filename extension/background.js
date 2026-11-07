@@ -52,16 +52,18 @@ api.contextMenus.onClicked.addListener(async (info, tab) => {
     const found = await host({ cmd: "check", urls: [url] });
     const reason = (found.in_queue || []).length ? "queue"
       : (found.in_history || []).length ? "history" : "";
-    if (reason) {
+    // Download now always asks for the format first. Add to queue stays a
+    // one-click action unless the link is already known.
+    if (start || reason) {
       await store.set({ pending: { urls: [url], start, reason } });
       if (!(await openPopup())) {
-        await api.action.setTitle({ title: "SocialClip: already known, click to confirm" });
+        await api.action.setTitle({ title: "SocialClip: click to confirm" });
         await api.action.setBadgeText({ text: "!" });
       }
       return;
     }
     const pick = await choice();
-    await host({ cmd: "add", urls: [url], start, ...pick });
+    await host({ cmd: "add", urls: [url], start: false, ...pick });
   } catch (error) {
     await warn();
   }
