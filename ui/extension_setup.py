@@ -102,6 +102,9 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
         self._register_strip(layout)
         layout.addSpacing(space("sm"))
         layout.addLayout(self._browser_switcher())
+        self._note = make_caption(QtWidgets.QLabel(""))
+        self._note.setWordWrap(True)
+        layout.addWidget(self._note)
         layout.addWidget(self._stack, 1)
         layout.addWidget(self._footer())
 
@@ -192,8 +195,8 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
         from core.extension import EXTENSION_PAGES
 
         layout.addLayout(self._step(
-            1, "Open the extensions page",
-            ("Open " + EXTENSION_PAGES[name],
+            1, "Open the extensions page (its address is copied for you)",
+            ("Open " + name,
              lambda _checked=False, n=name: self._open_page(n)),
         ))
         layout.addLayout(self._step(2, "Turn on Developer mode"))
@@ -219,7 +222,8 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
         layout.addSpacing(space("sm"))
         layout.addWidget(make_heading(QtWidgets.QLabel("Or load it temporarily")))
         layout.addLayout(self._step(
-            1, "Open the debugging page", ("Open", lambda: self._open_page("Firefox"))
+            1, "Open the debugging page (its address is copied for you)",
+            ("Open Firefox", lambda: self._open_page("Firefox"))
         ))
         layout.addLayout(self._step(
             2, "Choose Load Temporary Add-on and pick this manifest"
@@ -288,6 +292,9 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
     def _copy(self, text):
         QtWidgets.QApplication.clipboard().setText(text)
 
+    def _set_note(self, text):
+        self._note.setText(text)
+
     def _copy_steps(self):
         lines = ["SocialClip browser extension", ""]
         for name in ORDER:
@@ -315,21 +322,31 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
             reveal_in_folder(folder)
 
     def _open_page(self, name):
+        """Open the browser and put its extensions address on the clipboard.
+
+        Chromium refuses a chrome:// URL on the command line, so launching the
+        browser with the address opens a blank tab. Copying it is the only path
+        that lands the user on the right page.
+        """
         from core.extension import EXTENSION_PAGES
 
-        exe = self._browsers.get(name)
         page = EXTENSION_PAGES[name]
+        self._copy(page)
+        exe = self._browsers.get(name)
         if not exe:
-            self._copy(page)
-            QtWidgets.QMessageBox.information(
-                self, name, "%s is not installed here.\n\n%s is on your clipboard."
-                % (name, page),
+            self._set_note(
+                "%s was not found here. %s is on your clipboard." % (name, page)
             )
             return
         try:
-            subprocess.Popen([exe, page])
+            subprocess.Popen([exe])
         except OSError as exc:
-            QtWidgets.QMessageBox.warning(self, name, str(exc))
+            self._set_note("Could not start %s: %s" % (name, exc))
+            return
+        self._set_note(
+            "%s is open. %s is on your clipboard: paste it in the address bar."
+            % (name, page)
+        )
 
     def _register_host(self):
         from core.extension import CHROMIUM_EXTENSION_ID

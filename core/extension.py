@@ -130,11 +130,13 @@ BROWSER_CANDIDATES = {
     ),
 }
 
-# The page that lists extensions, per browser.
+# The page that lists extensions. Every Chromium browser accepts chrome://,
+# and none of them will open a privileged URL passed on the command line, so
+# the dialog copies this and opens the browser separately.
 EXTENSION_PAGES = {
     "Chrome": "chrome://extensions",
-    "Edge": "edge://extensions",
-    "Brave": "brave://extensions",
+    "Edge": "chrome://extensions",
+    "Brave": "chrome://extensions",
     "Firefox": "about:debugging#/runtime/this-firefox",
 }
 

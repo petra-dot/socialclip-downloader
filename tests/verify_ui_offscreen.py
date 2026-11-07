@@ -116,6 +116,21 @@ def main():
     openers[0].clicked.emit(False)
     assert opened and opened[0] in ("Chrome", "Edge", "Brave", "Firefox"), opened
 
+    # A privileged URL on the command line opens a blank tab, so the real
+    # method must copy the address and launch the browser on its own.
+    import ui.extension_setup as _es
+    from ui.extension_setup import ExtensionSetupDialog as _Dialog
+
+    launched = []
+    _es.subprocess.Popen = lambda args, *a, **k: launched.append(args)
+    setup._open_page = _Dialog._open_page.__get__(setup, _Dialog)
+    installed = next(iter(setup._browsers))
+    setup._open_page(installed)
+    assert launched and len(launched[0]) == 1, "no privileged URL on the command line"
+    assert QtWidgets.QApplication.clipboard().text() in (
+        "chrome://extensions", "about:debugging#/runtime/this-firefox")
+    assert "clipboard" in setup._note.text()
+
     print("offscreen UI: ALL CHECKS PASSED")
 
 
