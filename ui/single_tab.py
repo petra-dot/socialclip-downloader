@@ -730,6 +730,26 @@ class SingleTab(QtWidgets.QWidget):
         text = QtWidgets.QApplication.clipboard().text().strip()
         if text and is_media_url(text):
             self.url_input.setText(text)
+            self._note_if_known(text)
+
+    def _note_if_known(self, url):
+        """Say when this link is already queued or already downloaded."""
+        from core.history import HistoryStore
+        from core.native import already_known
+        from core.paths import queue_path
+        from core.queue import QueueStore
+
+        store = QueueStore(queue_path())
+        store.load()
+        history = HistoryStore()
+        history.load()
+        found = already_known([url], store.jobs, history.entries())
+        if found["in_queue"]:
+            self.show_hint("Already in the queue.")
+        elif found["in_history"]:
+            self.show_hint("Already downloaded once. Fetching again adds a new copy.")
+        else:
+            self.show_hint("")
 
     def showEvent(self, event):
         super().showEvent(event)

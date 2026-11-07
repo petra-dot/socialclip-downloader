@@ -63,6 +63,22 @@ def main():
 
     HistoryTab()
 
+    from core.history import HistoryEntry, HistoryStore
+
+    HistoryStore().add(HistoryEntry(
+        title="seen before", url="https://www.youtube.com/watch?v=zzzzzzzzzzz"
+    ))
+    single.url_input.clear()
+    single.show_hint("")
+    clipboard.setText("https://www.youtube.com/watch?v=zzzzzzzzzzz")
+    single._fill_from_clipboard()
+    assert "already" in single.hint_label.text().lower(), "known link must be noted"
+    single.url_input.clear()
+    clipboard.setText("https://www.youtube.com/watch?v=abcdefghijk")
+    single._fill_from_clipboard()
+    assert single.hint_label.text() == "", "an unknown link clears the note"
+    single.url_input.clear()
+
     from ui.extension_setup import ExtensionSetupDialog
 
     setup = ExtensionSetupDialog()
