@@ -96,6 +96,15 @@ def main():
     assert not send_to_primary({"action": "show"}, timeout_ms=200), \
         "nothing answers once the instance closes"
 
+    # A step button must pass the browser name, not the clicked bool.
+    opened = []
+    setup._open_page = lambda name: opened.append(name)
+    openers = [b for b in setup.findChildren(QtWidgets.QPushButton)
+               if b.text().startswith("Open ")]
+    assert openers, "a step offers to open the browser page"
+    openers[0].clicked.emit(False)
+    assert opened and opened[0] in ("Chrome", "Edge", "Brave", "Firefox"), opened
+
     print("offscreen UI: ALL CHECKS PASSED")
 
 

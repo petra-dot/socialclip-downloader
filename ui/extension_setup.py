@@ -193,7 +193,8 @@ class ExtensionSetupDialog(QtWidgets.QDialog):
 
         layout.addLayout(self._step(
             1, "Open the extensions page",
-            ("Open " + EXTENSION_PAGES[name], lambda n=name: self._open_page(n)),
+            ("Open " + EXTENSION_PAGES[name],
+             lambda _checked=False, n=name: self._open_page(n)),
         ))
         layout.addLayout(self._step(2, "Turn on Developer mode"))
         layout.addLayout(self._step(
