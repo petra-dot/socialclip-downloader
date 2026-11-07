@@ -9,7 +9,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _run_host(payload, tmp_path):
     body = json.dumps(payload).encode("utf-8")
-    env = dict(os.environ, SOCIALCLIP_DATA=str(tmp_path))
+    env = dict(
+        os.environ,
+        SOCIALCLIP_DATA=str(tmp_path),
+        # A running app must not take the job during the test.
+        SOCIALCLIP_IPC="socialclip-test-%d" % os.getpid(),
+    )
     return subprocess.run(
         [sys.executable, os.path.join(REPO, "socialclip_downloader.py"), "--native-host"],
         input=struct.pack("<I", len(body)) + body,

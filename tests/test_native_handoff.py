@@ -1,4 +1,14 @@
+import os
+
+import pytest
+
 import socialclip_downloader as entry
+
+
+@pytest.fixture(autouse=True)
+def isolated_ipc(monkeypatch):
+    # A real app may be running and owning the default name.
+    monkeypatch.setenv("SOCIALCLIP_IPC", "socialclip-test-%d" % os.getpid())
 
 
 def test_hand_off_returns_false_with_no_window_running():

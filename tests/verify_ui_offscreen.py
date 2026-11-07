@@ -5,6 +5,8 @@ import sys
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("SOCIALCLIP_DATA", os.path.join(
     os.environ.get("TEMP", "/tmp"), "socialclip-ui-verify"))
+# A real app may be running and owning the default IPC name.
+os.environ["SOCIALCLIP_IPC"] = "socialclip-ui-verify"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

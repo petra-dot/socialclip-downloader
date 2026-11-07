@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
 
-from core.extension import CHROMIUM_EXTENSION_ID, chrome_id_from_key, copy_tree
+import pytest
+
+from core.extension import CHROMIUM_EXTENSION_ID, chrome_id_from_key, copy_tree, ensure_installed
 
 EXT = Path(__file__).resolve().parent.parent / "extension"
 
@@ -28,8 +30,13 @@ def test_chrome_id_uses_only_letters_a_to_p():
 
 
 def test_manifest_key_matches_the_baked_id():
-    manifest = json.loads((EXT / "manifest.chromium.json").read_text(encoding="utf-8"))
+    manifest = json.loads((EXT / "manifest.json").read_text(encoding="utf-8"))
     assert chrome_id_from_key(manifest["key"]) == CHROMIUM_EXTENSION_ID
+
+
+def test_repo_folder_is_directly_loadable():
+    # Chrome and Edge refuse a folder whose manifest is not named manifest.json.
+    assert (EXT / "manifest.json").is_file()
 
 
 def test_copy_tree_copies_then_updates_changed_files(tmp_path):
@@ -45,3 +52,39 @@ def test_copy_tree_copies_then_updates_changed_files(tmp_path):
     (source / "a.js").write_text("two", encoding="utf-8")
     copy_tree(str(source), str(dest))
     assert (dest / "a.js").read_text(encoding="utf-8") == "two"
+
+
+def test_copy_tree_can_skip_names(tmp_path):
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "keep.js").write_text("x", encoding="utf-8")
+    (source / "skip.json").write_text("{}", encoding="utf-8")
+    dest = tmp_path / "dest"
+
+    copy_tree(str(source), str(dest), skip=("skip.json",))
+    assert (dest / "keep.js").is_file()
+    assert not (dest / "skip.json").exists()
+
+
+def test_ensure_installed_writes_a_loadable_folder_for_each_browser(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    paths = ensure_installed()
+
+    chromium = Path(paths["chromium"])
+    firefox = Path(paths["firefox"])
+    chrome_manifest = json.loads((chromium / "manifest.json").read_text(encoding="utf-8"))
+    firefox_manifest = json.loads((firefox / "manifest.json").read_text(encoding="utf-8"))
+
+    assert chrome_manifest["background"]["service_worker"] == "background.js"
+    assert "browser_specific_settings" in firefox_manifest
+    assert chrome_manifest["key"] == KEY
+    assert (chromium / "background.js").is_file()
+    assert (firefox / "popup.html").is_file()
+    assert not (chromium / "manifest.firefox.json").exists()
+
+
+@pytest.mark.parametrize("name", ["chromium", "firefox"])
+def test_each_installed_folder_uses_the_plain_manifest_name(tmp_path, monkeypatch, name):
+    monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
+    folder = Path(ensure_installed()[name])
+    assert [p.name for p in folder.glob("manifest*.json")] == ["manifest.json"]

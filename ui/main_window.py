@@ -319,31 +319,36 @@ class MainWindow(QtWidgets.QWidget):
         from utils.ui_helpers import reveal_in_folder
 
         try:
-            folder = ensure_installed()
+            folders = ensure_installed()
             frozen = bool(getattr(sys, "frozen", False))
             target = sys.executable if frozen else os.path.abspath(sys.argv[0])
             written = install(target, CHROMIUM_EXTENSION_ID, frozen=frozen)
         except OSError as exc:
             QtWidgets.QMessageBox.warning(self, "Not installed", str(exc))
             return
-        tail = ("Registered the host for Chrome, Edge and Firefox on this machine."
+        tail = ("Registered the host for Chrome, Edge, Brave and Firefox."
                 if written else
                 "Register the manifest with your browser by hand on this platform.")
-        reveal_in_folder(folder)
+        reveal_in_folder(folders["chromium"])
         QtWidgets.QMessageBox.information(
             self,
             "Browser extension",
-            "The extension folder is:\n%s\n\n"
-            "Chrome and Edge\n"
-            "  1. Open chrome://extensions, or edge://extensions\n"
+            "Chrome, Edge and Brave\n"
+            "  1. Open chrome://extensions, edge://extensions or brave://extensions\n"
             "  2. Turn on Developer mode\n"
-            "  3. Load unpacked, and pick the folder above\n"
+            "  3. Load unpacked, and pick this folder:\n"
+            "     %s\n"
             "  4. Restart the browser\n\n"
             "Firefox\n"
-            "  about:debugging > This Firefox > Load Temporary Add-on,\n"
-            "  then pick manifest.firefox.json.\n"
-            "  Firefox forgets it when it restarts. A permanent install needs\n"
-            "  a signed add-on (id %s).\n\n%s" % (folder, FIREFOX_ADDON_ID, tail),
+            "  about:debugging > This Firefox > Load Temporary Add-on, then pick:\n"
+            "     %s\n"
+            "  Firefox forgets it when it restarts. A permanent install needs a\n"
+            "  signed add-on (id %s).\n\n%s" % (
+                folders["chromium"],
+                os.path.join(folders["firefox"], "manifest.json"),
+                FIREFOX_ADDON_ID,
+                tail,
+            ),
         )
 
     def _warn_if_ytdlp_stale(self):

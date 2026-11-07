@@ -257,18 +257,21 @@ It talks to the app through a native-messaging host: no port, no daemon, and it
 works with the app closed because the browser starts it.
 
 1. In the app, open **File > Install browser extension...**. It copies the
-   extension to a stable folder, opens that folder, and registers the host.
-2. **Chrome or Edge:** open `chrome://extensions` (or `edge://extensions`),
-   turn on **Developer mode**, choose **Load unpacked**, and pick the folder the
-   app opened.
+   extension to a loadable folder, opens it, and registers the host.
+2. **Chrome, Edge or Brave:** open `chrome://extensions`, `edge://extensions`
+   or `brave://extensions`, turn on **Developer mode**, choose
+   **Load unpacked**, and pick the folder the app opened.
 3. **Firefox:** open `about:debugging`, then **This Firefox**, then
-   **Load Temporary Add-on**, and pick `manifest.firefox.json` in that folder.
-   Firefox forgets a temporary add-on when it restarts; a permanent install
-   needs a signed add-on from AMO.
+   **Load Temporary Add-on**, and pick `manifest.json` in the separate Firefox
+   folder the dialog names. Firefox forgets a temporary add-on when it restarts;
+   a permanent install needs a signed add-on from AMO.
 4. Restart the browser and right-click a link.
 
-The manifest carries a fixed key, so the extension id is the same on every
-machine and the app registers the host for it. Nothing is copied by hand.
+Each browser insists on a file named exactly `manifest.json`, so the app writes
+two folders: one Chromium folder for Chrome, Edge and Brave, and one Firefox
+folder. The Chromium manifest carries a fixed key, so the extension id is the
+same on every machine and the host is registered for it with nothing copied by
+hand.
 
 Developer mode shows a warning about unpacked extensions and the extension does
 not auto-update: re-run **Install browser extension...** after updating the app

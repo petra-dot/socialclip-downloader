@@ -6,21 +6,25 @@ running window instead of becoming a second writer of ``queue.json``.
 
 import getpass
 import json
+import os
 
 from PyQt5 import QtCore, QtNetwork
 
-SERVER_NAME = "socialclip-" + getpass.getuser()
+
+def server_name() -> str:
+    """Named per user, and overridable so a test never touches a real window."""
+    return os.environ.get("SOCIALCLIP_IPC") or ("socialclip-" + getpass.getuser())
 
 
 def reset_server() -> None:
     """Drop a socket name a crashed instance left behind (POSIX only)."""
-    QtNetwork.QLocalServer.removeServer(SERVER_NAME)
+    QtNetwork.QLocalServer.removeServer(server_name())
 
 
 def send_to_primary(payload: dict, timeout_ms: int = 400) -> bool:
     """True when a running instance took the message."""
     socket = QtNetwork.QLocalSocket()
-    socket.connectToServer(SERVER_NAME)
+    socket.connectToServer(server_name())
     if not socket.waitForConnected(timeout_ms):
         return False
     socket.write(json.dumps(payload).encode("utf-8"))
@@ -40,7 +44,7 @@ class IpcServer(QtCore.QObject):
     def listen(self) -> bool:
         if self._server.isListening():
             return True
-        return self._server.listen(SERVER_NAME)
+        return self._server.listen(server_name())
 
     def close(self) -> None:
         self._server.close()

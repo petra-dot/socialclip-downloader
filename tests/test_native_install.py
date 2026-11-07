@@ -25,3 +25,9 @@ def test_wrapper_carries_the_host_flag():
 
 def test_manifest_paths_differ_for_the_two_browsers():
     assert manifest_path(False, "C:/d") != manifest_path(True, "C:/d")
+
+
+def test_brave_is_registered_too():
+    from core.native_install import CHROMIUM_REGISTRY_PATHS
+
+    assert any("BraveSoftware" in path for path in CHROMIUM_REGISTRY_PATHS)

@@ -15,6 +15,7 @@ from core.paths import data_dir
 CHROMIUM_REGISTRY_PATHS = (
     r"Software\Google\Chrome\NativeMessagingHosts",
     r"Software\Microsoft\Edge\NativeMessagingHosts",
+    r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts",
 )
 FIREFOX_REGISTRY_PATH = r"Software\Mozilla\NativeMessagingHosts"
 FIREFOX_ADDON_ID = "socialclip@petra-dot"

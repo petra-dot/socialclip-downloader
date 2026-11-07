@@ -149,7 +149,8 @@ def install_native_host(argv) -> int:
     frozen = bool(getattr(sys, "frozen", False))
     target = sys.executable if frozen else os.path.abspath(__file__)
     written = install(target, extension_id, frozen=frozen)
-    print("Extension folder: %s" % folder)
+    print("Chromium folder (Chrome, Edge, Brave): %s" % folder["chromium"])
+    print("Firefox folder: %s" % folder["firefox"])
     print("Firefox add-on id: %s" % FIREFOX_ADDON_ID)
     for path in written:
         print("registered %s" % path)
