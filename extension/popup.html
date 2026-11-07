@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>SocialClip</title>
+</head>
+<body>
+  <header>
+    <h1>SocialClip</h1>
+    <p id="status">Ready</p>
+  </header>
+
+  <section class="row">
+    <label for="output">Format</label>
+    <select id="output">
+      <option value="MP4">MP4 (video)</option>
+      <option value="MP3">MP3 (audio)</option>
+    </select>
+  </section>
+
+  <section class="row">
+    <label for="resolution">Resolution</label>
+    <select id="resolution">
+      <option value="720">720p</option>
+      <option value="1080">1080p</option>
+      <option value="1440">1440p</option>
+      <option value="2160">2160p</option>
+    </select>
+  </section>
+
+  <p id="warning" class="warning" hidden></p>
+
+  <section class="actions">
+    <button id="scan" class="ghost" type="button">Scan page</button>
+    <button id="add-tab" class="ghost" type="button">Add this tab</button>
+  </section>
+
+  <ul id="links" class="links" hidden></ul>
+
+  <section class="actions">
+    <button id="add" type="button">Add to queue</button>
+    <button id="now" class="primary" type="button">Download now</button>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

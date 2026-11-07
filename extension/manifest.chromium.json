@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "SocialClip Downloader",
+  "version": "0.1.0",
+  "description": "Send links to SocialClip Downloader: add to the queue or download now.",
+  "permissions": ["contextMenus", "nativeMessaging", "activeTab", "scripting", "storage"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_popup": "popup.html", "default_title": "SocialClip"}
+}
