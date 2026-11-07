@@ -41,6 +41,22 @@ class QueueJob:
     )
 
 
+def build_job_options(save_dir: str, output_text: str, resolution: str,
+                      cookies_path: str, subtitles: str = "off",
+                      cookies_from_browser: str = "") -> dict:
+    """Build the exact option set download_one accepts (no unknown keys)."""
+    output_type = "MP3" if "MP3" in output_text else "MP4"
+    return {
+        "outtmpl": os.path.join(save_dir, OUTPUT_TEMPLATE),
+        "output_type": output_type,
+        "convert": output_type == "MP4",
+        "target_resolution": int(resolution),
+        "cookies_file": cookies_path,
+        "subtitles": subtitles,
+        "cookies_from_browser": cookies_from_browser,
+    }
+
+
 def resolve_outtmpl(options: Optional[dict]) -> str:
     """A job's output template: outtmpl, else output_dir, else the default."""
     opts = options or {}

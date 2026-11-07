@@ -18,7 +18,6 @@ from utils.file_utils import (
     RESOLUTIONS,
     output_index_for,
 )
-from utils.file_utils import OUTPUT_TEMPLATE
 from utils.ui_helpers import looks_like_url
 from workers.expand_worker import ExpandWorker
 from workers.queue_worker import QueueWorker
@@ -30,20 +29,7 @@ def _queue_path() -> str:
     return queue_path()
 
 
-def build_job_options(save_dir: str, output_text: str, resolution: str,
-                      cookies_path: str, subtitles: str = "off",
-                      cookies_from_browser: str = "") -> dict:
-    """Build the exact option set download_one accepts (no unknown keys)."""
-    output_type = "MP3" if "MP3" in output_text else "MP4"
-    return {
-        "outtmpl": os.path.join(save_dir, OUTPUT_TEMPLATE),
-        "output_type": output_type,
-        "convert": output_type == "MP4",
-        "target_resolution": int(resolution),
-        "cookies_file": cookies_path,
-        "subtitles": subtitles,
-        "cookies_from_browser": cookies_from_browser,
-    }
+from core.queue import build_job_options  # noqa: F401 - re-exported for callers
 
 
 def state_label(state: str) -> str:
