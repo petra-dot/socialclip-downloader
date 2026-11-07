@@ -8,7 +8,7 @@ host, the GUI and the tests can share it without Qt.
 import json
 import struct
 from typing import List
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from core.queue import Queue
 from core.version import __version__
@@ -22,6 +22,15 @@ OUTPUTS = ("MP4", "MP3")
 
 # A job in one of these states is still work the user is waiting on.
 ACTIVE_STATES = ("pending", "running", "paused")
+
+# Query parameters that track where a link was clicked. Everything else in a
+# query is treated as part of the link's identity, because YouTube's `v` and a
+# playlist's `list` are what make two links different videos.
+TRACKING_PARAMS = frozenset((
+    "s", "stack_idx", "t", "si", "feature", "fbclid", "gclid", "igsh",
+    "igshid", "ref", "ref_src", "ref_url", "share_id", "mibextid", "_rdr",
+))
+TRACKING_PREFIXES = ("utm_",)
 
 
 class ProtocolError(Exception):
@@ -57,17 +66,32 @@ def read_message(stream) -> dict:
 
 
 def normalize_url(url: str) -> str:
-    """A URL's identity for duplicate checks: no query, no fragment, no slash."""
+    """A URL's identity for duplicate checks.
+
+    Tracking parameters are dropped, but parameters that name the video
+    (YouTube's ``v``, a playlist's ``list``) are what distinguish two links,
+    so they stay.
+    """
     if not isinstance(url, str):
         return ""
     parts = urlsplit(url.strip())
     if parts.scheme.lower() not in ("http", "https") or not parts.netloc:
         return ""
-    return "%s://%s%s" % (
+    kept = [
+        (name, value)
+        for name, value in parse_qsl(parts.query, keep_blank_values=True)
+        if name not in TRACKING_PARAMS
+        and not name.lower().startswith(TRACKING_PREFIXES)
+    ]
+    kept.sort()
+    identity = "%s://%s%s" % (
         parts.scheme.lower(),
         parts.netloc.lower(),
         parts.path.rstrip("/"),
     )
+    if kept:
+        identity += "?" + urlencode(kept)
+    return identity
 
 
 def already_known(urls, jobs, entries) -> dict:

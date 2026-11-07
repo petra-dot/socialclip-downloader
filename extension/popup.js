@@ -15,13 +15,28 @@ async function host(message) {
   return api.runtime.sendNativeMessage(HOST, message);
 }
 
+const TRACKING = new Set([
+  "s", "stack_idx", "t", "si", "feature", "fbclid", "gclid", "igsh",
+  "igshid", "ref", "ref_src", "ref_url", "share_id", "mibextid", "_rdr",
+]);
+
+// Identity, not equality: tracking params go, but YouTube's v and a
+// playlist's list decide which video this is, so they stay.
 function normalize(url) {
   try {
     const parsed = new URL(url);
     if (!/^https?:$/.test(parsed.protocol)) return "";
-    parsed.search = "";
-    parsed.hash = "";
-    return parsed.href.replace(/\/$/, "");
+    const kept = [];
+    for (const [name, value] of parsed.searchParams) {
+      if (TRACKING.has(name) || name.toLowerCase().startsWith("utm_")) continue;
+      kept.push([name, value]);
+    }
+    kept.sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1]));
+    const identity = parsed.origin + parsed.pathname.replace(/\/$/, "");
+    const query = kept
+      .map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v))
+      .join("&");
+    return query ? identity + "?" + query : identity;
   } catch (error) {
     return "";
   }

@@ -288,9 +288,24 @@ class MainWindow(QtWidgets.QWidget):
 
     def on_ipc_message(self, payload):
         """A second launch or the browser asked this window to do something."""
+        action = payload.get("action")
+        if action == "add":
+            urls = [
+                url for url in payload.get("urls") or []
+                if isinstance(url, str) and url.strip()
+            ]
+            if not urls:
+                return
+            self.batch_tab.queue.add_many(urls, payload.get("options") or {})
+            self.batch_tab.queue.store.save()
+            self.batch_tab.refresh_table()
+            if payload.get("start"):
+                self.tabs.setCurrentWidget(self.batch_tab)
+                self.batch_tab.start_queue(confirm=False)
+            return
         self.raise_()
         self.activateWindow()
-        if payload.get("action") != "run":
+        if action != "run":
             return
         self.batch_tab.queue.store.load()
         self.batch_tab.refresh_table()

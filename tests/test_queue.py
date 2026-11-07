@@ -492,3 +492,27 @@ def test_save_keeps_a_job_written_by_another_writer(tmp_path):
     assert sorted(j.url for j in final.jobs) == [
         "https://youtu.be/x", "https://youtu.be/y", "https://youtu.be/z",
     ]
+
+
+def test_save_does_not_bring_back_a_job_deleted_elsewhere(tmp_path):
+    path = str(tmp_path / "queue.json")
+    gui = QueueStore(path)
+    gui.load()
+    q = Queue(gui)
+    q.add("https://youtu.be/keep")
+    gone = q.add("https://youtu.be/gone")
+    gui.save()
+
+    host = QueueStore(path)
+    host.load()
+    Queue(host).add("https://youtu.be/new")
+
+    q.jobs[:] = [job for job in q.jobs if job.id != gone.id]
+    gui.save()
+    host.save()
+
+    final = QueueStore(path)
+    final.load()
+    assert sorted(job.url for job in final.jobs) == [
+        "https://youtu.be/keep", "https://youtu.be/new",
+    ]

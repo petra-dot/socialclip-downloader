@@ -68,6 +68,33 @@ def _launch_gui(start: bool) -> None:
         pass
 
 
+def _hand_off(msg: dict, options: dict) -> bool:
+    """Give a running window the job, so it appears without a restart.
+
+    The host has no window of its own; when one is up it owns the queue and
+    should do the write, which also starts the job when asked.
+    """
+    try:
+        from PyQt5.QtCore import QCoreApplication
+
+        from ui.ipc import send_to_primary
+    except Exception:
+        return False
+    if QCoreApplication.instance() is None:
+        QCoreApplication([])
+    urls = [u for u in msg.get("urls") or [] if isinstance(u, str) and u.strip()]
+    payload = {
+        "action": "add",
+        "urls": urls,
+        "options": options,
+        "start": bool(msg.get("start")),
+    }
+    try:
+        return send_to_primary(payload)
+    except Exception:
+        return False
+
+
 def run_native_host() -> int:
     """Answer one native message and exit. Nothing else may touch stdout."""
     from core.history import HistoryStore
@@ -78,11 +105,19 @@ def run_native_host() -> int:
 
     migrate_legacy_files()
     msg = {}
+    handed_off = False
     try:
         msg = read_message(stdin_stream())
+        cmd = msg.get("cmd")
+        options = _host_options(msg) if cmd == "add" else {}
         store = QueueStore(queue_path())
-        store.load_strict()
-        reply = handle_message(msg, store, HistoryStore(), _host_options(msg))
+        if cmd in ("add", "check"):
+            store.load_strict()
+        if cmd == "add" and _hand_off(msg, options):
+            handed_off = True
+            reply = {"ok": True, "added": len(msg.get("urls") or [])}
+        else:
+            reply = handle_message(msg, store, HistoryStore(), options)
     except ProtocolError as exc:
         reply = {"ok": False, "error": "bad message: %s" % exc}
     except QueueFileError as exc:
@@ -93,7 +128,7 @@ def run_native_host() -> int:
     out = stdout_stream()
     out.write(encode_message(reply))
     out.flush()
-    if reply.get("ok") and msg.get("start"):
+    if reply.get("ok") and msg.get("start") and not handed_off:
         _launch_gui(start=True)
     return 0
 

@@ -116,6 +116,7 @@ class QueueStore:
         self.jobs: List[QueueJob] = []
         self.paused = False
         self._stamp = None
+        self._seen = set()
 
     def _read(self) -> Optional[dict]:
         """Parsed queue data, or None when there is nothing to read.
@@ -148,6 +149,7 @@ class QueueStore:
             return
         self.paused = bool(data.get("paused", False))
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
+        self._seen = {job.id for job in self.jobs}
 
     def load_strict(self) -> None:
         """Load, refusing a file that exists but cannot be trusted.
@@ -162,14 +164,15 @@ class QueueStore:
             return
         self.paused = bool(data.get("paused", False))
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
+        self._seen = {job.id for job in self.jobs}
 
     def _merge_from_disk(self) -> None:
-        """Keep jobs another writer added since this instance last read or wrote.
+        """Reconcile with jobs another writer changed since we last synced.
 
-        The headless host and the GUI can both write this file. Without the
-        merge, whichever saves last silently drops the other's jobs. A store
-        that never read the file is left alone, so a deliberate clear still
-        clears.
+        Additions from the other writer are kept. A job this store held at the
+        last sync and the disk no longer has was deleted elsewhere, so it goes
+        too; a job added since that sync stays. Without both halves, clearing
+        the queue while the host holds an older copy undoes the clear.
         """
         if not self.path or self._stamp is None:
             return
@@ -182,10 +185,16 @@ class QueueStore:
             return
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             return
-        known = {job.id for job in self.jobs}
-        for job in _coerce_jobs(data.get("jobs")):
-            if job.id not in known:
+        disk = _coerce_jobs(data.get("jobs"))
+        disk_ids = {job.id for job in disk}
+        for job in list(self.jobs):
+            if job.id not in disk_ids and job.id in self._seen:
+                self.jobs.remove(job)
+        current = {job.id for job in self.jobs}
+        for job in disk:
+            if job.id not in current:
                 self.jobs.append(job)
+                current.add(job.id)
 
     def save(self) -> None:
         if not self.path:
@@ -197,6 +206,7 @@ class QueueStore:
             json.dump(data, fh, indent=2)
         os.replace(tmp, self.path)
         self._stamp = _file_stamp(self.path)
+        self._seen = {job.id for job in self.jobs}
 
     def to_dict(self) -> dict:
         return {

@@ -104,3 +104,18 @@ def test_check_separates_queue_from_history(tmp_path):
 def test_unknown_command_fails_cleanly(tmp_path):
     reply = handle_message({"cmd": "nope"}, _store(tmp_path), _history(tmp_path), {})
     assert reply == {"ok": False, "error": "unknown command"}
+
+
+def test_normalize_url_keeps_identity_query_but_drops_tracking():
+    with_id = normalize_url("https://www.youtube.com/watch?v=AAA&t=10&utm_source=x")
+    other = normalize_url("https://www.youtube.com/watch?v=BBB")
+    assert with_id == "https://www.youtube.com/watch?v=AAA"
+    assert with_id != other
+
+
+def test_already_known_treats_two_youtube_ids_as_different():
+    jobs = [QueueJob(url="https://www.youtube.com/watch?v=AAA", state="pending")]
+    found = already_known(
+        ["https://www.youtube.com/watch?v=BBB&t=5"], jobs, []
+    )
+    assert found == {"in_queue": [], "in_history": []}
