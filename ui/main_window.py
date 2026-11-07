@@ -454,6 +454,13 @@ class MainWindow(QtWidgets.QWidget):
         if geometry:
             self.restoreGeometry(geometry)
 
+    def changeEvent(self, event):
+        # Coming back to the window is the moment to notice a queue the
+        # browser wrote while we were in the background.
+        if event.type() == QtCore.QEvent.ActivationChange and self.isActiveWindow():
+            self.batch_tab.reload_if_changed()
+        super().changeEvent(event)
+
     def closeEvent(self, event):
         self.settings.setValue("window/geometry", self.saveGeometry())
         super().closeEvent(event)

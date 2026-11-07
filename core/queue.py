@@ -166,6 +166,12 @@ class QueueStore:
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
         self._seen = {job.id for job in self.jobs}
 
+    def changed_on_disk(self) -> bool:
+        """True when another writer touched the file since our last read/save."""
+        if not self.path:
+            return False
+        return _file_stamp(self.path) != self._stamp
+
     def _merge_from_disk(self) -> None:
         """Reconcile with jobs another writer changed since we last synced.
 

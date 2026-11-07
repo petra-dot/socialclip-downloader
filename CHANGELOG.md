@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.14.1 - 2026-11-08
+
+### Fixed
+- **The setup dialog no longer closes the app.** Pressing **Open
+  edge://extensions**, or the Chrome and Brave equivalents, killed the process:
+  the button passed its own clicked flag where the browser name was expected.
+- **A job added from the browser shows up without restarting.** The Queue
+  reloads `queue.json` when you return to the window, so an add made while the
+  app sat in the background is there when you look.
+
+### Added
+- **The extension confirms an add.** A context-menu add flashes the number
+  added on the toolbar icon, so the silence is gone.
+
 ## v0.14.0 - 2026-11-08
 
 ### Added

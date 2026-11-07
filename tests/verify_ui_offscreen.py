@@ -53,6 +53,17 @@ def main():
         QtWidgets.QAbstractItemView.ExtendedSelection
     assert queue._bulk_bar.isHidden()
 
+    from core.paths import queue_path as _queue_path
+    from core.queue import Queue as _Queue, QueueStore as _QueueStore
+
+    external = _QueueStore(_queue_path())
+    external.load()
+    _Queue(external).add("https://www.youtube.com/watch?v=zzzzzzzzzzz")
+    external.save()
+    queue.reload_if_changed()
+    assert any(j.url.endswith("zzzzzzzzzzz") for j in queue.queue.jobs), \
+        "a queue written by the browser must appear"
+
     convert = ConvertTab()
     assert convert.table.rowCount() == 0, "the list starts empty"
     assert convert.table.selectionMode() == \

@@ -10,6 +10,23 @@ const MENUS = [
   { id: "now", title: "Download now with SocialClip" },
 ];
 
+const ACCENT = "#0d7d75";
+
+// A context-menu add has no window to report into, so the toolbar says so.
+async function flashBadge(count) {
+  try {
+    await api.action.setBadgeBackgroundColor({ color: ACCENT });
+    await api.action.setBadgeText({ text: String(count) });
+    await api.action.setTitle({ title: "Added to the SocialClip queue" });
+    setTimeout(() => {
+      api.action.setBadgeText({ text: "" });
+      api.action.setTitle({ title: "SocialClip" });
+    }, 4000);
+  } catch (error) {
+    // The badge is a nicety; never fail the add over it.
+  }
+}
+
 api.runtime.onInstalled.addListener(() => {
   for (const menu of MENUS) {
     api.contextMenus.create({
@@ -63,7 +80,8 @@ api.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
     const pick = await choice();
-    await host({ cmd: "add", urls: [url], start: false, ...pick });
+    const reply = await host({ cmd: "add", urls: [url], start: false, ...pick });
+    if (reply && reply.ok) await flashBadge(reply.added || 1);
   } catch (error) {
     await warn();
   }

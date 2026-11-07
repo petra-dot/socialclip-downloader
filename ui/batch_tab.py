@@ -776,6 +776,19 @@ class QueueTab(QtWidgets.QWidget):
     def on_start_queue(self):
         self.start_queue(confirm=True)
 
+    def reload_if_changed(self):
+        """Adopt a queue file another writer changed while we were not looking."""
+        if self.queue_worker and self.queue_worker.isRunning():
+            return
+        if not self.queue.store.changed_on_disk():
+            return
+        self.queue.store.load()
+        self.refresh_table()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.reload_if_changed()
+
     def start_queue(self, confirm: bool = True):
         """Start the queue. confirm=False is the browser-driven path: no dialogs."""
         if self.queue_worker and self.queue_worker.isRunning():

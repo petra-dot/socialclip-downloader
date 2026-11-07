@@ -516,3 +516,17 @@ def test_save_does_not_bring_back_a_job_deleted_elsewhere(tmp_path):
     assert sorted(job.url for job in final.jobs) == [
         "https://youtu.be/keep", "https://youtu.be/new",
     ]
+
+
+def test_changed_on_disk_sees_another_writer(tmp_path):
+    path = str(tmp_path / "queue.json")
+    store = QueueStore(path)
+    store.load()
+    assert store.changed_on_disk() is False
+
+    other = QueueStore(path)
+    other.load()
+    Queue(other).add("https://youtu.be/x")
+    other.save()
+
+    assert store.changed_on_disk() is True
