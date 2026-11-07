@@ -1,6 +1,15 @@
 [extend]
 useDefault = true
 
+# The extension manifest carries a public key so Chrome derives a stable
+# extension id. It is published in every install and is not a credential; the
+# generic-api-key rule sees base64 next to a "key" field and flags it.
+[allowlist]
+description = "Extension manifests: the key field is a public key"
+paths = [
+  '''extension/manifest(\.chromium|\.firefox)?\.json''',
+]
+
 [[rules]]
 id = "netscape-cookie-file"
 description = "Netscape-format cookies.txt export (session credentials)"
