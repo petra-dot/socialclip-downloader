@@ -88,3 +88,15 @@ def test_each_installed_folder_uses_the_plain_manifest_name(tmp_path, monkeypatc
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
     folder = Path(ensure_installed()[name])
     assert [p.name for p in folder.glob("manifest*.json")] == ["manifest.json"]
+
+
+def test_copy_tree_removes_a_skipped_name_left_behind(tmp_path):
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "keep.js").write_text("x", encoding="utf-8")
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    (dest / "skip.json").write_text("{}", encoding="utf-8")
+
+    copy_tree(str(source), str(dest), skip=("skip.json",))
+    assert not (dest / "skip.json").exists()

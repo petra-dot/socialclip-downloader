@@ -47,8 +47,16 @@ def installed_dir(variant: str = "chromium") -> str:
 
 
 def copy_tree(source: str, dest: str, skip=()) -> str:
-    """Copy files that are missing or changed; leave identical ones alone."""
+    """Copy files that are missing or changed; leave identical ones alone.
+
+    A skipped name is also deleted from ``dest``: an older copy of the folder
+    must not keep a manifest the browser would refuse to read.
+    """
     os.makedirs(dest, exist_ok=True)
+    for name in skip:
+        stale = os.path.join(dest, name)
+        if os.path.isfile(stale):
+            os.remove(stale)
     for name in os.listdir(source):
         if name in skip:
             continue
