@@ -10,11 +10,15 @@ import struct
 from typing import List
 from urllib.parse import urlsplit
 
+from core.queue import Queue
 from core.version import __version__
+from sites.cookies import PLATFORM_NAMES, PLATFORM_PATTERNS
+from utils.file_utils import RESOLUTIONS
 
 HOST_NAME = "com.petra_dot.socialclip"
 PROTOCOL_VERSION = 1
 MAX_SCAN_LINKS = 200
+OUTPUTS = ("MP4", "MP3")
 
 # A job in one of these states is still work the user is waiting on.
 ACTIVE_STATES = ("pending", "running", "paused")
@@ -93,3 +97,47 @@ def already_known(urls, jobs, entries) -> dict:
         elif key in recorded:
             in_history.append(url)
     return {"in_queue": in_queue, "in_history": in_history}
+
+
+def supported_sites() -> List[dict]:
+    """The platforms the app already knows, for the extension's page scanner."""
+    return [
+        {
+            "pattern": pattern,
+            "platform": platform,
+            "name": PLATFORM_NAMES.get(platform, platform),
+        }
+        for pattern, platform in PLATFORM_PATTERNS
+    ]
+
+
+def download_choices() -> dict:
+    """What the popup may offer: the download path's two types and a resolution."""
+    return {"outputs": list(OUTPUTS), "resolutions": list(RESOLUTIONS)}
+
+
+def handle_message(msg: dict, store, history, options: dict) -> dict:
+    """Answer one host message. Always returns a reply dict, never raises."""
+    cmd = msg.get("cmd")
+    if cmd == "ping":
+        return {"ok": True, "version": __version__, "protocol": PROTOCOL_VERSION}
+    if cmd == "sites":
+        return {"ok": True, "sites": supported_sites()}
+    if cmd == "formats":
+        reply = {"ok": True}
+        reply.update(download_choices())
+        return reply
+    if cmd in ("check", "add"):
+        urls = msg.get("urls")
+        if not isinstance(urls, list):
+            return {"ok": False, "error": "urls must be a list"}
+        clean = [u for u in urls if isinstance(u, str) and u.strip()]
+        if cmd == "check":
+            history.load()
+            reply = {"ok": True}
+            reply.update(already_known(clean, store.jobs, history.entries()))
+            return reply
+        Queue(store).add_many(clean, options)
+        store.save()
+        return {"ok": True, "added": len(clean)}
+    return {"ok": False, "error": "unknown command"}
