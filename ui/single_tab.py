@@ -718,11 +718,18 @@ class SingleTab(QtWidgets.QWidget):
         self.on_fetch_metadata()
 
     def _fill_from_clipboard(self):
+        """Prefill only for a link that is one downloadable item.
+
+        A copied channel page, feed or article would otherwise sit in the
+        box and autofetch something the user never asked for.
+        """
         if self.url_input.text().strip():
             return
-        text = QtWidgets.QApplication.clipboard().text()
-        if text and looks_like_url(text):
-            self.url_input.setText(text.strip())
+        from core.native import is_media_url
+
+        text = QtWidgets.QApplication.clipboard().text().strip()
+        if text and is_media_url(text):
+            self.url_input.setText(text)
 
     def showEvent(self, event):
         super().showEvent(event)

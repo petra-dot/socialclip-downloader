@@ -35,6 +35,19 @@ def main():
     assert single.console_log.isHidden(), "the toggle minimizes the log"
     single.details_toggle.setChecked(True)
 
+    clipboard = QtWidgets.QApplication.clipboard()
+    single.url_input.clear()
+    clipboard.setText("https://www.youtube.com/feed/subscriptions")
+    single._fill_from_clipboard()
+    assert single.url_input.text() == "", "a feed page must not prefill"
+    clipboard.setText("https://www.youtube.com/@somechannel")
+    single._fill_from_clipboard()
+    assert single.url_input.text() == "", "a channel page must not prefill"
+    clipboard.setText("https://www.youtube.com/watch?v=abcdefghijk")
+    single._fill_from_clipboard()
+    assert single.url_input.text().endswith("abcdefghijk"), "a video link must prefill"
+    single.url_input.clear()
+
     queue = QueueTab({"path": ""})
     assert queue.batch_table.selectionMode() == \
         QtWidgets.QAbstractItemView.ExtendedSelection
