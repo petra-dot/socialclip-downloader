@@ -175,6 +175,51 @@ def _coerce_entries(raw) -> List[HistoryEntry]:
     return out
 
 
+def _entry_path_key(entry) -> str:
+    """Identity of the file an entry points at, or "" when it has no path."""
+    if not entry.path:
+        return ""
+    return os.path.normcase(os.path.abspath(entry.path))
+
+
+def _absorb(target, other) -> None:
+    """Fold ``other`` into ``target``, keeping the first download's timestamp."""
+    if target.removed_at and not other.removed_at:
+        target.removed_at = ""
+    if other.created_at and (not target.created_at
+                             or other.created_at < target.created_at):
+        target.created_at = other.created_at
+    for name in ("title", "url", "platform", "extension", "source"):
+        if not getattr(target, name) and getattr(other, name):
+            setattr(target, name, getattr(other, name))
+    for name in ("bytes", "height", "duration_seconds"):
+        if not getattr(target, name) and getattr(other, name):
+            setattr(target, name, getattr(other, name))
+
+
+def merge_duplicates(entries) -> List[HistoryEntry]:
+    """One row per file.
+
+    yt-dlp skips writing a file it already has, and the run still reports
+    success, so downloading the same thing twice used to add a second row for
+    a file that never changed. The file is the download, not the run.
+    """
+    kept = {}
+    result = []
+    for entry in entries:
+        key = _entry_path_key(entry)
+        if not key:
+            result.append(entry)
+            continue
+        existing = kept.get(key)
+        if existing is None:
+            kept[key] = entry
+            result.append(entry)
+            continue
+        _absorb(existing, entry)
+    return result
+
+
 class HistoryStore:
     """The history file. Atomic write, tolerant load, never drops an entry."""
 
@@ -193,7 +238,7 @@ class HistoryStore:
             return
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
             return
-        self._entries.extend(_coerce_entries(data.get("entries")))
+        self._entries.extend(merge_duplicates(_coerce_entries(data.get("entries"))))
 
     def save(self) -> None:
         if not self.path:
@@ -209,6 +254,13 @@ class HistoryStore:
         # Load first: each download creates its own store, and appending to an
         # empty one would save a single-entry file over the whole history.
         self.load()
+        key = _entry_path_key(entry)
+        if key:
+            for existing in self._entries:
+                if _entry_path_key(existing) == key:
+                    _absorb(existing, entry)
+                    self.save()
+                    return existing
         self._entries.append(entry)
         self.save()
         return entry

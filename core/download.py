@@ -180,7 +180,12 @@ def download_one(url, outtmpl, output_type, convert, target_resolution,
         cookies_from_browser=cookies_from_browser,
     )
     if getattr(result, "status", "") == "ok":
-        record(history, result, source)
+        path = getattr(result, "path", "") or ""
+        # yt-dlp can report success without writing anything (a file it
+        # already had, or a failed postprocess). A history row for a file that
+        # is not there is a lie the user has to clean up by hand.
+        if path and os.path.isfile(path):
+            record(history, result, source)
     return result
 
 

@@ -204,3 +204,43 @@ def test_default_store_uses_the_data_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCIALCLIP_HISTORY", str(tmp_path / "history.json"))
     store = HistoryStore()
     assert store.path == str(tmp_path / "history.json")
+
+
+def test_add_does_not_repeat_a_file_that_is_already_recorded(tmp_path):
+    store = HistoryStore(str(tmp_path / "history.json"))
+    first = HistoryEntry(title="a", url="https://youtu.be/x", path="C:/v/x.mp4")
+    store.add(first)
+    again = HistoryEntry(title="a", url="https://youtu.be/x", path="C:/v/x.mp4")
+    store.add(again)
+
+    assert len(store.entries()) == 1
+    assert store.entries()[0].created_at == first.created_at
+
+
+def test_the_same_video_in_two_folders_stays_two_rows(tmp_path):
+    store = HistoryStore(str(tmp_path / "history.json"))
+    store.add(HistoryEntry(url="https://youtu.be/x", path="C:/one/x.mp4"))
+    store.add(HistoryEntry(url="https://youtu.be/x", path="C:/two/x.mp4"))
+    assert len(store.entries()) == 2
+
+
+def test_loading_a_file_with_duplicates_collapses_them(tmp_path):
+    from dataclasses import asdict
+
+    path = tmp_path / "history.json"
+    older = HistoryEntry(
+        title="older", url="https://youtu.be/x", path="C:/v/x.mp4",
+        created_at="2026-01-01T00:00:00+00:00",
+    )
+    newer = HistoryEntry(
+        title="newer", url="https://youtu.be/x", path="C:/v/x.mp4",
+        created_at="2026-01-02T00:00:00+00:00",
+    )
+    path.write_text(json.dumps({
+        "version": 1, "entries": [asdict(newer), asdict(older)],
+    }), encoding="utf-8")
+
+    store = HistoryStore(str(path))
+    store.load()
+    assert len(store.entries()) == 1
+    assert store.entries()[0].created_at == "2026-01-01T00:00:00+00:00"

@@ -80,6 +80,18 @@ def clean_title(title: str) -> str:
     return safe[:120] or "video"
 
 
+def ytdlp_safe_name(title: str) -> str:
+    """The name yt-dlp itself gives a title, capped at 120 characters.\n\n    yt-dlp maps characters Windows rejects to their fullwidth forms, so
+    "A?" becomes "A？". Using the same call is what stops the Download tab
+    and the Queue from writing the same video under two different names.
+    """
+    from yt_dlp.utils import sanitize_filename
+
+    safe = sanitize_filename(title or "", restricted=False)
+    safe = re.sub(r"\s+", " ", safe).strip()
+    return safe[:120] or "video"
+
+
 def get_uploader(info: dict) -> str:
     for k in ("uploader", "channel", "creator", "uploader_id"):
         v = info.get(k)

@@ -114,3 +114,16 @@ def test_best_resolution_means_no_convert():
     assert resolution_to_convert(BEST_RESOLUTION) is False
     assert resolution_to_convert("1080") is True
     assert resolution_to_convert("720") is True
+
+
+def test_ytdlp_safe_name_matches_yt_dlp():
+    from utils.file_utils import ytdlp_safe_name
+
+    assert ytdlp_safe_name("A? B") == "A？ B"
+
+
+def test_ytdlp_safe_name_falls_back_to_video():
+    from utils.file_utils import ytdlp_safe_name
+
+    assert ytdlp_safe_name("") == "video"
+    assert ytdlp_safe_name("   ") == "video"

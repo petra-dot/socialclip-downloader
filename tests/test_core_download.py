@@ -1093,3 +1093,49 @@ def test_retry_note_does_not_leak_onto_later_failures(monkeypatch, tmp_path):
     assert result.error_category == "ffmpeg"
     assert "retried with browser cookies" not in result.message
     assert len(attempts) == 2
+
+
+def test_a_success_without_a_file_is_not_recorded(tmp_path, monkeypatch):
+    import core.download as dl
+    from core.manifest import DownloadResult
+
+    class Store:
+        def __init__(self):
+            self.entries = []
+
+        def add(self, entry):
+            self.entries.append(entry)
+
+    store = Store()
+    monkeypatch.setattr(
+        dl, "_run_download",
+        lambda *a, **k: DownloadResult(
+            status="ok", path=str(tmp_path / "gone.mp4"), url="https://youtu.be/x"
+        ),
+    )
+    dl.download_one("https://youtu.be/x", "x", "MP4", False, 0, history=store)
+    assert store.entries == []
+
+
+def test_a_success_with_a_real_file_is_recorded(tmp_path, monkeypatch):
+    import core.download as dl
+    from core.manifest import DownloadResult
+
+    class Store:
+        def __init__(self):
+            self.entries = []
+
+        def add(self, entry):
+            self.entries.append(entry)
+
+    real = tmp_path / "here.mp4"
+    real.write_bytes(b"x")
+    store = Store()
+    monkeypatch.setattr(
+        dl, "_run_download",
+        lambda *a, **k: DownloadResult(
+            status="ok", path=str(real), url="https://youtu.be/x"
+        ),
+    )
+    dl.download_one("https://youtu.be/x", "x", "MP4", False, 0, history=store)
+    assert len(store.entries) == 1

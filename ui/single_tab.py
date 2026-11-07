@@ -6,13 +6,13 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from yt_dlp import YoutubeDL
 
 from utils.file_utils import (
-    clean_title,
     get_uploader,
     make_unique_filepath,
     default_download_folder,
     output_code_for,
     restore_or,
     RESOLUTIONS,
+    ytdlp_safe_name,
     output_index_for,
     BEST_RESOLUTION,
     resolution_to_convert,
@@ -982,9 +982,9 @@ class SingleTab(QtWidgets.QWidget):
         uploader = get_uploader(info) or ""
         vid_id = info.get("id") or ""
 
-        base_filename = clean_title(title)
+        base_filename = ytdlp_safe_name(title)
         if self.checkbox_channel.isChecked() and uploader:
-            base_filename += "_" + clean_title(uploader)
+            base_filename += "_" + ytdlp_safe_name(uploader)
         if self.checkbox_timestamp.isChecked():
             base_filename += "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
