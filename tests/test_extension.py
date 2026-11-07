@@ -171,3 +171,13 @@ def test_build_package_stamps_the_app_version(tmp_path):
     build_package(str(dest), "chromium")
     manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == __version__
+
+
+def test_build_package_removes_the_legacy_manifest_name(tmp_path):
+    from core.extension import build_package
+
+    dest = tmp_path / "pkg"
+    dest.mkdir()
+    (dest / "manifest.chromium.json").write_text("{}", encoding="utf-8")
+    build_package(str(dest), "chromium")
+    assert not (dest / "manifest.chromium.json").exists()

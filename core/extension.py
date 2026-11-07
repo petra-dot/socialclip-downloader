@@ -15,7 +15,7 @@ import sys
 
 CHROMIUM_EXTENSION_ID = "boopfllemcgelnnbhbaekongecmdfjnf"
 
-MANIFESTS = ("manifest.json", "manifest.firefox.json")
+MANIFESTS = ("manifest.json", "manifest.firefox.json", "manifest.chromium.json")
 
 
 def chrome_id_from_key(key_b64: str) -> str:
