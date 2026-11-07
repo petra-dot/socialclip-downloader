@@ -1,8 +1,10 @@
 import json
 import os
 
+import pytest
+
 from core.manifest import DownloadResult
-from core.queue import Queue, QueueStore
+from core.queue import Queue, QueueFileError, QueueStore
 
 
 def test_add_and_next_pending_is_fifo():
@@ -448,3 +450,23 @@ def test_set_options_unknown_id_returns_false():
     q = Queue()
     q.add("https://a.com/1", {})
     assert q.set_options("nope", {"x": 1}) is False
+
+
+def test_strict_load_accepts_a_missing_file(tmp_path):
+    store = QueueStore(str(tmp_path / "queue.json"))
+    store.load_strict()
+    assert store.jobs == []
+
+
+def test_strict_load_raises_on_corrupt_json(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text("{not json", encoding="utf-8")
+    with pytest.raises(QueueFileError):
+        QueueStore(str(path)).load_strict()
+
+
+def test_strict_load_raises_on_unknown_version(tmp_path):
+    path = tmp_path / "queue.json"
+    path.write_text('{"version": 99, "jobs": []}', encoding="utf-8")
+    with pytest.raises(QueueFileError):
+        QueueStore(str(path)).load_strict()

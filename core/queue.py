@@ -97,23 +97,57 @@ def _coerce_jobs(raw_jobs) -> List[QueueJob]:
     return jobs
 
 
+class QueueFileError(Exception):
+    """The queue file exists but cannot be trusted; do not write over it."""
+
+
 class QueueStore:
     def __init__(self, path: str):
         self.path = path
         self.jobs: List[QueueJob] = []
         self.paused = False
 
-    def load(self) -> None:
-        self.jobs.clear()
-        self.paused = False
+    def _read(self) -> Optional[dict]:
+        """Parsed queue data, or None when there is nothing to read.
+
+        Raises QueueFileError when the file exists but does not parse or
+        carries a version this build does not understand.
+        """
         if not self.path:
-            return
+            return None
         try:
             with open(self.path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
-        except (OSError, ValueError):
-            return
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError) as exc:
+            raise QueueFileError(str(exc))
         if not isinstance(data, dict) or data.get("version") != STORE_VERSION:
+            raise QueueFileError("unrecognised queue file version")
+        return data
+
+    def load(self) -> None:
+        self.jobs.clear()
+        self.paused = False
+        try:
+            data = self._read()
+        except QueueFileError:
+            return
+        if data is None:
+            return
+        self.paused = bool(data.get("paused", False))
+        self.jobs.extend(_coerce_jobs(data.get("jobs")))
+
+    def load_strict(self) -> None:
+        """Load, refusing a file that exists but cannot be trusted.
+
+        The headless host uses this: writing an empty list over a queue it
+        failed to understand would lose the user's jobs.
+        """
+        self.jobs.clear()
+        self.paused = False
+        data = self._read()
+        if data is None:
             return
         self.paused = bool(data.get("paused", False))
         self.jobs.extend(_coerce_jobs(data.get("jobs")))
