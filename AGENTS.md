@@ -25,6 +25,9 @@ core/maintenance.py        component checks + verified installers for yt-dlp/ffm
 core/doctor.py             health report builder (ffmpeg, cookies, network); schema 1.1
 core/formats.py            curated output-format registry (containers, codecs, remux allow-lists)
 core/probe.py              single ffprobe call -> {vcodec, acodec, height, container}
+core/native.py             native-messaging protocol: framing, URL identity, site list, command dispatch
+core/native_io.py          raw OS stdin/stdout for the windowed --native-host build
+core/native_install.py     host manifests + HKCU registration per browser
 core/queue.py              persistent download queue + QueueStore (thread-free)
 core/archive.py            Queue download archive path + clear helpers (pure)
 core/collections.py        collection listing + dedupe helpers (pure)
@@ -42,6 +45,7 @@ ui/single_tab.py           Fetch -> metadata cache -> Download (also FetchWorker
 ui/batch_tab.py            QueueTab: persistent Queue tab (add/paste, pause/resume/cancel)
 ui/convert_tab.py          local file format/resolution conversion
 ui/update_indicator.py     top-right update button (state + click signal)
+ui/ipc.py                  single-instance guard + the channel the host uses
 workers/download_worker.py single download + MP3/resolution post-process
 workers/queue_worker.py    drives a Queue: up to N jobs at a time, saves after each
 workers/expand_worker.py   expands a collection URL for the Queue tab
@@ -56,6 +60,7 @@ utils/file_utils.py        filename sanitizing, unique paths, shared combos
 utils/ui_helpers.py        looks_like_url, reveal_in_folder (Qt-free)
 docs/plans/                implementation plans
 docs/specs/                design specs
+extension/                 browser extension (Chromium + Firefox manifests, one payload)
 tests/                     pytest suite for pure logic
 ```
 

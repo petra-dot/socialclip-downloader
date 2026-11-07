@@ -243,6 +243,37 @@ Conversions remux when the streams fit the container and re-encode otherwise, an
 every output is editor-safe (see [Features](#features)). The CLI takes one file:
 `socialclip convert FILE --to KEY`.
 
+## Browser extension
+
+The `extension/` folder is a browser extension that sends links to the app
+without leaving the tab: right-click a link, a video, or the page for **Add to
+SocialClip Queue** or **Download now with SocialClip**, or open the popup to
+scan the page for supported links, tick what you want, and queue them in bulk.
+
+Download now picks the format and resolution first, then the app comes forward
+on the Queue tab with the job running.
+
+It talks to the app through a native-messaging host: no port, no daemon, and it
+works with the app closed because the browser starts it.
+
+1. Load the extension: **chrome://extensions** or **edge://extensions**, enable
+   developer mode, **Load unpacked**, and pick the `extension/` folder. For
+   Firefox, use `about:debugging` > **Load Temporary Add-on** and pick
+   `extension/manifest.firefox.json`.
+2. Copy the extension id from the browser's extensions page.
+3. Register the host once:
+   `python socialclip_downloader.py --install-native-host --extension-id <id>`,
+   or use **File > Install browser extension host** in the app.
+   Registration writes HKCU registry keys only; no administrator rights.
+4. Reload the extension and right-click a link.
+
+A permanent Firefox install needs the add-on signed by AMO; a Chromium install
+outside developer mode needs a store listing. Both are distribution steps, not
+extra code.
+
+If a link is already in the queue or already in your history, the popup says so
+and asks before adding it again.
+
 ## History
 
 Every completed download is recorded, from the Download tab, the Queue, and the
