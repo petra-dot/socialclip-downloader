@@ -144,7 +144,7 @@ class MainWindow(QtWidgets.QWidget):
             "Open data folder", lambda: reveal_in_folder(data_dir())
         ))
         file_menu.addAction(self._action(
-            "Install browser extension host", self.install_extension_host
+            "Install browser extension...", self.install_extension_host
         ))
         file_menu.addSeparator()
         file_menu.addAction(self._action("&Quit", self.close, "Ctrl+Q"))
@@ -313,28 +313,37 @@ class MainWindow(QtWidgets.QWidget):
         self.batch_tab.start_queue(confirm=False)
 
     def install_extension_host(self):
-        """Register the native-messaging host for the installed browsers."""
+        """Copy the extension out and register the native host for it."""
+        from core.extension import CHROMIUM_EXTENSION_ID, ensure_installed
         from core.native_install import FIREFOX_ADDON_ID, install
+        from utils.ui_helpers import reveal_in_folder
 
-        extension_id, accepted = QtWidgets.QInputDialog.getText(
-            self,
-            "Browser extension host",
-            "Chromium extension id (copy it from chrome://extensions):",
-        )
-        if not accepted or not extension_id.strip():
-            return
-        frozen = bool(getattr(sys, "frozen", False))
-        target = sys.executable if frozen else os.path.abspath(sys.argv[0])
         try:
-            written = install(target, extension_id.strip(), frozen=frozen)
+            folder = ensure_installed()
+            frozen = bool(getattr(sys, "frozen", False))
+            target = sys.executable if frozen else os.path.abspath(sys.argv[0])
+            written = install(target, CHROMIUM_EXTENSION_ID, frozen=frozen)
         except OSError as exc:
-            QtWidgets.QMessageBox.warning(self, "Not registered", str(exc))
+            QtWidgets.QMessageBox.warning(self, "Not installed", str(exc))
             return
-        detail = "\n".join(written) or "Manifests written; register them manually."
+        tail = ("Registered the host for Chrome, Edge and Firefox on this machine."
+                if written else
+                "Register the manifest with your browser by hand on this platform.")
+        reveal_in_folder(folder)
         QtWidgets.QMessageBox.information(
             self,
-            "Host registered",
-            "Firefox add-on id: %s\n\n%s" % (FIREFOX_ADDON_ID, detail),
+            "Browser extension",
+            "The extension folder is:\n%s\n\n"
+            "Chrome and Edge\n"
+            "  1. Open chrome://extensions, or edge://extensions\n"
+            "  2. Turn on Developer mode\n"
+            "  3. Load unpacked, and pick the folder above\n"
+            "  4. Restart the browser\n\n"
+            "Firefox\n"
+            "  about:debugging > This Firefox > Load Temporary Add-on,\n"
+            "  then pick manifest.firefox.json.\n"
+            "  Firefox forgets it when it restarts. A permanent install needs\n"
+            "  a signed add-on (id %s).\n\n%s" % (folder, FIREFOX_ADDON_ID, tail),
         )
 
     def _warn_if_ytdlp_stale(self):

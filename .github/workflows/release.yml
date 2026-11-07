@@ -127,7 +127,7 @@ jobs:
           BUNDLED="--add-binary bundled/deno$EXT:bundled"
           # Bundle the icon file too: --icon only sets the executable's icon,
           # it does not make assets/icon.ico resolvable at runtime.
-          DATA="--add-data assets/icon.ico:assets"
+          DATA="--add-data assets/icon.ico:assets --add-data extension:extension"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             pyinstaller --onefile --windowed --name socialclip-downloader-windows \
               $ADD $BUNDLED $DATA --icon assets/icon.ico socialclip_downloader.py

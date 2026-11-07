@@ -134,22 +134,22 @@ def run_native_host() -> int:
 
 
 def install_native_host(argv) -> int:
-    """Write the host manifests and register them for each browser."""
+    """Copy the extension out and register the host for it."""
+    from core.extension import CHROMIUM_EXTENSION_ID, ensure_installed
     from core.native_install import FIREFOX_ADDON_ID, install
     from core.paths import migrate_legacy_files
 
     migrate_legacy_files()
-    extension_id = ""
+    extension_id = CHROMIUM_EXTENSION_ID
     if "--extension-id" in argv:
         position = argv.index("--extension-id")
         if position + 1 < len(argv):
             extension_id = argv[position + 1]
-    if not extension_id:
-        print("usage: --install-native-host --extension-id <chromium extension id>")
-        return 2
+    folder = ensure_installed()
     frozen = bool(getattr(sys, "frozen", False))
     target = sys.executable if frozen else os.path.abspath(__file__)
     written = install(target, extension_id, frozen=frozen)
+    print("Extension folder: %s" % folder)
     print("Firefox add-on id: %s" % FIREFOX_ADDON_ID)
     for path in written:
         print("registered %s" % path)

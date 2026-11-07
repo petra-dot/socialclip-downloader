@@ -256,20 +256,23 @@ on the Queue tab with the job running.
 It talks to the app through a native-messaging host: no port, no daemon, and it
 works with the app closed because the browser starts it.
 
-1. Load the extension: **chrome://extensions** or **edge://extensions**, enable
-   developer mode, **Load unpacked**, and pick the `extension/` folder. For
-   Firefox, use `about:debugging` > **Load Temporary Add-on** and pick
-   `extension/manifest.firefox.json`.
-2. Copy the extension id from the browser's extensions page.
-3. Register the host once:
-   `python socialclip_downloader.py --install-native-host --extension-id <id>`,
-   or use **File > Install browser extension host** in the app.
-   Registration writes HKCU registry keys only; no administrator rights.
-4. Reload the extension and right-click a link.
+1. In the app, open **File > Install browser extension...**. It copies the
+   extension to a stable folder, opens that folder, and registers the host.
+2. **Chrome or Edge:** open `chrome://extensions` (or `edge://extensions`),
+   turn on **Developer mode**, choose **Load unpacked**, and pick the folder the
+   app opened.
+3. **Firefox:** open `about:debugging`, then **This Firefox**, then
+   **Load Temporary Add-on**, and pick `manifest.firefox.json` in that folder.
+   Firefox forgets a temporary add-on when it restarts; a permanent install
+   needs a signed add-on from AMO.
+4. Restart the browser and right-click a link.
 
-A permanent Firefox install needs the add-on signed by AMO; a Chromium install
-outside developer mode needs a store listing. Both are distribution steps, not
-extra code.
+The manifest carries a fixed key, so the extension id is the same on every
+machine and the app registers the host for it. Nothing is copied by hand.
+
+Developer mode shows a warning about unpacked extensions and the extension does
+not auto-update: re-run **Install browser extension...** after updating the app
+to refresh the copy on disk.
 
 If a link is already in the queue or already in your history, the popup says so
 and asks before adding it again.

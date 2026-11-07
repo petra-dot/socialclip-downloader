@@ -10,9 +10,9 @@ if %errorlevel% neq 0 (
 
 REM Build the EXE
 if exist "assets\icon.ico" (
-    pyinstaller --onefile --noconsole --name "SocialClip Downloader" --icon "assets/icon.ico" socialclip_downloader.py
+    pyinstaller --onefile --noconsole --name "SocialClip Downloader" --icon "assets/icon.ico" --add-data "extension:extension" socialclip_downloader.py
 ) else (
-    pyinstaller --onefile --noconsole --name "SocialClip Downloader" socialclip_downloader.py
+    pyinstaller --onefile --noconsole --name "SocialClip Downloader" --add-data "extension:extension" socialclip_downloader.py
 )
 
 REM Copy EXE to project root

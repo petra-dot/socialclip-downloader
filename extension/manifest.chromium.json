@@ -3,6 +3,7 @@
   "name": "SocialClip Downloader",
   "version": "0.1.0",
   "description": "Send links to SocialClip Downloader: add to the queue or download now.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArx5Z3HNouM+Lbec9iojW/J+BIFZCks574T2ewXiDshuesSllEEGUaMW5DCtIubtoI/fcCD1q6od+fp5tO5VT47suTKL/ReSvKifOD6pmVD6spdNEjRZv7TNFS59ErSIuSEeOPAm781HSEnU7O2E+sqvsbBR4ZQA8vbivbR334XIBmM30AV9K+TjWdPSpw81G0ga1Bi5bs/SM11CJj0D2bhLIH+3i/2wUKeVur7Xs/y3kBGK4GUNhaHWQfqUk4QCa6w2m0J4GTysqNRQy8sVlJUkc7aMAKTK2ryuupJcKuctBv7qux8iGvXWYh/P4AC0txg3AXB+3VE7J3UdFYLeiwQIDAQAB",
   "permissions": ["contextMenus", "nativeMessaging", "activeTab", "scripting", "storage"],
   "background": {"service_worker": "background.js"},
   "action": {"default_popup": "popup.html", "default_title": "SocialClip"}

@@ -28,6 +28,7 @@ core/probe.py              single ffprobe call -> {vcodec, acodec, height, conta
 core/native.py             native-messaging protocol: framing, URL identity, site list, command dispatch
 core/native_io.py          raw OS stdin/stdout for the windowed --native-host build
 core/native_install.py     host manifests + HKCU registration per browser
+core/extension.py          the shipped extension: pinned Chromium id, copy-out to the data folder
 core/queue.py              persistent download queue + QueueStore (thread-free)
 core/archive.py            Queue download archive path + clear helpers (pure)
 core/collections.py        collection listing + dedupe helpers (pure)
