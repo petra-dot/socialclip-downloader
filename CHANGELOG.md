@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.14.0 - 2026-11-08
+
+### Added
+- **A browser extension for Chrome, Edge, Brave and Firefox.** Right-click a
+  link, a video or the page for **Add to SocialClip Queue** or **Download now**.
+  Download now asks for the format and resolution first, then brings the app
+  forward with the job already running. The popup also scans a page for links
+  that are a single downloadable item, so channels, feeds, playlists and
+  "about" pages are not offered. It reaches the app through a native-messaging
+  host: no port is opened, and it works with the app closed.
+- **A guided setup under Help > Browser extension setup...** It reports what is
+  already in place, detects which browsers this machine has, shows the steps for
+  those browsers, copies the folder path, registers the host on the spot, and
+  installs the signed Firefox add-on in one click.
+- **The Download tab says when a prefilled link is already in the queue or
+  already in your history**, instead of quietly fetching it again.
+
+### Fixed
+- **History no longer repeats one file.** Downloading the same video again could
+  add up to three extra rows for a file that never changed: yt-dlp skips a file
+  it already has but still reports success, and the two tabs named the same
+  video differently. A row is now written only when the file exists, rows that
+  point at the same file are merged, and both tabs name a video identically.
+- **The Queue no longer loses or resurrects jobs** when the browser and the app
+  both write it. A job added by one writer survives the other's save, and a job
+  deleted in one place is not restored by a stale copy.
+- **Two different videos no longer read as the same link.** A YouTube watch URL
+  is identified by its video id, so a second video is not reported as already
+  queued, and a page scan no longer collapses a channel to one entry.
+
+### Changed
+- The Download tab fills itself from the clipboard only for a single
+  downloadable item. A copied channel, feed or article no longer lands in the
+  box.
+
 ## v0.13.1 - 2026-10-19
 
 ### Fixed
