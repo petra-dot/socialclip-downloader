@@ -116,3 +116,58 @@ def test_installed_folder_carries_the_icons(tmp_path, monkeypatch):
     monkeypatch.setenv("SOCIALCLIP_DATA", str(tmp_path))
     chromium = Path(ensure_installed()["chromium"])
     assert (chromium / "icons" / "128.png").is_file()
+
+
+def test_build_package_writes_the_variant_manifest(tmp_path):
+    from core.extension import build_package
+
+    dest = tmp_path / "pkg"
+    build_package(str(dest), "firefox")
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    assert "browser_specific_settings" in manifest
+    assert (dest / "background.js").is_file()
+    assert not (dest / "manifest.firefox.json").exists()
+
+
+def test_firefox_xpi_url_points_at_the_release_asset():
+    from core.extension import firefox_xpi_url
+
+    assert firefox_xpi_url("1.2.3") == (
+        "https://github.com/petra-dot/socialclip-downloader/releases/download/"
+        "v1.2.3/socialclip-firefox.xpi"
+    )
+
+
+def test_fetch_firefox_xpi_writes_the_signed_file(tmp_path):
+    import io
+
+    from core.extension import fetch_firefox_xpi
+
+    def fake_opener(url):
+        assert url.endswith("socialclip-firefox.xpi")
+        return io.BytesIO(b"PK\x03\x04signed")
+
+    path = fetch_firefox_xpi("1.2.3", dest_dir=str(tmp_path), opener=fake_opener)
+    assert Path(path).read_bytes() == b"PK\x03\x04signed"
+
+
+def test_fetch_firefox_xpi_rejects_a_non_archive(tmp_path):
+    import io
+
+    from core.extension import fetch_firefox_xpi
+
+    with __import__("pytest").raises(ValueError):
+        fetch_firefox_xpi(
+            "1.2.3", dest_dir=str(tmp_path), opener=lambda url: io.BytesIO(b"<html>")
+        )
+
+
+def test_build_package_stamps_the_app_version(tmp_path):
+    from core.version import __version__
+
+    from core.extension import build_package
+
+    dest = tmp_path / "pkg"
+    build_package(str(dest), "chromium")
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["version"] == __version__

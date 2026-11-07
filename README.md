@@ -261,10 +261,13 @@ works with the app closed because the browser starts it.
 2. **Chrome, Edge or Brave:** open `chrome://extensions`, `edge://extensions`
    or `brave://extensions`, turn on **Developer mode**, choose
    **Load unpacked**, and pick the folder the app opened.
-3. **Firefox:** open `about:debugging`, then **This Firefox**, then
-   **Load Temporary Add-on**, and pick `manifest.json` in the separate Firefox
-   folder the dialog names. Firefox forgets a temporary add-on when it restarts;
-   a permanent install needs a signed add-on from AMO.
+3. **Firefox:** press **Install for Firefox**. The app downloads the signed
+   add-on for this version and hands it to Firefox, which asks you to add it.
+   That install is permanent and survives restarts.
+   Without a network connection you can still load it temporarily:
+   `about:debugging` > **This Firefox** > **Load Temporary Add-on**, then pick
+   `manifest.json` in the separate Firefox folder the dialog names. A temporary
+   add-on is lost when Firefox restarts.
 4. Restart the browser and right-click a link.
 
 Each browser insists on a file named exactly `manifest.json`, so the app writes

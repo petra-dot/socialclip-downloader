@@ -8,6 +8,7 @@ the user to copy anything. The id below must match that key; a test pins it.
 import base64
 import filecmp
 import hashlib
+import json
 import os
 import shutil
 import sys
@@ -73,23 +74,65 @@ def copy_tree(source: str, dest: str, skip=()) -> str:
     return dest
 
 
+def build_package(dest: str, variant: str = "chromium") -> str:
+    """Write a loadable folder for one browser into an arbitrary path.
+
+    The manifest carries the app version: AMO refuses a repeated add-on
+    version, so every release must ship a new one.
+    """
+    from core.version import __version__
+
+    source = source_dir()
+    copy_tree(source, dest, skip=MANIFESTS)
+    manifest = "manifest.json" if variant == "chromium" else "manifest.firefox.json"
+    with open(os.path.join(source, manifest), "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    data["version"] = __version__
+    with open(os.path.join(dest, "manifest.json"), "w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2)
+        handle.write("\n")
+    return dest
+
+
 def ensure_installed() -> dict:
     """Put a loadable copy of the extension in the data folder.
 
     Returns ``{"chromium": path, "firefox": path}``. Chrome, Edge and Brave
     load the first; Firefox loads the second.
     """
-    source = source_dir()
-    chromium = installed_dir("chromium")
-    firefox = installed_dir("firefox")
-    for dest in (chromium, firefox):
-        copy_tree(source, dest, skip=MANIFESTS)
-    shutil.copy2(
-        os.path.join(source, "manifest.json"),
-        os.path.join(chromium, "manifest.json"),
+    return {
+        "chromium": build_package(installed_dir("chromium"), "chromium"),
+        "firefox": build_package(installed_dir("firefox"), "firefox"),
+    }
+
+
+FIREFOX_XPI_NAME = "socialclip-firefox.xpi"
+
+
+def firefox_xpi_url(version: str) -> str:
+    """The signed add-on attached to this version's GitHub release."""
+    from core.updater import GITHUB_OWNER, REPO
+
+    return "https://github.com/%s/%s/releases/download/v%s/%s" % (
+        GITHUB_OWNER,
+        REPO,
+        version,
+        FIREFOX_XPI_NAME,
     )
-    shutil.copy2(
-        os.path.join(source, "manifest.firefox.json"),
-        os.path.join(firefox, "manifest.json"),
-    )
-    return {"chromium": chromium, "firefox": firefox}
+
+
+def fetch_firefox_xpi(version: str, dest_dir: str = None, opener=None) -> str:
+    """Download the signed add-on. A signed XPI is a ZIP, so it must start PK."""
+    import urllib.request
+
+    target_dir = dest_dir or installed_dir("firefox")
+    os.makedirs(target_dir, exist_ok=True)
+    path = os.path.join(target_dir, FIREFOX_XPI_NAME)
+    open_url = opener or (lambda url: urllib.request.urlopen(url, timeout=20))
+    with open_url(firefox_xpi_url(version)) as response:
+        data = response.read()
+    if not data.startswith(b"PK"):
+        raise ValueError("the release asset is not an add-on file")
+    with open(path, "wb") as handle:
+        handle.write(data)
+    return path

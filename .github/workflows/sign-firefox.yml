@@ -1,0 +1,70 @@
+name: Sign Firefox add-on
+
+# AMO signs the extension once per version. The signed .xpi is attached to the
+# release and the app downloads it for the "Install for Firefox" button.
+# Unlisted signing is free; it does not create a public store listing.
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check credentials
+        id: creds
+        env:
+          ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+        run: |
+          if [ -n "$ISSUER" ]; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=" >> "$GITHUB_OUTPUT"
+            echo "::warning::AMO_JWT_ISSUER is not set; skipping signing."
+          fi
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then TAG=$(git describe --tags --abbrev=0); fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build the Firefox package
+        if: steps.creds.outputs.ok == '1'
+        run: |
+          python -c "from core.extension import build_package; build_package('build/firefox', 'firefox')"
+
+      - name: Sign (unlisted)
+        if: steps.creds.outputs.ok == '1'
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          npx --yes web-ext sign \
+            --source-dir build/firefox \
+            --artifacts-dir build/artifacts \
+            --channel unlisted \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+
+      - name: Attach the signed add-on to the release
+        if: steps.creds.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          XPI=$(ls build/artifacts/*.xpi | head -n 1)
+          cp "$XPI" socialclip-firefox.xpi
+          gh release upload "${{ steps.tag.outputs.tag }}" socialclip-firefox.xpi --clobber

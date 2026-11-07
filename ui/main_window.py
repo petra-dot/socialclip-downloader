@@ -315,7 +315,7 @@ class MainWindow(QtWidgets.QWidget):
     def install_extension_host(self):
         """Copy the extension out and register the native host for it."""
         from core.extension import CHROMIUM_EXTENSION_ID, ensure_installed
-        from core.native_install import FIREFOX_ADDON_ID, install
+        from core.native_install import install
         from utils.ui_helpers import reveal_in_folder
 
         try:
@@ -330,9 +330,9 @@ class MainWindow(QtWidgets.QWidget):
                 if written else
                 "Register the manifest with your browser by hand on this platform.")
         reveal_in_folder(folders["chromium"])
-        QtWidgets.QMessageBox.information(
-            self,
-            "Browser extension",
+        box = QtWidgets.QMessageBox(self)
+        box.setWindowTitle("Browser extension")
+        box.setText(
             "Chrome, Edge and Brave\n"
             "  1. Open chrome://extensions, edge://extensions or brave://extensions\n"
             "  2. Turn on Developer mode\n"
@@ -340,16 +340,49 @@ class MainWindow(QtWidgets.QWidget):
             "     %s\n"
             "  4. Restart the browser\n\n"
             "Firefox\n"
-            "  about:debugging > This Firefox > Load Temporary Add-on, then pick:\n"
+            "  Press Install for Firefox below. It downloads the signed add-on\n"
+            "  for this version and hands it to Firefox, which asks you to add it.\n"
+            "  That install is permanent.\n\n"
+            "  Or load it temporarily: about:debugging > This Firefox >\n"
+            "  Load Temporary Add-on, then pick:\n"
             "     %s\n"
-            "  Firefox forgets it when it restarts. A permanent install needs a\n"
-            "  signed add-on (id %s).\n\n%s" % (
-                folders["chromium"],
-                os.path.join(folders["firefox"], "manifest.json"),
-                FIREFOX_ADDON_ID,
-                tail,
-            ),
+            "  (a temporary add-on is lost when Firefox restarts)"
+            % (folders["chromium"], os.path.join(folders["firefox"], "manifest.json"))
         )
+        box.setInformativeText(tail)
+        firefox_button = box.addButton(
+            "Install for Firefox", QtWidgets.QMessageBox.ActionRole
+        )
+        box.addButton(QtWidgets.QMessageBox.Close)
+        box.exec_()
+        if box.clickedButton() is firefox_button:
+            self.install_firefox_addon()
+
+    def install_firefox_addon(self):
+        """Download the signed add-on for this version and hand it to Firefox."""
+        from core.extension import fetch_firefox_xpi
+        from core.version import __version__
+        from utils.ui_helpers import open_file
+
+        try:
+            path = fetch_firefox_xpi(__version__)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Firefox add-on",
+                "Could not fetch the signed add-on for %s.\n\n%s\n\n"
+                "Every release attaches it, so check your connection and try "
+                "the Release page." % (__version__, exc),
+            )
+            return
+        if open_file(path):
+            QtWidgets.QMessageBox.information(
+                self, "Firefox add-on", "Firefox should now ask to add SocialClip."
+            )
+        else:
+            QtWidgets.QMessageBox.information(
+                self, "Firefox add-on", "Saved to:\n%s\n\nOpen it in Firefox." % path
+            )
 
     def _warn_if_ytdlp_stale(self):
         """Say once, in the activity log, when yt-dlp has gone stale.
